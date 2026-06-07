@@ -230,28 +230,43 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
 
 <!-- DRAFT MANAGER MODAL -->
 <div class="modal-overlay" id="draftManagerModal">
-  <div class="modal" style="max-width:480px;width:95%">
+  <div class="modal" style="max-width:500px;width:96%">
     <h3 style="margin-bottom:4px">📋 Draft Manager</h3>
-    <p style="font-family:'Barlow Condensed',sans-serif;font-size:.82rem;color:var(--muted);margin-bottom:16px">Switch between drafts or create a new one</p>
+    <p style="font-family:'Barlow Condensed',sans-serif;font-size:.82rem;color:var(--muted);margin-bottom:16px" id="draftManagerSub">Create a new draft or find one you're already in</p>
 
-    <!-- Create new draft -->
-    <div style="background:var(--dark3);border:1px solid var(--border);border-radius:6px;padding:14px;margin-bottom:16px">
-      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">➕ Create New Draft</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <!-- ── Create New Draft ── -->
+    <div style="background:var(--dark3);border:1px solid var(--border);border-radius:6px;padding:14px;margin-bottom:12px">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:10px">➕ Create New Draft</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
         <input type="text" id="newDraftSlug" class="fi" placeholder="URL name (e.g. work2026)"
-          style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:8px 10px;font-family:'Barlow Condensed',sans-serif;font-size:.9rem"
+          style="flex:1;min-width:130px;background:var(--card);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:8px 10px;font-family:'Barlow Condensed',sans-serif;font-size:.9rem"
           oninput="this.value=this.value.replace(/[^a-zA-Z0-9_-]/g,'').toLowerCase()"/>
         <input type="text" id="newDraftDisplay" class="fi" placeholder="Display name (optional)"
-          style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:8px 10px;font-family:'Barlow Condensed',sans-serif;font-size:.9rem"/>
+          style="flex:1;min-width:130px;background:var(--card);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:8px 10px;font-family:'Barlow Condensed',sans-serif;font-size:.9rem"/>
         <button class="btn btn-gold" onclick="createNewDraft()" style="padding:8px 14px;font-size:.85rem">Create →</button>
       </div>
-      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;color:var(--muted);margin-top:6px">Creates a fresh draft at worldcupdraft.xyz/?draft=<span id="newDraftSlugPreview" style="color:var(--gold)">name</span></div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;color:var(--muted)">worldcupdraft.xyz/?draft=<span id="newDraftSlugPreview" style="color:var(--gold)">name</span></div>
     </div>
 
-    <!-- Existing drafts list -->
-    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Your Drafts</div>
-    <div id="draftManagerList" style="max-height:280px;overflow-y:auto">
-      <div style="text-align:center;padding:20px;font-family:'Barlow Condensed',sans-serif;color:var(--muted)">Loading...</div>
+    <!-- ── Find Existing Draft ── -->
+    <div style="background:var(--dark3);border:1px solid var(--border);border-radius:6px;padding:14px;margin-bottom:12px">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">🔍 Already in a Draft?</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.8rem;color:var(--muted);margin-bottom:8px">Search by draft name or paste your full URL</div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="draftSearchInput" class="fi" placeholder="e.g. tsworldcup or full URL"
+          style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:8px 10px;font-family:'Barlow Condensed',sans-serif;font-size:.9rem"
+          onkeydown="if(event.key==='Enter') findDraft()"/>
+        <button class="btn btn-gold" onclick="findDraft()" style="padding:8px 14px;font-size:.85rem">Find →</button>
+      </div>
+      <div id="draftSearchResult" style="margin-top:10px;min-height:20px"></div>
+    </div>
+
+    <!-- ── Admin: Full List (only shown on ?scores or PIN unlocked) ── -->
+    <div id="draftManagerAdminSection" style="display:none">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">🔐 All Drafts</div>
+      <div id="draftManagerList" style="max-height:240px;overflow-y:auto">
+        <div style="text-align:center;padding:20px;font-family:'Barlow Condensed',sans-serif;color:var(--muted)">Loading...</div>
+      </div>
     </div>
 
     <div style="margin-top:14px;text-align:right">
@@ -261,7 +276,7 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
 </div>
 
 <nav class="tabs">
-  <button class="tab-btn active" id="homeTabBtn" onclick="switchTab('setup')">⚙ Setup</button>
+  <button class="tab-btn active" id="homeTabBtn" onclick="switchTab(phase===4||(Object.values(draftResults).some(t=>t.length>0))?'dashboard':'setup')">⚙ Setup</button>
   <button class="tab-btn" onclick="switchTab('wheel')">🎡 Wheel</button>
   <button class="tab-btn" onclick="switchTab('tracker')">📊 Leaderboard</button>
   <button class="tab-btn" onclick="switchTab('scores')">⚽ Scores</button>
@@ -274,7 +289,7 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
 
 <!-- ══ SETUP ══════════════════════════════════════════════════════════════ -->
 <div class="panel active" id="panel-setup">
-  <div class="section-title">Draft Setup</div>
+  <div class="section-title" id="setupPanelTitle">Draft Setup</div>
   <div class="section-sub" id="setupSub">Name your tournament, enter players, then start the draft</div>
 
   <!-- ── TOURNAMENT NAME ── -->
@@ -2199,6 +2214,7 @@ function finalizeDraft(){
   document.getElementById('wheelSubtitle').textContent=`All 48 teams assigned · ${numPlayers} players · ${teamsPerPlayer} teams each`;
   updateHeaderSub();
   updateMobileNav();
+  updateHomeTab();
   populateMatchFormTeams();populateFilterPlayers();
   buildDraftQueue();buildTracker();buildTeamsGrid();
   saveDraft();showToast('🎉 Draft complete! Check the Calendar and Bracket!');
@@ -2352,7 +2368,16 @@ async function openDraftManager(){
   document.getElementById('newDraftSlug').value='';
   document.getElementById('newDraftDisplay').value='';
   document.getElementById('newDraftSlugPreview').textContent='name';
-  await _loadDraftManagerList();
+  document.getElementById('draftSearchInput').value='';
+  document.getElementById('draftSearchResult').innerHTML='';
+  // Show admin section only for admins
+  const adminSection=document.getElementById('draftManagerAdminSection');
+  if(_pinUnlocked||isAdminUrl()){
+    adminSection.style.display='block';
+    await _loadDraftManagerList();
+  } else {
+    adminSection.style.display='none';
+  }
 }
 function closeDraftManager(){
   document.getElementById('draftManagerModal').classList.remove('show');
@@ -2360,18 +2385,67 @@ function closeDraftManager(){
 document.getElementById('draftManagerModal').addEventListener('click',function(e){
   if(e.target===this) closeDraftManager();
 });
-// Live preview of URL slug as user types
 document.getElementById('newDraftSlug').addEventListener('input',function(){
-  const v=this.value||'name';
-  document.getElementById('newDraftSlugPreview').textContent=v;
+  document.getElementById('newDraftSlugPreview').textContent=this.value||'name';
 });
+
+// Find a specific draft by name or URL — non-admin path
+async function findDraft(){
+  const raw=document.getElementById('draftSearchInput').value.trim();
+  const result=document.getElementById('draftSearchResult');
+  if(!raw){result.innerHTML='<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:.8rem;color:var(--red)">Enter a draft name or URL.</div>';return;}
+  // Extract slug from URL or use raw as slug
+  let slug=raw;
+  try{
+    const url=new URL(raw.includes('://')?raw:'https://x.com/'+raw);
+    const p=new URLSearchParams(url.search).get('draft');
+    if(p) slug=p;
+  }catch(e){}
+  // Clean slug
+  slug=slug.replace(/[^a-zA-Z0-9_-]/g,'').toLowerCase();
+  if(!slug){result.innerHTML='<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:.8rem;color:var(--red)">Could not extract a valid draft name.</div>';return;}
+
+  result.innerHTML='<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:.8rem;color:var(--muted)">Searching...</div>';
+
+  // Fetch just this one row from Supabase
+  let found=null;
+  try{
+    const res=await fetch(`${SUPA_URL}/rest/v1/drafts?id=eq.${encodeURIComponent(slug)}&select=id,data,updated_at`,{
+      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY},
+    });
+    if(res.ok){const rows=await res.json();if(rows&&rows.length>0) found=rows[0];}
+  }catch(e){}
+
+  if(!found){
+    result.innerHTML=`<div style="font-family:'Barlow Condensed',sans-serif;font-size:.8rem;color:var(--red)">No draft found with name "<b>${slug}</b>". Check the name and try again.</div>`;
+    return;
+  }
+
+  const d=found.data||{};
+  const displayName=d.tournamentDisplayName||slug;
+  const pCount=d.players?.length||0;
+  const ph=d.phase||0;
+  const stateLabel=ph===4?'✅ Draft complete':ph>0?'⏳ Drafting':'⚙ Setup';
+  const isCurrent=slug===getDraftKey();
+  const url=`${window.location.pathname}?draft=${encodeURIComponent(slug)}`;
+
+  result.innerHTML=`<div style="background:rgba(245,200,66,.08);border:1px solid var(--gold);border-radius:6px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.95rem;color:var(--gold)">${displayName}${displayName!==slug?` <span style="opacity:.5;font-size:.75rem">(${slug})</span>`:''}</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;color:var(--muted)">${pCount>0?`${pCount} players · `:''}${stateLabel}</div>
+    </div>
+    ${isCurrent
+      ?`<span style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;color:var(--gold);padding:4px 10px;border:1px solid var(--gold);border-radius:4px">Current</span>`
+      :`<a href="${url}" class="btn btn-gold" style="text-decoration:none;padding:5px 14px;font-size:.8rem">Load →</a>`
+    }
+  </div>`;
+}
 
 async function _loadDraftManagerList(){
   const list=document.getElementById('draftManagerList');
+  if(!list) return;
   list.innerHTML='<div style="text-align:center;padding:20px;font-family:\'Barlow Condensed\',sans-serif;color:var(--muted)">Loading...</div>';
   const currentKey=getDraftKey();
-
-  // Fetch all rows from Supabase drafts table
   let rows=[];
   try{
     const res=await fetch(`${SUPA_URL}/rest/v1/drafts?select=id,data,updated_at&order=updated_at.desc`,{
@@ -2379,12 +2453,10 @@ async function _loadDraftManagerList(){
     });
     if(res.ok) rows=await res.json();
   }catch(e){console.warn('Draft manager fetch error:',e.message);}
-
   if(!rows.length){
     list.innerHTML='<div style="text-align:center;padding:20px;font-family:\'Barlow Condensed\',sans-serif;color:var(--muted)">No saved drafts found.</div>';
     return;
   }
-
   list.innerHTML=rows.map(row=>{
     const id=row.id;
     const d=row.data||{};
@@ -2396,17 +2468,12 @@ async function _loadDraftManagerList(){
     const updated=row.updated_at?new Date(row.updated_at).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
     const param=id==='default'?'':`?draft=${encodeURIComponent(id)}`;
     const url=`${window.location.pathname}${param}`;
-    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:${isCurrent?'rgba(245,200,66,.08)':'var(--dark3)'};border:1px solid ${isCurrent?'var(--gold)':'var(--border)'};border-radius:6px;margin-bottom:8px">
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:${isCurrent?'rgba(245,200,66,.08)':'var(--dark3)'};border:1px solid ${isCurrent?'var(--gold)':'var(--border)'};border-radius:6px;margin-bottom:6px">
       <div style="flex:1;min-width:0">
-        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.95rem;color:${isCurrent?'var(--gold)':'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-          ${isCurrent?'▶ ':''}${displayName}${displayName!==id?` <span style="opacity:.5;font-size:.75rem">(${id})</span>`:''}
-        </div>
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;color:var(--muted)">${pCount>0?`${pCount} players · `:''}${stateLabel} · ${updated}</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.9rem;color:${isCurrent?'var(--gold)':'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${isCurrent?'▶ ':''}${displayName}${displayName!==id?` <span style="opacity:.5;font-size:.72rem">(${id})</span>`:''}</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--muted)">${pCount>0?`${pCount} players · `:''}${stateLabel} · ${updated}</div>
       </div>
-      ${isCurrent
-        ?`<span style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;color:var(--gold);padding:4px 10px;border:1px solid var(--gold);border-radius:4px">Current</span>`
-        :`<a href="${url}" class="btn btn-gold" style="text-decoration:none;padding:5px 14px;font-size:.8rem;white-space:nowrap">Load →</a>`
-      }
+      ${isCurrent?`<span style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--gold);padding:3px 8px;border:1px solid var(--gold);border-radius:4px">Current</span>`:`<a href="${url}" class="btn btn-gold" style="text-decoration:none;padding:4px 12px;font-size:.78rem;white-space:nowrap">Load →</a>`}
     </div>`;
   }).join('');
 }
@@ -2420,9 +2487,7 @@ function createNewDraft(){
     showToast('⚠ Enter a URL name first');
     return;
   }
-  // Save display name to localStorage
   if(display) try{localStorage.setItem('wc2026_displayname_'+slug,display);}catch(e){}
-  // Navigate to the new draft URL — it will be empty/fresh
   closeDraftManager();
   window.location.href=`${window.location.pathname}?draft=${encodeURIComponent(slug)}`;
 }
@@ -2433,7 +2498,6 @@ function switchDraft(name){
   window.location.href=window.location.pathname+param;
 }
 
-// Keep buildDraftSwitcher as a no-op since we replaced it with the modal
 function buildDraftSwitcher(){}
 
 function updateHeaderSub(){
@@ -2766,7 +2830,8 @@ async function loadSaved(){
       buildDraftQueue();buildTracker();buildTeamsGrid();renderMatchLog();
       showToast('🔄 Draft loaded!');
     }
-    updateHeaderSub(); // refresh header with display name
+    updateHeaderSub();
+    updateHomeTab();
   }catch(e){console.error('Failed to apply saved data:',e);}
 }
 
@@ -3223,7 +3288,8 @@ function buildDashboard(){
   const label=tournamentDisplayName||new URLSearchParams(window.location.search).get('draft')||'World Cup 2026';
   const sub=document.getElementById('dashSubtitle');
   if(sub) sub.textContent=player?`Viewing: ${player}`:`${label} · ${players.length} players`;
-  if(phase!==4){
+  const draftDone=phase===4||Object.values(draftResults).some(t=>t.length>0);
+  if(!draftDone){
     content.innerHTML=`<div class="info-box" style="text-align:center;padding:24px"><div style="font-size:2rem;margin-bottom:8px">🎡</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;color:var(--text);margin-bottom:6px">Draft not started yet</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;color:var(--muted)">Complete the draft to see picks and standings here.</div><button class="btn btn-gold" onclick="switchTab('setup')" style="margin-top:14px">Go to Setup →</button></div>`;
     return;
   }
@@ -3340,6 +3406,16 @@ function switchTab(id){
   // Scroll to top
   window.scrollTo(0,0);
 }
+function updateHomeTab(){
+  const btn=document.getElementById('homeTabBtn');
+  const title=document.getElementById('setupPanelTitle');
+  const sub=document.getElementById('setupSub');
+  const hasDraft=phase===4||Object.values(draftResults).some(t=>t.length>0);
+  if(btn) btn.textContent=hasDraft?'🏠 Home':'⚙ Setup';
+  if(title) title.textContent=hasDraft?'Home':'Draft Setup';
+  if(sub&&hasDraft) sub.textContent='Manage your tournament, update settings, or reset below';
+}
+
 function updateMobileNav(){
   const postDraft=phase===4;
   const pre=document.getElementById('mobNavPreDraft');
@@ -3374,8 +3450,10 @@ window.onload=async()=>{
   if(tiers.length) drawWheel(shuffle([...tiers[0].teams]),TIER_COLORS[0],0);
   // Load from Supabase
   await loadSaved();
-  // If draft is complete, switch to dashboard as home
-  if(phase===4){
+  // Update home tab label and switch to correct starting tab
+  updateHomeTab();
+  const hasDraft=phase===4||Object.values(draftResults).some(t=>t.length>0);
+  if(hasDraft){
     updateMobileNav();
     switchTab('dashboard');
   }
