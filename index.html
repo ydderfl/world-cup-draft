@@ -243,17 +243,32 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
   <div class="section-sub" id="setupSub">Name your tournament, enter players, then start the draft</div>
 
   <!-- ── TOURNAMENT NAME ── -->
-  <div class="setup-card" style="margin-bottom:20px;padding:16px 20px">
-    <label style="display:block;font-family:'Barlow Condensed',sans-serif;font-size:.75rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Tournament Name</label>
+  <div class="setup-card" style="margin-bottom:20px;padding:16px 20px" id="tournamentNameCard">
+    <label style="display:block;font-family:'Barlow Condensed',sans-serif;font-size:.75rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">
+      Tournament Name <span style="color:var(--red)">*</span> <span style="color:var(--muted);font-size:.65rem;letter-spacing:1px;text-transform:none">required before drafting</span>
+    </label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div>
+        <label style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">URL Name (no spaces) <span style="color:var(--red)">*</span></label>
+        <input type="text" id="tournamentNameInput" class="fi" placeholder="e.g. friends2026, family…"
+          style="width:100%;background:var(--dark3);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:9px 12px;font-family:'Barlow Condensed',sans-serif;font-size:1rem;outline:none;transition:border-color .2s;box-sizing:border-box"
+          oninput="onTournamentNameInput(this.value)"/>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;color:var(--muted);margin-top:3px">Used in the shareable URL · letters, numbers, hyphens only</div>
+      </div>
+      <div>
+        <label style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">Display Name (optional)</label>
+        <input type="text" id="displayNameInput" class="fi" placeholder="e.g. T's World Cup 2026"
+          style="width:100%;background:var(--dark3);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:9px 12px;font-family:'Barlow Condensed',sans-serif;font-size:1rem;outline:none;transition:border-color .2s;box-sizing:border-box"
+          oninput="tournamentDisplayName=this.value.trim()"/>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;color:var(--muted);margin-top:3px">Shown in the header · can include spaces &amp; special chars</div>
+      </div>
+    </div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <input type="text" id="tournamentNameInput" class="player-row" placeholder="e.g. friends2026, family, work…"
-        style="flex:1;min-width:200px;max-width:360px;background:var(--dark3);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:9px 12px;font-family:'Barlow Condensed',sans-serif;font-size:1rem;outline:none;transition:border-color .2s;"
-        oninput="onTournamentNameInput(this.value)"/>
       <button class="btn btn-gold" onclick="applyTournamentName()" id="applyNameBtn">Set Name →</button>
       <button class="btn btn-dark" onclick="copyShareLink()" id="shareLinkBtn" style="display:none">🔗 Copy Share Link</button>
     </div>
     <div id="tournamentNameStatus" style="margin-top:8px;font-family:'Barlow Condensed',sans-serif;font-size:.8rem;color:var(--muted)">
-      No name set — using default save slot. Set a name to create a shareable URL.
+      ⚠ Set a tournament name before starting the draft.
     </div>
     <!-- Saved drafts list -->
     <div id="savedDraftsList" style="margin-top:14px"></div>
@@ -454,9 +469,10 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
       <option>A</option><option>B</option><option>C</option><option>D</option><option>E</option><option>F</option>
       <option>G</option><option>H</option><option>I</option><option>J</option><option>K</option><option>L</option>
     </select>
-    <label style="display:flex;align-items:center;gap:6px;font-family:'Barlow Condensed',sans-serif;font-size:.85rem;color:var(--muted);cursor:pointer">
-      <input type="checkbox" id="calMyOnly" onchange="renderCalendar()" style="accent-color:var(--gold)"/> My teams only
-    </label>
+    <select id="calPlayer" class="fi" onchange="renderCalendar()" style="min-width:160px">
+      <option value="">👥 All Players</option>
+    </select>
+    <button class="btn btn-dark" onclick="document.getElementById('calPlayer').value='';document.getElementById('calStage').value='';document.getElementById('calGroup').value='';renderCalendar()" style="padding:6px 12px;font-size:.8rem">Clear</button>
   </div>
   <div id="calendarBody"></div>
 </div>
@@ -979,6 +995,7 @@ let modalContext=null;
 let numPlayers=16;
 let teamsPerPlayer=3;
 let spinRAF=null;
+let tournamentDisplayName=''; // human-readable name shown in UI
 
 // ═══════════════════════════════════════════════════════════════════
 // RNG
@@ -1094,6 +1111,8 @@ const TIER_DOT_CLASSES=['dot-a','dot-b','dot-c','dot-d','dot-e','dot-f','dot-g',
 // START DRAFT
 // ═══════════════════════════════════════════════════════════════════
 function startDraft(){
+  // Require tournament name before drafting
+  if(!_requireTournamentName()) return;
   players=[];
   for(let i=0;i<numPlayers;i++){const v=document.getElementById(`pInput${i}`)?.value.trim();players.push(v||`Player ${i+1}`);}
   if(new Set(players).size<numPlayers){showToast('⚠ Duplicate names!');return;}
@@ -1935,6 +1954,8 @@ function _initDraftState(){
 
 // Auto draft: instantly assign all picks with no animation
 function autoDraft(){
+  // Require tournament name before drafting
+  if(!_requireTournamentName()) return;
   players=[];
   for(let i=0;i<numPlayers;i++){const v=document.getElementById(`pInput${i}`)?.value.trim();players.push(v||`Player ${i+1}`);}
   if(new Set(players).size<numPlayers){showToast('⚠ Duplicate names!');return;}
@@ -2060,23 +2081,68 @@ function buildDraftQueue(){
 // ═══════════════════════════════════════════════════════════════════
 
 function onTournamentNameInput(val){
-  // Enable/disable the Set Name button
   const clean=val.trim().replace(/[^a-zA-Z0-9_-]/g,'');
   document.getElementById('applyNameBtn').disabled=clean.length===0;
+}
+
+// Returns true if a named tournament is set, false + highlights field if not
+function _requireTournamentName(){
+  const param=new URLSearchParams(window.location.search).get('draft');
+  if(param) return true; // already on a named URL — good
+  // Not on a named URL — stop and highlight the name field
+  const card=document.getElementById('tournamentNameCard');
+  const input=document.getElementById('tournamentNameInput');
+  const status=document.getElementById('tournamentNameStatus');
+  // Flash the card border red
+  if(card){card.style.border='2px solid var(--red)';setTimeout(()=>{card.style.border='';},2500);}
+  if(input){input.style.borderColor='var(--red)';input.focus();setTimeout(()=>{input.style.borderColor='';},2500);}
+  if(status){status.textContent='⚠ You must set a tournament name before starting the draft.';status.style.color='var(--red)';setTimeout(()=>{status.style.color='var(--muted)';},3000);}
+  showToast('⚠ Set a tournament name first!');
+  // Scroll to top of setup panel
+  document.getElementById('panel-setup').scrollTop=0;
+  return false;
 }
 
 function applyTournamentName(){
   const raw=document.getElementById('tournamentNameInput').value.trim();
   const clean=raw.replace(/[^a-zA-Z0-9_-]/g,'');
   if(!clean){showToast('⚠ Enter a valid name (letters, numbers, hyphens only)');return;}
-  // Navigate to the new URL — this triggers a page reload which saves under the new key
-  // But first save current state under the new key so nothing is lost
-  const newKey=`wc2026_${clean}`;
-  try{
-    localStorage.setItem(newKey,JSON.stringify({players,numPlayers,teamsPerPlayer,draftResults,phase,phaseIdx,currentTier,matchLog,knockoutResults,qualifierOverrides,_tierOrders:window._tierOrders,_tierRemaining:window._tierRemaining}));
-  }catch(e){}
+  // Grab display name
+  const display=document.getElementById('displayNameInput')?.value.trim()||'';
+  tournamentDisplayName=display;
+  // Save display name to localStorage temporarily so it survives the redirect
+  try{localStorage.setItem('wc2026_displayname_'+clean,display);}catch(e){}
+  // Save current state under new key before navigating
+  const p=_buildDraftPayload();
+  try{localStorage.setItem('wc2026_draft_'+clean,JSON.stringify(p));}catch(e){}
   const newUrl=`${window.location.pathname}?draft=${encodeURIComponent(clean)}`;
   window.location.href=newUrl;
+}
+
+function initTournamentNameUI(){
+  const param=new URLSearchParams(window.location.search).get('draft');
+  const input=document.getElementById('tournamentNameInput');
+  const dispInput=document.getElementById('displayNameInput');
+  const status=document.getElementById('tournamentNameStatus');
+  const shareBtn=document.getElementById('shareLinkBtn');
+  const applyBtn=document.getElementById('applyNameBtn');
+  if(param){
+    if(input) input.value=param;
+    // Restore display name from localStorage
+    try{
+      const saved=localStorage.getItem('wc2026_displayname_'+param)||'';
+      if(saved){tournamentDisplayName=saved;if(dispInput) dispInput.value=saved;}
+    }catch(e){}
+    const label=tournamentDisplayName||param;
+    if(status){status.textContent=`✅ Active: "${label}" · Share the URL with your group.`;status.style.color='#2ecc71';}
+    if(shareBtn) shareBtn.style.display='inline-block';
+    if(applyBtn) applyBtn.textContent='Rename →';
+  } else {
+    if(status){status.textContent='⚠ Set a tournament name before starting the draft.';status.style.color='var(--muted)';}
+    if(shareBtn) shareBtn.style.display='none';
+  }
+  if(applyBtn) applyBtn.disabled=false;
+  buildSavedDraftsList();
 }
 
 function copyShareLink(){
@@ -2122,7 +2188,9 @@ function updateHeaderSub(){
   if(!el) return;
   const tiers=48/numPlayers;
   const draftParam=new URLSearchParams(window.location.search).get('draft');
-  const draftLabel=draftParam?` · ${draftParam}`:'';
+  // Use display name if set, otherwise fall back to URL param
+  const label=tournamentDisplayName||draftParam||'';
+  const draftLabel=label?` · ${label}`:'';
   el.textContent=`48 Teams · ${numPlayers} Players · ${tiers} Tier${tiers!==1?'s':''}${draftLabel} · USA / Canada / Mexico`;
 }
 
@@ -2372,7 +2440,7 @@ async function _supaDelete(table,id){
 // ── Payloads ─────────────────────────────────────────────────────────
 function _buildDraftPayload(){
   return {players,numPlayers,teamsPerPlayer,draftResults,phase,phaseIdx,
-    currentTier,_tierOrders:window._tierOrders,_tierRemaining:window._tierRemaining};
+    currentTier,tournamentDisplayName,_tierOrders:window._tierOrders,_tierRemaining:window._tierRemaining};
 }
 function _buildScoresPayload(){
   return {matchLog,knockoutResults,qualifierOverrides};
@@ -2413,6 +2481,7 @@ async function loadSaved(){
     teamsPerPlayer=draft.teamsPerPlayer||(48/numPlayers);
     draftResults=draft.draftResults||{};phase=draft.phase||0;phaseIdx=draft.phaseIdx||0;
     currentTier=draft.currentTier||0;
+    tournamentDisplayName=draft.tournamentDisplayName||'';
     if(draft._tierOrders) window._tierOrders=draft._tierOrders;
     if(draft._tierRemaining) window._tierRemaining=draft._tierRemaining;
     draftOrderA=window._tierOrders?.[0]||[];
@@ -2445,6 +2514,7 @@ async function loadSaved(){
       buildDraftQueue();buildTracker();buildTeamsGrid();renderMatchLog();
       showToast('🔄 Draft loaded!');
     }
+    updateHeaderSub(); // refresh header with display name
   }catch(e){console.error('Failed to apply saved data:',e);}
 }
 
@@ -2566,7 +2636,7 @@ function deleteSavedDraft(key){
 // ═══════════════════════════════════════════════════════════════════
 
 // Change this to your own PIN before deploying
-const ADMIN_PIN = 'UGLY';
+const ADMIN_PIN = '112094';
 
 // Whether this session has been unlocked
 let _pinUnlocked = false;
