@@ -2830,8 +2830,10 @@ async function loadSaved(){
       buildDraftQueue();buildTracker();buildTeamsGrid();renderMatchLog();
       showToast('🔄 Draft loaded!');
     }
+    // Always update UI state after data is applied
     updateHeaderSub();
     updateHomeTab();
+    updateMobileNav();
   }catch(e){console.error('Failed to apply saved data:',e);}
 }
 
@@ -3383,7 +3385,9 @@ function getMatchContext(m){
 function switchTab(id){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById(`panel-${id}`)?.classList.add('active');
+  // For dashboard, show dashboard panel (not setup panel)
+  const panelId = id==='dashboard' ? 'panel-dashboard' : `panel-${id}`;
+  document.getElementById(panelId)?.classList.add('active');
   const idx={dashboard:0,setup:0,wheel:1,tracker:2,scores:3,calendar:4,knockout:5,sleeper:6,teams:7,demo:8}[id];
   document.querySelectorAll('.tab-btn')[idx]?.classList.add('active');
   // Mobile nav active state
