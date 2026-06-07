@@ -240,7 +240,24 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
 <!-- ══ SETUP ══════════════════════════════════════════════════════════════ -->
 <div class="panel active" id="panel-setup">
   <div class="section-title">Draft Setup</div>
-  <div class="section-sub" id="setupSub">Enter players — draft order is randomised automatically</div>
+  <div class="section-sub" id="setupSub">Name your tournament, enter players, then start the draft</div>
+
+  <!-- ── TOURNAMENT NAME ── -->
+  <div class="setup-card" style="margin-bottom:20px;padding:16px 20px">
+    <label style="display:block;font-family:'Barlow Condensed',sans-serif;font-size:.75rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Tournament Name</label>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <input type="text" id="tournamentNameInput" class="player-row" placeholder="e.g. friends2026, family, work…"
+        style="flex:1;min-width:200px;max-width:360px;background:var(--dark3);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:9px 12px;font-family:'Barlow Condensed',sans-serif;font-size:1rem;outline:none;transition:border-color .2s;"
+        oninput="onTournamentNameInput(this.value)"/>
+      <button class="btn btn-gold" onclick="applyTournamentName()" id="applyNameBtn">Set Name →</button>
+      <button class="btn btn-dark" onclick="copyShareLink()" id="shareLinkBtn" style="display:none">🔗 Copy Share Link</button>
+    </div>
+    <div id="tournamentNameStatus" style="margin-top:8px;font-family:'Barlow Condensed',sans-serif;font-size:.8rem;color:var(--muted)">
+      No name set — using default save slot. Set a name to create a shareable URL.
+    </div>
+    <!-- Saved drafts list -->
+    <div id="savedDraftsList" style="margin-top:14px"></div>
+  </div>
 
   <div class="info-box" id="setupInfoBox">
     <b>Dynamic Tiers.</b> Teams are split into equal tiers based on FIFA rank. Each player spins once per tier. Tiers and wheels update automatically when you change the player count. Draft order per tier is randomised via <b>cryptographic RNG</b>; the wheel animation lands on the pre-selected winner.
@@ -277,11 +294,6 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
     <button class="btn btn-green" onclick="autoDraft()">⚡ Auto Draft</button>
     <button class="btn btn-dark" onclick="clearScores()">🗑 Clear Scores</button>
     <button class="btn btn-dark" onclick="resetAll()">↺ Reset Everything</button>
-  </div>
-
-  <!-- Draft name info (shown when ?draft= param is set) -->
-  <div id="draftNameBox" style="display:none;margin-top:20px" class="info-box">
-    <b>Draft:</b> <span id="draftNameLabel"></span> · Share this exact URL with your group so everyone loads the same draft. Each unique <code>?draft=name</code> is a fully separate save.
   </div>
 </div>
 
@@ -430,7 +442,7 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
 <!-- ══ CALENDAR ══════════════════════════════════════════════════════════ -->
 <div class="panel" id="panel-calendar">
   <div class="section-title">Match Calendar</div>
-  <div class="section-sub">All 104 matches · click any match to log the result · drafted teams highlighted</div>
+  <div class="section-sub">All 104 matches · times in Pacific Time (PT) · click any match to log the result</div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center">
     <select id="calStage" class="fi" onchange="renderCalendar()" style="min-width:150px">
       <option value="">All Stages</option><option value="group">Group Stage</option>
@@ -782,119 +794,151 @@ const STAGE_LABEL={group:'Group Stage',r32:'Round of 32',r16:'Round of 16',qf:'Q
 
 // Full validated schedule — 72 group + 32 knockout = 104
 const SCHEDULE=[
-  {num:1,date:"2026-06-11",time:"15:00",home:"MEX",away:"RSA",group:"A",stage:"group",venue:"Mexico City"},
-  {num:2,date:"2026-06-12",time:"22:00",home:"KOR",away:"CZE",group:"A",stage:"group",venue:"Guadalajara"},
-  {num:3,date:"2026-06-12",time:"15:00",home:"CAN",away:"BIH",group:"B",stage:"group",venue:"Toronto"},
-  {num:4,date:"2026-06-12",time:"21:00",home:"USA",away:"PAR",group:"D",stage:"group",venue:"Los Angeles"},
-  {num:5,date:"2026-06-12",time:"21:00",home:"HAI",away:"SCO",group:"C",stage:"group",venue:"Boston"},
-  {num:6,date:"2026-06-13",time:"00:00",home:"AUS",away:"TUR",group:"D",stage:"group",venue:"Vancouver"},
-  {num:7,date:"2026-06-13",time:"18:00",home:"BRA",away:"MAR",group:"C",stage:"group",venue:"New York NJ"},
-  {num:8,date:"2026-06-13",time:"15:00",home:"QAT",away:"SUI",group:"B",stage:"group",venue:"San Francisco"},
-  {num:9,date:"2026-06-13",time:"19:00",home:"CIV",away:"ECU",group:"E",stage:"group",venue:"Philadelphia"},
-  {num:10,date:"2026-06-14",time:"13:00",home:"GER",away:"CUW",group:"E",stage:"group",venue:"Houston"},
-  {num:11,date:"2026-06-14",time:"16:00",home:"NED",away:"JPN",group:"F",stage:"group",venue:"Dallas"},
-  {num:12,date:"2026-06-14",time:"22:00",home:"SWE",away:"TUN",group:"F",stage:"group",venue:"Monterrey"},
-  {num:13,date:"2026-06-14",time:"18:00",home:"KSA",away:"URU",group:"H",stage:"group",venue:"Miami"},
-  {num:14,date:"2026-06-15",time:"12:00",home:"ESP",away:"CPV",group:"H",stage:"group",venue:"Atlanta"},
-  {num:15,date:"2026-06-15",time:"21:00",home:"IRN",away:"NZL",group:"G",stage:"group",venue:"Los Angeles"},
-  {num:16,date:"2026-06-15",time:"15:00",home:"BEL",away:"EGY",group:"G",stage:"group",venue:"Seattle"},
-  {num:17,date:"2026-06-15",time:"15:00",home:"FRA",away:"SEN",group:"I",stage:"group",venue:"New York NJ"},
-  {num:18,date:"2026-06-16",time:"18:00",home:"IRQ",away:"NOR",group:"I",stage:"group",venue:"Boston"},
-  {num:19,date:"2026-06-16",time:"21:00",home:"ARG",away:"ALG",group:"J",stage:"group",venue:"Kansas City"},
-  {num:20,date:"2026-06-16",time:"00:00",home:"AUT",away:"JOR",group:"J",stage:"group",venue:"San Francisco"},
-  {num:21,date:"2026-06-16",time:"19:00",home:"GHA",away:"PAN",group:"L",stage:"group",venue:"Toronto"},
-  {num:22,date:"2026-06-17",time:"16:00",home:"ENG",away:"CRO",group:"L",stage:"group",venue:"Dallas"},
-  {num:23,date:"2026-06-17",time:"13:00",home:"POR",away:"COD",group:"K",stage:"group",venue:"Houston"},
-  {num:24,date:"2026-06-17",time:"22:00",home:"UZB",away:"COL",group:"K",stage:"group",venue:"Mexico City"},
-  {num:25,date:"2026-06-17",time:"12:00",home:"CZE",away:"RSA",group:"A",stage:"group",venue:"Atlanta"},
-  {num:26,date:"2026-06-17",time:"15:00",home:"SUI",away:"BIH",group:"B",stage:"group",venue:"Seattle"},
-  {num:27,date:"2026-06-18",time:"18:00",home:"CAN",away:"QAT",group:"B",stage:"group",venue:"Vancouver"},
-  {num:28,date:"2026-06-18",time:"21:00",home:"MEX",away:"KOR",group:"A",stage:"group",venue:"Guadalajara"},
-  {num:29,date:"2026-06-19",time:"20:30",home:"BRA",away:"HAI",group:"C",stage:"group",venue:"Miami"},
-  {num:30,date:"2026-06-19",time:"18:00",home:"SCO",away:"MAR",group:"C",stage:"group",venue:"Boston"},
-  {num:31,date:"2026-06-19",time:"23:00",home:"TUR",away:"PAR",group:"D",stage:"group",venue:"San Francisco"},
-  {num:32,date:"2026-06-20",time:"15:00",home:"USA",away:"AUS",group:"D",stage:"group",venue:"Seattle"},
-  {num:33,date:"2026-06-20",time:"16:00",home:"GER",away:"CIV",group:"E",stage:"group",venue:"Toronto"},
-  {num:34,date:"2026-06-20",time:"20:00",home:"ECU",away:"CUW",group:"E",stage:"group",venue:"Kansas City"},
-  {num:35,date:"2026-06-21",time:"13:00",home:"NED",away:"SWE",group:"F",stage:"group",venue:"Houston"},
-  {num:36,date:"2026-06-21",time:"00:00",home:"TUN",away:"JPN",group:"F",stage:"group",venue:"Monterrey"},
-  {num:37,date:"2026-06-21",time:"18:00",home:"URU",away:"CPV",group:"H",stage:"group",venue:"Miami"},
-  {num:38,date:"2026-06-21",time:"12:00",home:"ESP",away:"KSA",group:"H",stage:"group",venue:"Atlanta"},
-  {num:39,date:"2026-06-21",time:"15:00",home:"BEL",away:"IRN",group:"G",stage:"group",venue:"Los Angeles"},
-  {num:40,date:"2026-06-21",time:"21:00",home:"NZL",away:"EGY",group:"G",stage:"group",venue:"Vancouver"},
-  {num:41,date:"2026-06-22",time:"20:00",home:"NOR",away:"SEN",group:"I",stage:"group",venue:"New York NJ"},
-  {num:42,date:"2026-06-22",time:"17:00",home:"FRA",away:"IRQ",group:"I",stage:"group",venue:"Philadelphia"},
-  {num:43,date:"2026-06-22",time:"13:00",home:"ARG",away:"AUT",group:"J",stage:"group",venue:"Dallas"},
-  {num:44,date:"2026-06-22",time:"23:00",home:"SUI",away:"CAN",group:"B",stage:"group",venue:"San Francisco"},
-  {num:45,date:"2026-06-22",time:"16:00",home:"ENG",away:"GHA",group:"L",stage:"group",venue:"Boston"},
-  {num:46,date:"2026-06-22",time:"19:00",home:"PAN",away:"CRO",group:"L",stage:"group",venue:"Toronto"},
-  {num:47,date:"2026-06-23",time:"13:00",home:"MAR",away:"HAI",group:"C",stage:"group",venue:"Atlanta"},
-  {num:48,date:"2026-06-22",time:"23:00",home:"JOR",away:"ALG",group:"J",stage:"group",venue:"San Francisco"},
-  {num:49,date:"2026-06-23",time:"18:00",home:"POR",away:"UZB",group:"K",stage:"group",venue:"Houston"},
-  {num:50,date:"2026-06-23",time:"18:00",home:"SCO",away:"BRA",group:"C",stage:"group",venue:"Miami"},
-  {num:51,date:"2026-06-24",time:"15:00",home:"RSA",away:"KOR",group:"A",stage:"group",venue:"Vancouver"},
-  {num:52,date:"2026-06-24",time:"15:00",home:"BIH",away:"QAT",group:"B",stage:"group",venue:"Seattle"},
-  {num:53,date:"2026-06-24",time:"21:00",home:"CZE",away:"MEX",group:"A",stage:"group",venue:"Mexico City"},
-  {num:54,date:"2026-06-23",time:"22:00",home:"COL",away:"COD",group:"K",stage:"group",venue:"Guadalajara"},
-  {num:55,date:"2026-06-25",time:"16:00",home:"CUW",away:"CIV",group:"E",stage:"group",venue:"Philadelphia"},
-  {num:56,date:"2026-06-25",time:"16:00",home:"ECU",away:"GER",group:"E",stage:"group",venue:"New York NJ"},
-  {num:57,date:"2026-06-25",time:"19:00",home:"JPN",away:"SWE",group:"F",stage:"group",venue:"Dallas"},
-  {num:58,date:"2026-06-25",time:"19:00",home:"PAR",away:"AUS",group:"D",stage:"group",venue:"Kansas City"},
-  {num:59,date:"2026-06-25",time:"22:00",home:"TUR",away:"USA",group:"D",stage:"group",venue:"Los Angeles"},
-  {num:60,date:"2026-06-25",time:"22:00",home:"TUN",away:"NED",group:"F",stage:"group",venue:"New York NJ"},
-  {num:61,date:"2026-06-26",time:"15:00",home:"SEN",away:"IRQ",group:"I",stage:"group",venue:"Toronto"},
-  {num:62,date:"2026-06-26",time:"23:00",home:"EGY",away:"IRN",group:"G",stage:"group",venue:"Los Angeles"},
-  {num:63,date:"2026-06-26",time:"23:00",home:"CPV",away:"KSA",group:"H",stage:"group",venue:"Atlanta"},
-  {num:64,date:"2026-06-26",time:"23:00",home:"NZL",away:"BEL",group:"G",stage:"group",venue:"Vancouver"},
-  {num:65,date:"2026-06-26",time:"20:00",home:"URU",away:"ESP",group:"H",stage:"group",venue:"Guadalajara"},
-  {num:66,date:"2026-06-26",time:"20:00",home:"NOR",away:"FRA",group:"I",stage:"group",venue:"New York NJ"},
-  {num:67,date:"2026-06-26",time:"15:00",home:"PAN",away:"ENG",group:"L",stage:"group",venue:"Boston"},
-  {num:68,date:"2026-06-27",time:"22:00",home:"JOR",away:"ARG",group:"J",stage:"group",venue:"Kansas City"},
-  {num:69,date:"2026-06-27",time:"22:00",home:"ALG",away:"AUT",group:"J",stage:"group",venue:"Dallas"},
-  {num:70,date:"2026-06-27",time:"19:30",home:"COL",away:"POR",group:"K",stage:"group",venue:"Miami"},
-  {num:71,date:"2026-06-27",time:"17:00",home:"CRO",away:"GHA",group:"L",stage:"group",venue:"New York NJ"},
-  {num:72,date:"2026-06-27",time:"19:30",home:"COD",away:"UZB",group:"K",stage:"group",venue:"Kansas City"},
-  // ROUND OF 32
-  {num:73,date:"2026-06-29",time:"15:00",home:"2A",away:"2B",stage:"r32",group:"",venue:"Houston"},
-  {num:74,date:"2026-06-29",time:"16:30",home:"1E",away:"3ABCDF",stage:"r32",group:"",venue:"Boston"},
-  {num:75,date:"2026-06-29",time:"21:00",home:"1F",away:"2C",stage:"r32",group:"",venue:"Houston"},
-  {num:76,date:"2026-06-30",time:"13:00",home:"1C",away:"2F",stage:"r32",group:"",venue:"New York NJ"},
-  {num:77,date:"2026-06-30",time:"17:00",home:"1I",away:"3CDFGH",stage:"r32",group:"",venue:"New York NJ"},
-  {num:78,date:"2026-06-30",time:"13:00",home:"2E",away:"2I",stage:"r32",group:"",venue:"New York NJ"},
-  {num:79,date:"2026-07-01",time:"21:00",home:"1A",away:"3CEFHI",stage:"r32",group:"",venue:"Mexico City"},
-  {num:80,date:"2026-07-01",time:"12:00",home:"1L",away:"3EHIJK",stage:"r32",group:"",venue:"Atlanta"},
-  {num:81,date:"2026-07-01",time:"20:00",home:"1D",away:"3BEFIJ",stage:"r32",group:"",venue:"Los Angeles"},
-  {num:82,date:"2026-07-01",time:"16:00",home:"1G",away:"3AEHIJ",stage:"r32",group:"",venue:"Seattle"},
-  {num:83,date:"2026-07-02",time:"19:00",home:"2K",away:"2L",stage:"r32",group:"",venue:"Toronto"},
-  {num:84,date:"2026-07-02",time:"15:00",home:"1H",away:"2J",stage:"r32",group:"",venue:"Miami"},
-  {num:85,date:"2026-07-02",time:"23:00",home:"1B",away:"3EFGIJ",stage:"r32",group:"",venue:"Vancouver"},
-  {num:86,date:"2026-07-03",time:"18:00",home:"1J",away:"2H",stage:"r32",group:"",venue:"Atlanta"},
-  {num:87,date:"2026-07-03",time:"21:30",home:"1K",away:"3DEIJL",stage:"r32",group:"",venue:"Kansas City"},
-  {num:88,date:"2026-07-03",time:"14:00",home:"2D",away:"2G",stage:"r32",group:"",venue:"Dallas"},
-  // ROUND OF 16
-  {num:89,date:"2026-07-05",time:"17:00",home:"W74",away:"W77",stage:"r16",group:"",venue:"Boston"},
-  {num:90,date:"2026-07-05",time:"13:00",home:"W73",away:"W75",stage:"r16",group:"",venue:"Houston"},
-  {num:91,date:"2026-07-06",time:"16:00",home:"W76",away:"W78",stage:"r16",group:"",venue:"New York NJ"},
-  {num:92,date:"2026-07-06",time:"20:00",home:"W79",away:"W80",stage:"r16",group:"",venue:"Mexico City"},
-  {num:93,date:"2026-07-07",time:"15:00",home:"W83",away:"W84",stage:"r16",group:"",venue:"Toronto"},
-  {num:94,date:"2026-07-07",time:"20:00",home:"W81",away:"W82",stage:"r16",group:"",venue:"Los Angeles"},
-  {num:95,date:"2026-07-08",time:"12:00",home:"W86",away:"W88",stage:"r16",group:"",venue:"Atlanta"},
-  {num:96,date:"2026-07-08",time:"16:00",home:"W85",away:"W87",stage:"r16",group:"",venue:"Vancouver"},
-  // QUARTER-FINALS
-  {num:97,date:"2026-07-10",time:"16:00",home:"W89",away:"W90",stage:"qf",group:"",venue:"Dallas"},
-  {num:98,date:"2026-07-10",time:"15:00",home:"W93",away:"W94",stage:"qf",group:"",venue:"Los Angeles"},
-  {num:99,date:"2026-07-11",time:"17:00",home:"W91",away:"W92",stage:"qf",group:"",venue:"New York NJ"},
-  {num:100,date:"2026-07-11",time:"21:00",home:"W95",away:"W96",stage:"qf",group:"",venue:"Atlanta"},
-  // SEMI-FINALS
-  {num:101,date:"2026-07-14",time:"15:00",home:"W97",away:"W98",stage:"sf",group:"",venue:"Dallas"},
-  {num:102,date:"2026-07-15",time:"15:00",home:"W99",away:"W100",stage:"sf",group:"",venue:"New York NJ"},
-  // BRONZE + FINAL
-  {num:103,date:"2026-07-18",time:"17:00",home:"L101",away:"L102",stage:"bronze",group:"",venue:"Miami"},
-  {num:104,date:"2026-07-19",time:"15:00",home:"W101",away:"W102",stage:"final",group:"",venue:"New York NJ"},
-];
-
-// Wheel colours
-const COLORS_A=['#1A7A3C','#C0392B','#1565C0','#E67E22','#6C3483','#117A65','#B7950B','#922B21','#1F618D','#196F3D','#7D6608','#784212','#0E6655','#641E16','#154360','#4A235A'];
+  // ── GROUP STAGE  (all times PDT / UTC-7 / Pacific) ──────────────
+  // THU 11 Jun
+  {num:  1,date:"2026-06-11",time:"12:00",home:"MEX",away:"RSA",group:"A",stage:"group",venue:"Mexico City"},
+  {num:  2,date:"2026-06-11",time:"19:00",home:"KOR",away:"CZE",group:"A",stage:"group",venue:"Guadalajara"},
+  // FRI 12 Jun
+  {num:  3,date:"2026-06-12",time:"12:00",home:"CAN",away:"BIH",group:"B",stage:"group",venue:"Toronto"},
+  {num:  4,date:"2026-06-12",time:"18:00",home:"USA",away:"PAR",group:"D",stage:"group",venue:"Los Angeles"},
+  // SAT 13 Jun
+  {num:  5,date:"2026-06-13",time:"12:00",home:"QAT",away:"SUI",group:"B",stage:"group",venue:"San Francisco"},
+  {num:  6,date:"2026-06-13",time:"15:00",home:"BRA",away:"MAR",group:"C",stage:"group",venue:"New York NJ"},
+  {num:  7,date:"2026-06-13",time:"18:00",home:"HAI",away:"SCO",group:"C",stage:"group",venue:"Boston"},
+  {num:  8,date:"2026-06-13",time:"21:00",home:"AUS",away:"TUR",group:"D",stage:"group",venue:"Vancouver"},
+  // SUN 14 Jun
+  {num:  9,date:"2026-06-14",time:"10:00",home:"GER",away:"CUW",group:"E",stage:"group",venue:"Houston"},
+  {num: 10,date:"2026-06-14",time:"13:00",home:"NED",away:"JPN",group:"F",stage:"group",venue:"Dallas"},
+  {num: 11,date:"2026-06-14",time:"16:00",home:"CIV",away:"ECU",group:"E",stage:"group",venue:"Philadelphia"},
+  {num: 12,date:"2026-06-14",time:"19:00",home:"SWE",away:"TUN",group:"F",stage:"group",venue:"Monterrey"},
+  // MON 15 Jun
+  {num: 13,date:"2026-06-15",time:"09:00",home:"ESP",away:"CPV",group:"H",stage:"group",venue:"Atlanta"},
+  {num: 14,date:"2026-06-15",time:"12:00",home:"BEL",away:"EGY",group:"G",stage:"group",venue:"Seattle"},
+  {num: 15,date:"2026-06-15",time:"15:00",home:"KSA",away:"URU",group:"H",stage:"group",venue:"Miami"},
+  {num: 16,date:"2026-06-15",time:"18:00",home:"IRN",away:"NZL",group:"G",stage:"group",venue:"Los Angeles"},
+  // TUE 16 Jun
+  {num: 17,date:"2026-06-16",time:"12:00",home:"FRA",away:"SEN",group:"I",stage:"group",venue:"New York NJ"},
+  {num: 18,date:"2026-06-16",time:"15:00",home:"IRQ",away:"NOR",group:"I",stage:"group",venue:"Boston"},
+  {num: 19,date:"2026-06-16",time:"18:00",home:"ARG",away:"ALG",group:"J",stage:"group",venue:"Kansas City"},
+  {num: 20,date:"2026-06-16",time:"21:00",home:"AUT",away:"JOR",group:"J",stage:"group",venue:"San Francisco"},
+  // WED 17 Jun
+  {num: 21,date:"2026-06-17",time:"10:00",home:"POR",away:"COD",group:"K",stage:"group",venue:"Houston"},
+  {num: 22,date:"2026-06-17",time:"13:00",home:"ENG",away:"CRO",group:"L",stage:"group",venue:"Dallas"},
+  {num: 23,date:"2026-06-17",time:"16:00",home:"GHA",away:"PAN",group:"L",stage:"group",venue:"Toronto"},
+  {num: 24,date:"2026-06-17",time:"19:00",home:"UZB",away:"COL",group:"K",stage:"group",venue:"Mexico City"},
+  // THU 18 Jun
+  {num: 25,date:"2026-06-18",time:"09:00",home:"CZE",away:"RSA",group:"A",stage:"group",venue:"Atlanta"},
+  {num: 26,date:"2026-06-18",time:"12:00",home:"SUI",away:"BIH",group:"B",stage:"group",venue:"Los Angeles"},
+  {num: 27,date:"2026-06-18",time:"15:00",home:"CAN",away:"QAT",group:"B",stage:"group",venue:"Vancouver"},
+  {num: 28,date:"2026-06-18",time:"18:00",home:"MEX",away:"KOR",group:"A",stage:"group",venue:"Guadalajara"},
+  // FRI 19 Jun
+  {num: 29,date:"2026-06-19",time:"12:00",home:"USA",away:"AUS",group:"D",stage:"group",venue:"Seattle"},
+  {num: 30,date:"2026-06-19",time:"15:00",home:"SCO",away:"MAR",group:"C",stage:"group",venue:"Boston"},
+  {num: 31,date:"2026-06-19",time:"17:30",home:"BRA",away:"HAI",group:"C",stage:"group",venue:"Philadelphia"},
+  {num: 32,date:"2026-06-19",time:"20:00",home:"TUR",away:"PAR",group:"D",stage:"group",venue:"San Francisco"},
+  // SAT 20 Jun
+  {num: 33,date:"2026-06-20",time:"10:00",home:"NED",away:"SWE",group:"F",stage:"group",venue:"Houston"},
+  {num: 34,date:"2026-06-20",time:"13:00",home:"GER",away:"CIV",group:"E",stage:"group",venue:"Toronto"},
+  {num: 35,date:"2026-06-20",time:"17:00",home:"ECU",away:"CUW",group:"E",stage:"group",venue:"Kansas City"},
+  {num: 36,date:"2026-06-20",time:"21:00",home:"TUN",away:"JPN",group:"F",stage:"group",venue:"Monterrey"},
+  // SUN 21 Jun
+  {num: 37,date:"2026-06-21",time:"09:00",home:"ESP",away:"KSA",group:"H",stage:"group",venue:"Atlanta"},
+  {num: 38,date:"2026-06-21",time:"12:00",home:"BEL",away:"IRN",group:"G",stage:"group",venue:"Los Angeles"},
+  {num: 39,date:"2026-06-21",time:"15:00",home:"URU",away:"CPV",group:"H",stage:"group",venue:"Miami"},
+  {num: 40,date:"2026-06-21",time:"18:00",home:"NZL",away:"EGY",group:"G",stage:"group",venue:"Vancouver"},
+  // MON 22 Jun
+  {num: 41,date:"2026-06-22",time:"10:00",home:"ARG",away:"AUT",group:"J",stage:"group",venue:"Dallas"},
+  {num: 42,date:"2026-06-22",time:"14:00",home:"FRA",away:"IRQ",group:"I",stage:"group",venue:"Philadelphia"},
+  {num: 43,date:"2026-06-22",time:"17:00",home:"NOR",away:"SEN",group:"I",stage:"group",venue:"New York NJ"},
+  {num: 44,date:"2026-06-22",time:"20:00",home:"JOR",away:"ALG",group:"J",stage:"group",venue:"San Francisco"},
+  // TUE 23 Jun
+  {num: 45,date:"2026-06-23",time:"10:00",home:"POR",away:"UZB",group:"K",stage:"group",venue:"Houston"},
+  {num: 46,date:"2026-06-23",time:"13:00",home:"ENG",away:"GHA",group:"L",stage:"group",venue:"Boston"},
+  {num: 47,date:"2026-06-23",time:"16:00",home:"PAN",away:"CRO",group:"L",stage:"group",venue:"Toronto"},
+  {num: 48,date:"2026-06-23",time:"19:00",home:"COL",away:"COD",group:"K",stage:"group",venue:"Guadalajara"},
+  // WED 24 Jun — simultaneous final group matches
+  {num: 49,date:"2026-06-24",time:"12:00",home:"SUI",away:"CAN",group:"B",stage:"group",venue:"Vancouver"},
+  {num: 50,date:"2026-06-24",time:"12:00",home:"BIH",away:"QAT",group:"B",stage:"group",venue:"Seattle"},
+  {num: 51,date:"2026-06-24",time:"15:00",home:"SCO",away:"BRA",group:"C",stage:"group",venue:"Miami"},
+  {num: 52,date:"2026-06-24",time:"15:00",home:"MAR",away:"HAI",group:"C",stage:"group",venue:"Atlanta"},
+  {num: 53,date:"2026-06-24",time:"18:00",home:"CZE",away:"MEX",group:"A",stage:"group",venue:"Mexico City"},
+  {num: 54,date:"2026-06-24",time:"18:00",home:"RSA",away:"KOR",group:"A",stage:"group",venue:"Monterrey"},
+  // THU 25 Jun
+  {num: 55,date:"2026-06-25",time:"13:00",home:"CUW",away:"CIV",group:"E",stage:"group",venue:"Philadelphia"},
+  {num: 56,date:"2026-06-25",time:"13:00",home:"ECU",away:"GER",group:"E",stage:"group",venue:"New York NJ"},
+  {num: 57,date:"2026-06-25",time:"16:00",home:"JPN",away:"SWE",group:"F",stage:"group",venue:"Dallas"},
+  {num: 58,date:"2026-06-25",time:"16:00",home:"TUN",away:"NED",group:"F",stage:"group",venue:"Kansas City"},
+  {num: 59,date:"2026-06-25",time:"19:00",home:"TUR",away:"USA",group:"D",stage:"group",venue:"Los Angeles"},
+  {num: 60,date:"2026-06-25",time:"19:00",home:"PAR",away:"AUS",group:"D",stage:"group",venue:"San Francisco"},
+  // FRI 26 Jun
+  {num: 61,date:"2026-06-26",time:"12:00",home:"NOR",away:"FRA",group:"I",stage:"group",venue:"Boston"},
+  {num: 62,date:"2026-06-26",time:"12:00",home:"SEN",away:"IRQ",group:"I",stage:"group",venue:"Toronto"},
+  {num: 63,date:"2026-06-26",time:"17:00",home:"CPV",away:"KSA",group:"H",stage:"group",venue:"Houston"},
+  {num: 64,date:"2026-06-26",time:"17:00",home:"URU",away:"ESP",group:"H",stage:"group",venue:"Guadalajara"},
+  {num: 65,date:"2026-06-26",time:"20:00",home:"EGY",away:"IRN",group:"G",stage:"group",venue:"Seattle"},
+  {num: 66,date:"2026-06-26",time:"20:00",home:"NZL",away:"BEL",group:"G",stage:"group",venue:"Vancouver"},
+  // SAT 27 Jun
+  {num: 67,date:"2026-06-27",time:"14:00",home:"PAN",away:"ENG",group:"L",stage:"group",venue:"New York NJ"},
+  {num: 68,date:"2026-06-27",time:"14:00",home:"CRO",away:"GHA",group:"L",stage:"group",venue:"Philadelphia"},
+  {num: 69,date:"2026-06-27",time:"16:30",home:"COL",away:"POR",group:"K",stage:"group",venue:"Miami"},
+  {num: 70,date:"2026-06-27",time:"16:30",home:"COD",away:"UZB",group:"K",stage:"group",venue:"Atlanta"},
+  {num: 71,date:"2026-06-27",time:"19:00",home:"JOR",away:"ARG",group:"J",stage:"group",venue:"Dallas"},
+  {num: 72,date:"2026-06-27",time:"19:00",home:"ALG",away:"AUT",group:"J",stage:"group",venue:"Kansas City"},
+  // ── ROUND OF 32 ─────────────────────────────────────────────────
+  // SUN 28 Jun
+  {num: 73,date:"2026-06-28",time:"12:00",home:"2A",   away:"2B",      group:"",stage:"r32",venue:"Los Angeles"},
+  // MON 29 Jun
+  {num: 74,date:"2026-06-29",time:"10:00",home:"1C",   away:"2F",      group:"",stage:"r32",venue:"Houston"},
+  {num: 75,date:"2026-06-29",time:"13:30",home:"1E",   away:"3ABCDF",  group:"",stage:"r32",venue:"Boston"},
+  {num: 76,date:"2026-06-29",time:"18:00",home:"1F",   away:"2C",      group:"",stage:"r32",venue:"Monterrey"},
+  // TUE 30 Jun
+  {num: 77,date:"2026-06-30",time:"10:00",home:"2E",   away:"2I",      group:"",stage:"r32",venue:"Dallas"},
+  {num: 78,date:"2026-06-30",time:"14:00",home:"1I",   away:"3CDFGH",  group:"",stage:"r32",venue:"New York NJ"},
+  {num: 79,date:"2026-06-30",time:"18:00",home:"1A",   away:"3CEFHI",  group:"",stage:"r32",venue:"Mexico City"},
+  // WED 1 Jul
+  {num: 80,date:"2026-07-01",time:"09:00",home:"1L",   away:"3EHIJK",  group:"",stage:"r32",venue:"Atlanta"},
+  {num: 81,date:"2026-07-01",time:"13:00",home:"1G",   away:"3AEHIJ",  group:"",stage:"r32",venue:"Seattle"},
+  {num: 82,date:"2026-07-01",time:"17:00",home:"1D",   away:"3BEFIJ",  group:"",stage:"r32",venue:"San Francisco"},
+  // THU 2 Jul
+  {num: 83,date:"2026-07-02",time:"12:00",home:"1H",   away:"2J",      group:"",stage:"r32",venue:"Los Angeles"},
+  {num: 84,date:"2026-07-02",time:"16:00",home:"2K",   away:"2L",      group:"",stage:"r32",venue:"Toronto"},
+  {num: 85,date:"2026-07-02",time:"20:00",home:"1B",   away:"3DEIJL",  group:"",stage:"r32",venue:"Vancouver"},
+  // FRI 3 Jul
+  {num: 86,date:"2026-07-03",time:"11:00",home:"2D",   away:"2G",      group:"",stage:"r32",venue:"Dallas"},
+  {num: 87,date:"2026-07-03",time:"15:00",home:"1J",   away:"2H",      group:"",stage:"r32",venue:"Miami"},
+  {num: 88,date:"2026-07-03",time:"18:30",home:"1K",   away:"3DEIJL",  group:"",stage:"r32",venue:"Kansas City"},
+  // ── ROUND OF 16 ─────────────────────────────────────────────────
+  // SAT 4 Jul
+  {num: 89,date:"2026-07-04",time:"10:00",home:"W73",  away:"W75",     group:"",stage:"r16",venue:"Houston"},
+  {num: 90,date:"2026-07-04",time:"14:00",home:"W74",  away:"W77",     group:"",stage:"r16",venue:"Philadelphia"},
+  // SUN 5 Jul
+  {num: 91,date:"2026-07-05",time:"13:00",home:"W76",  away:"W78",     group:"",stage:"r16",venue:"New York NJ"},
+  {num: 92,date:"2026-07-05",time:"17:00",home:"W79",  away:"W80",     group:"",stage:"r16",venue:"Mexico City"},
+  // MON 6 Jul
+  {num: 93,date:"2026-07-06",time:"12:00",home:"W81",  away:"W82",     group:"",stage:"r16",venue:"Dallas"},
+  {num: 94,date:"2026-07-06",time:"17:00",home:"W83",  away:"W84",     group:"",stage:"r16",venue:"Seattle"},
+  // TUE 7 Jul
+  {num: 95,date:"2026-07-07",time:"09:00",home:"W85",  away:"W86",     group:"",stage:"r16",venue:"Atlanta"},
+  {num: 96,date:"2026-07-07",time:"13:00",home:"W87",  away:"W88",     group:"",stage:"r16",venue:"Vancouver"},
+  // ── QUARTER-FINALS ──────────────────────────────────────────────
+  // THU 9 Jul
+  {num: 97,date:"2026-07-09",time:"13:00",home:"W89",  away:"W90",     group:"",stage:"qf", venue:"Boston"},
+  // FRI 10 Jul
+  {num: 98,date:"2026-07-10",time:"12:00",home:"W91",  away:"W92",     group:"",stage:"qf", venue:"Los Angeles"},
+  // SAT 11 Jul
+  {num: 99,date:"2026-07-11",time:"14:00",home:"W93",  away:"W94",     group:"",stage:"qf", venue:"Miami"},
+  {num:100,date:"2026-07-11",time:"18:00",home:"W95",  away:"W96",     group:"",stage:"qf", venue:"Kansas City"},
+  // ── SEMI-FINALS ─────────────────────────────────────────────────
+  // TUE 14 Jul
+  {num:101,date:"2026-07-14",time:"12:00",home:"W97",  away:"W98",     group:"",stage:"sf",  venue:"Dallas"},
+  // WED 15 Jul
+  {num:102,date:"2026-07-15",time:"12:00",home:"W99",  away:"W100",    group:"",stage:"sf",  venue:"Atlanta"},
+  // ── BRONZE FINAL & FINAL ────────────────────────────────────────
+  // SAT 18 Jul
+  {num:103,date:"2026-07-18",time:"14:00",home:"L101", away:"L102",    group:"",stage:"bronze",venue:"Miami"},
+  // SUN 19 Jul
+  {num:104,date:"2026-07-19",time:"12:00",home:"W101", away:"W102",    group:"",stage:"final", venue:"New York NJ"},
+]
 const COLORS_B=['#2C3E50','#1A5276','#1E8449','#7D6608','#6E2F1A','#0E6655','#4A235A','#17202A','#1B2631','#212F3C','#1C2833','#273746','#21618C','#1A5276','#148F77','#1D8348'];
 const COLORS_C=['#6E2F1A','#4A235A','#1B4F72','#145A32','#7B241C','#0B5345','#4D5656','#2E4053','#1C2833','#212F3C','#17202A','#273746','#2C3E50','#1A5276','#0E6655','#784212'];
 
@@ -1453,7 +1497,7 @@ const R32_SLOTS=[
   {code:'3CEFHI',label:'Best 3rd (CEFHI)'},
   {code:'3EHIJK',label:'Best 3rd (EHIJK)'},
   {code:'3BEFIJ',label:'Best 3rd (BEFIJ)'},
-  {code:'3EFGIJ',label:'Best 3rd (EFGIJ)'},
+  {code:'3DEIJL',label:'Best 3rd (DEIJL) — M85 & M88'},
   {code:'3AEHIJ',label:'Best 3rd (AEHIJ)'},
   {code:'3DEIJL',label:'Best 3rd (DEIJL)'},
 ];
@@ -1993,6 +2037,121 @@ function buildDraftQueue(){
 // ═══════════════════════════════════════════════════════════════════
 // DYNAMIC HEADER
 // ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+// TOURNAMENT NAME & SAVED DRAFTS
+// ═══════════════════════════════════════════════════════════════════
+
+function onTournamentNameInput(val){
+  // Enable/disable the Set Name button
+  const clean=val.trim().replace(/[^a-zA-Z0-9_-]/g,'');
+  document.getElementById('applyNameBtn').disabled=clean.length===0;
+}
+
+function applyTournamentName(){
+  const raw=document.getElementById('tournamentNameInput').value.trim();
+  const clean=raw.replace(/[^a-zA-Z0-9_-]/g,'');
+  if(!clean){showToast('⚠ Enter a valid name (letters, numbers, hyphens only)');return;}
+  // Navigate to the new URL — this triggers a page reload which saves under the new key
+  // But first save current state under the new key so nothing is lost
+  const newKey=`wc2026_${clean}`;
+  try{
+    localStorage.setItem(newKey,JSON.stringify({players,numPlayers,teamsPerPlayer,draftResults,phase,phaseIdx,currentTier,matchLog,knockoutResults,qualifierOverrides,_tierOrders:window._tierOrders,_tierRemaining:window._tierRemaining}));
+  }catch(e){}
+  const newUrl=`${window.location.pathname}?draft=${encodeURIComponent(clean)}`;
+  window.location.href=newUrl;
+}
+
+function copyShareLink(){
+  const url=window.location.href;
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(url).then(()=>showToast('🔗 Link copied to clipboard!')).catch(()=>_fallbackCopy(url));
+  } else {
+    _fallbackCopy(url);
+  }
+}
+function _fallbackCopy(text){
+  const ta=document.createElement('textarea');
+  ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
+  document.body.appendChild(ta);ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  showToast('🔗 Link copied!');
+}
+
+// Scan localStorage for all wc2026_ keys and render them as clickable cards
+function buildSavedDraftsList(){
+  const container=document.getElementById('savedDraftsList');
+  if(!container) return;
+  const keys=[];
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(k&&k.startsWith('wc2026_')) keys.push(k);
+  }
+  if(keys.length===0){container.innerHTML='';return;}
+
+  const currentKey=getDraftKey();
+  const cards=keys.map(k=>{
+    const name=k.replace('wc2026_','');
+    const displayName=name==='default'?'Default':name;
+    let summary='Empty';
+    try{
+      const d=JSON.parse(localStorage.getItem(k)||'{}');
+      const pCount=d.players?.length||0;
+      const phase=d.phase||0;
+      const scores=d.matchLog?.length||0;
+      if(pCount>0){
+        const stateLabel=phase===4?'Draft complete':phase>0?`Drafting (Tier ${phase})`:'Setup';
+        summary=`${pCount} players · ${stateLabel}${scores>0?` · ${scores} results`:''}`;
+      }
+    }catch(e){}
+    const isCurrent=k===currentKey;
+    const param=name==='default'?'':`?draft=${encodeURIComponent(name)}`;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;background:${isCurrent?'rgba(245,200,66,.08)':'var(--dark3)'};border:1px solid ${isCurrent?'var(--gold)':'var(--border)'};border-radius:5px;margin-bottom:6px">
+      <div>
+        <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.9rem;color:${isCurrent?'var(--gold)':'var(--text)'}">${displayName}${isCurrent?' <span style="font-size:.65rem;opacity:.7">(current)</span>':''}</span>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;color:var(--muted)">${summary}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        ${!isCurrent?`<a href="${window.location.pathname}${param}" class="btn btn-dark" style="padding:5px 12px;font-size:.75rem;text-decoration:none">Load</a>`:''}
+        <button onclick="deleteSavedDraft('${k}')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:5px 8px;cursor:pointer;font-size:.75rem" title="Delete this draft">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  container.innerHTML=`
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Saved Drafts (${keys.length})</div>
+    ${cards}`;
+}
+
+function deleteSavedDraft(key){
+  const name=key.replace('wc2026_','');
+  // Don't allow deleting current draft this way — use Reset for that
+  if(key===getDraftKey()){showToast('Use ↺ Reset Everything to clear the current draft.');return;}
+  localStorage.removeItem(key);
+  buildSavedDraftsList();
+  showToast(`🗑 Draft "${name}" deleted.`);
+}
+
+function initTournamentNameUI(){
+  const param=new URLSearchParams(window.location.search).get('draft');
+  const input=document.getElementById('tournamentNameInput');
+  const status=document.getElementById('tournamentNameStatus');
+  const shareBtn=document.getElementById('shareLinkBtn');
+  const applyBtn=document.getElementById('applyNameBtn');
+  if(param){
+    if(input) input.value=param;
+    if(status) status.textContent=`Active tournament: "${param}" · This URL is your save slot. Share it with your group.`;
+    if(status) status.style.color='#2ecc71';
+    if(shareBtn) shareBtn.style.display='inline-block';
+    if(applyBtn) applyBtn.textContent='Rename →';
+  } else {
+    if(status) status.textContent='No name set — using default save slot. Set a name to create a shareable URL.';
+    if(shareBtn) shareBtn.style.display='none';
+  }
+  if(applyBtn) applyBtn.disabled=false;
+  buildSavedDraftsList();
+}
+
 function updateHeaderSub(){
   const el=document.getElementById('headerSub');
   if(!el) return;
@@ -2343,6 +2502,7 @@ function switchTab(id){
   const idx={setup:0,wheel:1,tracker:2,scores:3,calendar:4,knockout:5,sleeper:6,teams:7,demo:8}[id];
   document.querySelectorAll('.tab-btn')[idx]?.classList.add('active');
   if(id==='tracker') buildTracker();
+  if(id==='setup') buildSavedDraftsList();
   if(id==='scores'){renderMatchLog();populateMatchFormTeams();}
   if(id==='calendar') renderCalendar();
   if(id==='knockout'){buildKnockoutBracket();}
@@ -2362,12 +2522,7 @@ function showToast(msg){
 window.onload=()=>{
   init();
   updateHeaderSub();
-  // Show draft name box if ?draft= param is set
-  const draftParam=new URLSearchParams(window.location.search).get('draft');
-  if(draftParam){
-    document.getElementById('draftNameBox').style.display='block';
-    document.getElementById('draftNameLabel').textContent=draftParam;
-  }
+  initTournamentNameUI();
   // Draw preview wheel for default player count
   const tiers=getTierDefs();
   if(tiers.length) drawWheel(shuffle([...tiers[0].teams]),TIER_COLORS[0],0);
