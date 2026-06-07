@@ -261,14 +261,14 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
 </div>
 
 <nav class="tabs">
-  <button class="tab-btn active" onclick="switchTab('setup')">⚙ Setup</button>
+  <button class="tab-btn active" id="homeTabBtn" onclick="switchTab('setup')">⚙ Setup</button>
   <button class="tab-btn" onclick="switchTab('wheel')">🎡 Wheel</button>
   <button class="tab-btn" onclick="switchTab('tracker')">📊 Leaderboard</button>
   <button class="tab-btn" onclick="switchTab('scores')">⚽ Scores</button>
   <button class="tab-btn" onclick="switchTab('calendar')">📅 Calendar</button>
-  <button class="tab-btn" onclick="switchTab('knockout')">🏆 Knockout</button>
+  <button class="tab-btn" onclick="switchTab('knockout')">🏆 Bracket</button>
   <button class="tab-btn" onclick="switchTab('sleeper')">🌟 Sleeper</button>
-  <button class="tab-btn" onclick="switchTab('teams')">🌍 Teams</button>
+  <button class="tab-btn" onclick="switchTab('teams')">🌍 Groups</button>
   <button class="tab-btn" id="demoTabBtn" onclick="switchTab('demo')" style="display:none;color:#2ecc71">🎮 Demo</button>
 </nav>
 
@@ -345,6 +345,42 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
     <button class="btn btn-dark" onclick="requirePin(clearScores)">🗑 Clear Scores</button>
     <button class="btn btn-dark" onclick="requirePin(resetAll)">↺ Reset Everything</button>
   </div>
+
+  <!-- Already Drafted? -->
+  <div class="info-box" style="margin-top:20px;border-left-color:var(--silver)">
+    <b>Already drafted?</b> Manually input your picks or upload a CSV to access the full Leaderboard, live standings, and the <b>Cinderella/Sleeper tracker</b> — which rewards lower-tier teams that outperform their FIFA ranking (not betting odds). Great for groups who ran a paper draft or used a different tool.
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-dark" onclick="requirePin(openManualDraft)" style="font-size:.85rem">✏️ Manual Draft Entry</button>
+      <button class="btn btn-dark" onclick="requirePin(openCsvUpload)" style="font-size:.85rem">📄 Upload CSV</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DASHBOARD (HOME) ══════════════════════════════════════════════════ -->
+<div class="panel" id="panel-dashboard">
+
+  <!-- Viewing As selector -->
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+    <div>
+      <div class="section-title" style="margin:0" id="dashTitle">World Cup 2026</div>
+      <div class="section-sub" style="margin:0" id="dashSubtitle">Loading...</div>
+    </div>
+    <select id="dashViewingAs" class="fi" onchange="buildDashboard()"
+      style="min-width:180px;font-family:'Barlow Condensed',sans-serif;font-size:.9rem;padding:8px 12px">
+      <option value="">👥 All Players</option>
+    </select>
+  </div>
+
+  <!-- Countdown card -->
+  <div id="dashCountdown" class="setup-card" style="margin-bottom:16px;padding:16px 20px;text-align:center">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:8px" id="dashCountdownLabel">Tournament Begins In</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:2.4rem;letter-spacing:4px;color:var(--gold)" id="dashCountdownTimer">--</div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;color:var(--muted);margin-top:4px" id="dashCountdownSub">June 11 · Mexico vs South Africa · Mexico City</div>
+  </div>
+
+  <!-- Main dashboard grid -->
+  <div id="dashContent"></div>
+
 </div>
 
 <!-- ══ WHEEL ══════════════════════════════════════════════════════════════ -->
@@ -624,6 +660,45 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
   </div>
 </div>
 
+<!-- MANUAL DRAFT MODAL -->
+<div class="modal-overlay" id="manualDraftModal">
+  <div class="modal" style="max-width:700px;width:96%;max-height:90vh;overflow-y:auto">
+    <h3 style="margin-bottom:4px">✏️ Manual Draft Entry</h3>
+    <p style="font-family:'Barlow Condensed',sans-serif;font-size:.82rem;color:var(--muted);margin-bottom:16px">
+      Assign teams to players manually. Each player gets one team per tier. Changes save directly to Supabase.
+    </p>
+    <div id="manualDraftGrid" style="margin-bottom:16px"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
+      <button class="btn btn-dark" onclick="closeManualDraft()">Cancel</button>
+      <button class="btn btn-gold" onclick="saveManualDraft()">Save Draft ✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- CSV UPLOAD MODAL -->
+<div class="modal-overlay" id="csvUploadModal">
+  <div class="modal" style="max-width:500px;width:96%">
+    <h3 style="margin-bottom:4px">📄 Upload CSV Draft</h3>
+    <p style="font-family:'Barlow Condensed',sans-serif;font-size:.82rem;color:var(--muted);margin-bottom:12px">
+      Upload a CSV file to import your draft picks. Each row is one player.
+    </p>
+    <div class="info-box" style="margin-bottom:14px">
+      <b>Required format:</b><br>
+      <code>Player,Tier A,Tier B,Tier C</code><br>
+      <code>Freddy,Mexico,Germany,Haiti</code><br>
+      <code>T,Brazil,France,Scotland</code><br><br>
+      Column count adjusts automatically to your tier count. Team names must match exactly (e.g. "Czechia" not "Czech Republic").
+    </div>
+    <input type="file" id="csvFileInput" accept=".csv" class="fi"
+      style="width:100%;background:var(--dark3);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:8px;margin-bottom:10px"/>
+    <div id="csvPreview" style="margin-bottom:12px"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-dark" onclick="closeCsvUpload()">Cancel</button>
+      <button class="btn btn-gold" id="csvImportBtn" onclick="importCsv()" style="display:none">Import Draft ✓</button>
+    </div>
+  </div>
+</div>
+
 <!-- PIN MODAL -->
 <div class="modal-overlay" id="pinModal">
   <div class="modal" style="max-width:320px;text-align:center">
@@ -787,6 +862,38 @@ option{background:var(--dark3)}
 .champ-dismiss:hover{color:var(--text)}
 /* Confetti canvas sits behind the box */
 #confettiCanvas{position:fixed;inset:0;z-index:499;pointer-events:none}
+
+/* ══ MOBILE NAV ════════════════════════════════════════════════════ */
+.mob-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);z-index:200;height:58px;align-items:stretch}
+.mob-nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:none;border:none;color:var(--muted);font-size:.55rem;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;padding:4px 0;transition:color .15s;min-width:0}
+.mob-nav-btn span{font-size:.55rem;line-height:1}
+.mob-nav-btn svg,.mob-nav-btn:first-child{font-size:.9rem}
+.mob-nav-btn.mob-active{color:var(--gold)}
+.mob-nav-btn:active{background:rgba(255,255,255,.05)}
+@media(max-width:700px){
+  .mob-nav{display:flex}
+  .tabs{display:none}
+  body{padding-bottom:68px}
+  /* Bigger touch targets */
+  .btn{min-height:40px;padding:8px 14px}
+  .fi{min-height:38px;font-size:.95rem}
+  /* Stack setup grid */
+  .setup-grid{grid-template-columns:1fr!important}
+  /* Make wheel canvas responsive */
+  #wheelCanvas{max-width:min(360px,92vw)!important;max-height:min(360px,92vw)!important}
+  /* Leaderboard: hide less important cols on small screens */
+  .tracker-table-wrap table th:nth-child(7),
+  .tracker-table-wrap table td:nth-child(7),
+  .tracker-table-wrap table th:nth-child(8),
+  .tracker-table-wrap table td:nth-child(8){display:none}
+  /* Scores row stack */
+  .scores-row{grid-template-columns:1fr 1fr!important}
+  /* Dashboard grid stack */
+  #dashContent>[style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}
+  /* Header compact */
+  .site-header h1{font-size:1.2rem}
+  #headerSub{font-size:.65rem}
+}
 </style>
 
 <script>
@@ -1446,6 +1553,8 @@ function renderCalendar(){
       const shortH=hName.length>14?hName.substring(0,13)+'…':hName;
       const shortA=aName.length>14?aName.substring(0,13)+'…':aName;
       const hCls=tierChipCls(hName),aCls=tierChipCls(aName);
+      const contextLines=getMatchContext(m);
+      const contextHtml=contextLines.length?`<details style="margin-top:6px"><summary style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;color:var(--muted);cursor:pointer;list-style:none">▶ Match context</summary><div style="margin-top:5px;display:flex;flex-direction:column;gap:3px">${contextLines.map(l=>`<div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--text);padding:2px 0;border-top:1px solid var(--border)">${l}</div>`).join('')}</div></details>`:'';
       return `<div class="cal-card${isDrafted?' drafted':''}${hasResult?' has-result':''}" onclick="openMatchModal(${m.num})">
         <div class="cal-top">
           <span class="cal-num">#${m.num}</span>
@@ -1456,7 +1565,8 @@ function renderCalendar(){
           </div>
           ${scoreDisp}
         </div>
-        <div class="cal-meta">${m.time} ET · ${m.venue} · ${STAGE_LABEL[m.stage]||m.stage}${m.group?' · Grp '+m.group:''}</div>
+        <div class="cal-meta">${m.time} PT · ${m.venue} · ${STAGE_LABEL[m.stage]||m.stage}${m.group?' · Grp '+m.group:''}</div>
+        ${contextHtml}
       </div>`;
     }).join('');
     return `<div class="cal-day"><div class="cal-day-hdr">${dlabel}</div><div class="cal-grid">${cards}</div></div>`;
@@ -2088,6 +2198,7 @@ function finalizeDraft(){
   document.getElementById('wheelTitle').textContent='🏆 Draft Complete';
   document.getElementById('wheelSubtitle').textContent=`All 48 teams assigned · ${numPlayers} players · ${teamsPerPlayer} teams each`;
   updateHeaderSub();
+  updateMobileNav();
   populateMatchFormTeams();populateFilterPlayers();
   buildDraftQueue();buildTracker();buildTeamsGrid();
   saveDraft();showToast('🎉 Draft complete! Check the Calendar and Bracket!');
@@ -2843,12 +2954,376 @@ document.getElementById('pinModal').addEventListener('click',function(e){
 });
 
 // ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+// MANUAL DRAFT ENTRY
+// ═══════════════════════════════════════════════════════════════════
+
+function openManualDraft(){
+  // Ensure players are set — if not, read from inputs
+  if(!players.length){
+    for(let i=0;i<numPlayers;i++){
+      const v=document.getElementById(`pInput${i}`)?.value.trim();
+      if(v) players.push(v);
+    }
+  }
+  if(!players.length){showToast('⚠ Enter player names first');return;}
+  _buildManualDraftGrid();
+  document.getElementById('manualDraftModal').classList.add('show');
+}
+
+function closeManualDraft(){
+  document.getElementById('manualDraftModal').classList.remove('show');
+}
+document.getElementById('manualDraftModal').addEventListener('click',function(e){if(e.target===this) closeManualDraft();});
+
+function _buildManualDraftGrid(){
+  const tiers=getTierDefs();
+  const tierLetters='ABCDEFGH';
+  const grid=document.getElementById('manualDraftGrid');
+
+  // Header row
+  const headerCols=tiers.map((_,i)=>`<div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--gold);padding:4px 6px">Tier ${tierLetters[i]}</div>`).join('');
+  let html=`<div style="display:grid;grid-template-columns:140px ${tiers.map(()=>'1fr').join(' ')};gap:6px;margin-bottom:6px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:4px 6px">Player</div>
+    ${headerCols}
+  </div>`;
+
+  // One row per player
+  players.forEach((player,pi)=>{
+    const existing=draftResults[player]||[];
+    const cols=tiers.map((tier,ti)=>{
+      // Find if player already has a team from this tier
+      const assignedTeam=existing.find(t=>tier.teams.some(x=>x.name===t.name));
+      const opts=tier.teams.map(t=>`<option value="${t.name}" ${assignedTeam?.name===t.name?'selected':''}>${t.flag} ${t.name}</option>`).join('');
+      return `<select class="fi manual-team-sel" data-player="${pi}" data-tier="${ti}"
+        style="font-size:.8rem;padding:5px 6px;background:var(--dark3);border:1px solid var(--border);border-radius:4px;color:var(--text);width:100%">
+        <option value="">— select —</option>
+        ${opts}
+      </select>`;
+    }).join('');
+
+    html+=`<div style="display:grid;grid-template-columns:140px ${tiers.map(()=>'1fr').join(' ')};gap:6px;margin-bottom:4px;align-items:center">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;color:var(--text);padding:4px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${player}">${player}</div>
+      ${cols}
+    </div>`;
+  });
+
+  grid.innerHTML=html;
+}
+
+function saveManualDraft(){
+  const tiers=getTierDefs();
+  const newResults={};
+  players.forEach(p=>{newResults[p]=[];});
+
+  // Read all selects
+  const sels=document.querySelectorAll('.manual-team-sel');
+  const usedTeams=new Set();
+  let valid=true;
+
+  sels.forEach(sel=>{
+    const pi=parseInt(sel.dataset.player);
+    const ti=parseInt(sel.dataset.tier);
+    const teamName=sel.value;
+    if(!teamName) return; // blank is ok — player just won't have a team from this tier
+    if(usedTeams.has(teamName)){
+      sel.style.borderColor='var(--red)';
+      valid=false;
+      showToast(`⚠ ${teamName} is assigned to multiple players`);
+      setTimeout(()=>{sel.style.borderColor='';},2500);
+      return;
+    }
+    usedTeams.add(teamName);
+    const team=ALL_TEAMS.find(t=>t.name===teamName);
+    if(team) newResults[players[pi]].push({...team});
+  });
+
+  if(!valid) return;
+
+  // Apply
+  draftResults=newResults;
+  if(Object.values(draftResults).some(t=>t.length>0)) phase=4;
+
+  closeManualDraft();
+  saveDraft();
+  populateMatchFormTeams();populateFilterPlayers();
+  buildDraftQueue();buildTracker();buildTeamsGrid();buildSleeperTracker();
+  // Reflect draft complete state
+  if(phase===4){
+    document.getElementById('completedBanner').classList.add('show');
+    document.getElementById('wheelLayout').style.opacity='.3';
+    document.getElementById('spinBtn').disabled=true;
+    document.getElementById('autoStepBtn').disabled=true;
+    document.getElementById('progressFill').style.width='100%';
+    document.getElementById('wheelTitle').textContent='🏆 Draft Complete';
+    document.getElementById('wheelSubtitle').textContent=`All teams assigned · ${numPlayers} players`;
+    updateHeaderSub();
+  }
+  showToast('✅ Draft saved!');
+  switchTab('tracker');
+}
+
+// ── CSV Upload ────────────────────────────────────────────────────────
+let _csvParsed=null;
+
+function openCsvUpload(){
+  document.getElementById('csvUploadModal').classList.add('show');
+  document.getElementById('csvPreview').innerHTML='';
+  document.getElementById('csvFileInput').value='';
+  document.getElementById('csvImportBtn').style.display='none';
+  _csvParsed=null;
+}
+function closeCsvUpload(){document.getElementById('csvUploadModal').classList.remove('show');}
+document.getElementById('csvUploadModal').addEventListener('click',function(e){if(e.target===this) closeCsvUpload();});
+
+document.getElementById('csvFileInput').addEventListener('change',function(e){
+  const file=e.target.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    const text=ev.target.result;
+    _parseCsvPreview(text);
+  };
+  reader.readAsText(file);
+});
+
+function _parseCsvPreview(text){
+  const preview=document.getElementById('csvPreview');
+  const lines=text.trim().split('\n').map(l=>l.split(',').map(v=>v.trim()));
+  if(lines.length<2){preview.innerHTML='<div style="color:var(--red);font-family:\'Barlow Condensed\',sans-serif">No data rows found.</div>';return;}
+
+  const headers=lines[0];
+  const tiers=getTierDefs();
+
+  // Validate header: first col Player, rest Tier A/B/C...
+  if(headers[0].toLowerCase()!=='player'){
+    preview.innerHTML='<div style="color:var(--red);font-family:\'Barlow Condensed\',sans-serif">First column must be "Player".</div>';return;
+  }
+
+  const rows=lines.slice(1).filter(r=>r.length>1&&r[0]);
+  let previewHtml=`<div style="font-family:'Barlow Condensed',sans-serif;font-size:.78rem;color:#2ecc71;margin-bottom:8px">✅ Found ${rows.length} players · ${headers.length-1} tier${headers.length>2?'s':''}</div>`;
+  previewHtml+=`<div style="background:var(--dark3);border-radius:4px;padding:10px;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;max-height:160px;overflow-y:auto">`;
+  rows.forEach(row=>{
+    const teams=row.slice(1).filter(Boolean);
+    previewHtml+=`<div style="padding:3px 0;border-bottom:1px solid var(--border)">${row[0]}: ${teams.join(', ')||'—'}</div>`;
+  });
+  previewHtml+='</div>';
+  preview.innerHTML=previewHtml;
+
+  _csvParsed={headers,rows};
+  document.getElementById('csvImportBtn').style.display='inline-block';
+}
+
+function importCsv(){
+  if(!_csvParsed){showToast('⚠ No CSV loaded');return;}
+  const {rows}=_csvParsed;
+  const newResults={};
+  const newPlayers=[];
+
+  rows.forEach(row=>{
+    const playerName=row[0];
+    newPlayers.push(playerName);
+    newResults[playerName]=[];
+    row.slice(1).forEach(teamName=>{
+      if(!teamName) return;
+      const team=ALL_TEAMS.find(t=>t.name===teamName);
+      if(team) newResults[playerName].push({...team});
+      else showToast(`⚠ Team not found: "${teamName}" — check spelling`);
+    });
+  });
+
+  players=newPlayers;
+  numPlayers=newPlayers.length;
+  teamsPerPlayer=Math.max(...Object.values(newResults).map(t=>t.length),1);
+  draftResults=newResults;
+  phase=4;
+
+  closeCsvUpload();
+  saveDraft();
+  // Rebuild inputs
+  buildPlayerInputs();
+  for(let i=0;i<players.length;i++){
+    const el=document.getElementById(`pInput${i}`);
+    if(el) el.value=players[i];
+  }
+  populateMatchFormTeams();populateFilterPlayers();
+  buildDraftQueue();buildTracker();buildTeamsGrid();buildSleeperTracker();
+  document.getElementById('completedBanner').classList.add('show');
+  document.getElementById('wheelLayout').style.opacity='.3';
+  document.getElementById('wheelTitle').textContent='🏆 Draft Complete (CSV Import)';
+  updateHeaderSub();
+  showToast(`✅ CSV imported — ${players.length} players loaded!`);
+  switchTab('tracker');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════════════
+
+const TOURNAMENT_START = new Date('2026-06-11T19:00:00Z'); // 12pm PT
+let _countdownInterval=null;
+
+function initDashboard(){
+  const sel=document.getElementById('dashViewingAs');
+  if(!sel) return;
+  sel.innerHTML='<option value="">👥 All Players</option>';
+  players.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o);});
+  try{const s=localStorage.getItem('wc2026_viewingAs');if(s&&players.includes(s)) sel.value=s;}catch(e){}
+  buildDashboard();
+  startCountdown();
+}
+
+function startCountdown(){
+  if(_countdownInterval) clearInterval(_countdownInterval);
+  _tickCountdown();
+  _countdownInterval=setInterval(_tickCountdown,1000);
+}
+
+function _tickCountdown(){
+  const now=new Date();
+  const label=document.getElementById('dashCountdownLabel');
+  const timer=document.getElementById('dashCountdownTimer');
+  const sub=document.getElementById('dashCountdownSub');
+  if(!timer) return;
+  if(now>=TOURNAMENT_START){
+    const player=document.getElementById('dashViewingAs')?.value||'';
+    const relevantTeams=player&&draftResults[player]?new Set(draftResults[player].map(t=>t.name)):new Set(Object.values(draftResults).flat().map(t=>t.name));
+    const upcoming=SCHEDULE.filter(m=>{
+      if(knockoutResults[m.num]!==undefined) return false;
+      if(relevantTeams.size>0){const h=resolveTeam(m.home),a=resolveTeam(m.away);if(!relevantTeams.has(h)&&!relevantTeams.has(a)) return false;}
+      return new Date(m.date+'T'+m.time+':00-07:00')>now;
+    }).sort((a,b)=>new Date(a.date+'T'+a.time+':00-07:00')-new Date(b.date+'T'+b.time+':00-07:00'));
+    if(upcoming.length){
+      const next=upcoming[0];
+      const diff=new Date(next.date+'T'+next.time+':00-07:00')-now;
+      const h=Math.floor(diff/3600000),m2=Math.floor((diff%3600000)/60000),s=Math.floor((diff%60000)/1000);
+      if(label) label.textContent='Next Match In';
+      timer.textContent=`${h}h ${m2}m ${s}s`;
+      const hN=resolveTeam(next.home),aN=resolveTeam(next.away);
+      const local=new Date(next.date+'T'+next.time+':00-07:00').toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',timeZoneName:'short'});
+      if(sub) sub.textContent=`${tf(hN)} ${hN} vs ${tf(aN)} ${aN} · ${local} · ${next.venue}`;
+    } else {
+      if(label) label.textContent='Tournament';timer.textContent='COMPLETE';
+    }
+    return;
+  }
+  const diff=TOURNAMENT_START-now;
+  const days=Math.floor(diff/86400000),hrs=Math.floor((diff%86400000)/3600000),mins=Math.floor((diff%3600000)/60000),secs=Math.floor((diff%60000)/1000);
+  if(label) label.textContent='Tournament Begins In';
+  timer.textContent=days>0?`${days}d ${hrs}h ${mins}m ${secs}s`:`${hrs}h ${mins}m ${secs}s`;
+  const localStart=TOURNAMENT_START.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',timeZoneName:'short'});
+  if(sub) sub.textContent=`June 11 · Mexico vs South Africa · ${localStart} your time`;
+}
+
+function buildDashboard(){
+  const player=document.getElementById('dashViewingAs')?.value||'';
+  try{if(player) localStorage.setItem('wc2026_viewingAs',player);}catch(e){}
+  const content=document.getElementById('dashContent');
+  if(!content) return;
+  const label=tournamentDisplayName||new URLSearchParams(window.location.search).get('draft')||'World Cup 2026';
+  const sub=document.getElementById('dashSubtitle');
+  if(sub) sub.textContent=player?`Viewing: ${player}`:`${label} · ${players.length} players`;
+  if(phase!==4){
+    content.innerHTML=`<div class="info-box" style="text-align:center;padding:24px"><div style="font-size:2rem;margin-bottom:8px">🎡</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;color:var(--text);margin-bottom:6px">Draft not started yet</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;color:var(--muted)">Complete the draft to see picks and standings here.</div><button class="btn btn-gold" onclick="switchTab('setup')" style="margin-top:14px">Go to Setup →</button></div>`;
+    return;
+  }
+  const stats=calcStats();
+  if(player){
+    const teams=draftResults[player]||[];
+    const st=stats[player]||{W:0,D:0,L:0,GF:0,GA:0};
+    const pts=st.W*3+st.D;
+    const rank=getSortedPlayers(stats).indexOf(player)+1;
+    const tiers=getTierDefs();
+    const teamCards=teams.map(t=>{
+      const ti=tiers.findIndex(tier=>tier.teams.some(x=>x.name===t.name));
+      const tierCls=ti>=0?['ta','tb','tc','td','te','tf','tg','th'][ti]:'ta';
+      const tierLabel=ti>=0?`Tier ${'ABCDEFGH'[ti]}`:'';
+      const tPts=matchLog.filter(m=>m.team===t.name).reduce((a,m)=>a+(m.result==='W'?3:m.result==='D'?1:0),0);
+      const played=matchLog.filter(m=>m.team===t.name).length;
+      const now=new Date();
+      const nextM=SCHEDULE.filter(m=>{if(knockoutResults[m.num]!==undefined) return false;const h=resolveTeam(m.home),a=resolveTeam(m.away);if(h!==t.name&&a!==t.name) return false;return new Date(m.date+'T'+m.time+':00-07:00')>now;}).sort((a,b)=>new Date(a.date+'T'+a.time+':00-07:00')-new Date(b.date+'T'+b.time+':00-07:00'))[0];
+      const nextStr=nextM?(()=>{const opp=resolveTeam(nextM.home)===t.name?resolveTeam(nextM.away):resolveTeam(nextM.home);const d=new Date(nextM.date+'T'+nextM.time+':00-07:00');return `vs ${tf(opp)} ${opp} · ${d.toLocaleDateString([],{month:'short',day:'numeric'})} ${d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',timeZoneName:'short'})}`})():'No upcoming matches';
+      return `<div style="background:var(--dark3);border:1px solid var(--border);border-radius:8px;padding:14px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span style="font-size:1.8rem">${t.flag}</span><div><div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px">${t.name}</div><span class="team-chip ${tierCls}" style="font-size:.6rem;padding:1px 5px">${tierLabel}</span></div>${played>0?`<div style="margin-left:auto;text-align:right"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--gold)">${tPts}</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:.65rem;color:var(--muted)">PTS</div></div>`:''}</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--muted)">📅 ${nextStr}</div>
+      </div>`;
+    }).join('');
+    content.innerHTML=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+      ${[['#'+rank,'Rank'],[''+pts,'Points'],[''+st.W,'Wins'],[''+st.GF+'–'+st.GA,'GF–GA']].map(([v,l])=>`<div class="setup-card" style="text-align:center;padding:12px"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;color:var(--gold)">${v}</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px">${l}</div></div>`).join('')}
+    </div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Your Teams</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:16px">${teamCards}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-dark" onclick="switchTab('tracker')">📊 Leaderboard</button><button class="btn btn-dark" onclick="switchTab('calendar')">📅 Calendar</button><button class="btn btn-dark" onclick="switchTab('sleeper')">🌟 Sleeper</button></div>`;
+    return;
+  }
+  // All players view
+  const sorted=getSortedPlayers(stats);
+  const topRows=sorted.slice(0,5).map((p,i)=>{
+    const st=stats[p]||{W:0,D:0,L:0,GF:0,GA:0};const pts=st.W*3+st.D;
+    const flags=(draftResults[p]||[]).slice(0,3).map(t=>t.flag).join(' ');
+    const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:${i===0?'rgba(245,200,66,.08)':'var(--dark3)'};border:1px solid ${i===0?'var(--gold)':'var(--border)'};border-radius:5px;margin-bottom:5px"><div style="display:flex;align-items:center;gap:8px"><span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--muted);min-width:20px">${medal||i+1}</span><div><div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.88rem">${p}</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;color:var(--muted)">${flags}</div></div></div><div style="text-align:right"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--gold)">${pts}</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:.65rem;color:var(--muted)">${st.W}W ${st.D}D ${st.L}L</div></div></div>`;
+  }).join('');
+  const today=new Date().toISOString().split('T')[0];
+  const drafted=new Set(Object.values(draftResults).flat().map(t=>t.name));
+  const todayM=SCHEDULE.filter(m=>m.date===today);
+  const todayHtml=todayM.length?todayM.map(m=>{const h=resolveTeam(m.home),a=resolveTeam(m.away);const hasStake=drafted.has(h)||drafted.has(a);const res=knockoutResults[m.num];return `<div onclick="switchTab('calendar')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:${hasStake?'rgba(245,200,66,.05)':'var(--dark3)'};border:1px solid ${hasStake?'rgba(245,200,66,.3)':'var(--border)'};border-radius:5px;margin-bottom:5px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.82rem"><span>${tf(h)} ${h} <span style="color:var(--muted)">vs</span> ${tf(a)} ${a}</span>${res!==undefined?`<b style="color:var(--gold)">${res.homeScore}–${res.awayScore}</b>`:`<span style="color:var(--muted)">${m.time} PT</span>`}</div>`;}).join(''):`<div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;color:var(--muted);padding:10px 0">No matches today</div>`;
+  const unlogged=(_pinUnlocked||isAdminUrl())?(()=>{const p=SCHEDULE.filter(m=>new Date(m.date+'T'+m.time+':00-07:00')<new Date()&&knockoutResults[m.num]===undefined);return p.length?`<div style="background:rgba(231,76,60,.1);border:1px solid var(--red);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-family:'Barlow Condensed',sans-serif;font-size:.85rem">⚠ <b>${p.length} match${p.length>1?'es':''}</b> need${p.length===1?'s':''} scores · <button onclick="switchTab('calendar')" style="background:none;border:none;color:var(--gold);cursor:pointer;font-family:inherit;font-size:inherit;text-decoration:underline">Calendar →</button></div>`:''})():'';
+  content.innerHTML=`${unlogged}<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px"><div><div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">🏅 Standings</div>${topRows}<button class="btn btn-dark" onclick="switchTab('tracker')" style="margin-top:6px;width:100%;font-size:.8rem">Full Leaderboard →</button></div><div><div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">📅 Today</div>${todayHtml}</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-dark" onclick="switchTab('calendar')">📅 Calendar</button><button class="btn btn-dark" onclick="switchTab('knockout')">🏆 Bracket</button><button class="btn btn-dark" onclick="switchTab('sleeper')">🌟 Sleeper</button><button class="btn btn-dark" onclick="switchTab('teams')">🌍 Groups</button></div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CONTEXT CARDS
+// ═══════════════════════════════════════════════════════════════════
+
+function getMatchContext(m){
+  const hName=resolveTeam(m.home),aName=resolveTeam(m.away);
+  const lines=[];
+  if(m.stage==='group'){
+    const tiers=getTierDefs();
+    const hT=tiers.findIndex(t=>t.teams.some(x=>x.name===hName));
+    const aT=tiers.findIndex(t=>t.teams.some(x=>x.name===aName));
+    const td=Math.abs(hT-aT);
+    if(td>=2) lines.push(`⚡⚡⚡ Giant Killer Alert — ${td} tier gap`);
+    else if(td===1) lines.push(`⚡ Upset Potential — ${hT>aT?hName:aName} is the underdog`);
+    if(m.group){
+      if(groupComplete(m.group)) lines.push(`✅ Group ${m.group} standings confirmed`);
+      else {
+        const st=getGroupStandings(m.group);
+        const hS=st.find(s=>s.name===hName),aS=st.find(s=>s.name===aName);
+        if(hS&&aS){
+          const top2=st[1]?.pts||0;
+          if(hS.pts<top2-3||aS.pts<top2-3) lines.push(`🚨 Elimination risk — ${hS.pts<aS.pts?hName:aName} needs a result`);
+          else lines.push(`⚖️ Group ${m.group} wide open — standings could change`);
+        }
+      }
+    }
+  } else if(['r32','r16','qf','sf','final','bronze'].includes(m.stage)){
+    const stageNames={r32:'Round of 32',r16:'Round of 16',qf:'Quarter-Final',sf:'Semi-Final',final:'Final',bronze:'3rd Place'};
+    lines.push(`🏆 ${stageNames[m.stage]} — win or go home`);
+    if(m.stage==='final') lines.push('🌍 FIFA World Cup 2026 Final · New York/New Jersey');
+    if(m.stage==='sf') lines.push('Winner goes to the Final · Loser plays for Bronze');
+  }
+  const hO=ownerOf(hName),aO=ownerOf(aName);
+  const stake=[hO&&`${hO} owns ${hName}`,aO&&`${aO} owns ${aName}`].filter(Boolean);
+  if(stake.length) lines.push(`👤 ${stake.join(' · ')}`);
+  return lines;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TABS + MOBILE NAV
+// ═══════════════════════════════════════════════════════════════════
+
 function switchTab(id){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById(`panel-${id}`).classList.add('active');
-  const idx={setup:0,wheel:1,tracker:2,scores:3,calendar:4,knockout:5,sleeper:6,teams:7,demo:8}[id];
+  document.getElementById(`panel-${id}`)?.classList.add('active');
+  const idx={dashboard:0,setup:0,wheel:1,tracker:2,scores:3,calendar:4,knockout:5,sleeper:6,teams:7,demo:8}[id];
   document.querySelectorAll('.tab-btn')[idx]?.classList.add('active');
+  // Mobile nav active state
+  document.querySelectorAll('.mob-nav-btn').forEach(b=>b.classList.remove('mob-active'));
+  document.querySelectorAll(`.mob-nav-btn[data-tab="${id}"]`).forEach(b=>b.classList.add('mob-active'));
+  if(id==='dashboard'){initDashboard();}
   if(id==='tracker') buildTracker();
   if(id==='setup') buildSavedDraftsList();
   if(id==='scores'){renderMatchLog();populateMatchFormTeams();}
@@ -2856,12 +3331,32 @@ function switchTab(id){
   if(id==='knockout'){buildKnockoutBracket();}
   if(id==='sleeper') buildSleeperTracker();
   if(id==='teams') buildTeamsGrid();
-  if(id==='demo'){
-    const ds=document.getElementById('demoStatus');if(ds&&!ds.textContent) ds.textContent='';
-  }
+  if(id==='demo'){const ds=document.getElementById('demoStatus');if(ds&&!ds.textContent) ds.textContent='';}
   if(id==='wheel'&&phase>0&&phase<4){setPhaseUI();drawCurrentWheel();}
   if(id==='wheel'&&phase===0){const tiers=getTierDefs();if(tiers.length){drawWheel(shuffle([...tiers[0].teams]),TIER_COLORS[0],wheelAngle);}}
+  // Close more drawer if open
+  const drawer=document.getElementById('moreDrawer');
+  if(drawer) drawer.style.display='none';
+  // Scroll to top
+  window.scrollTo(0,0);
 }
+function updateMobileNav(){
+  const postDraft=phase===4;
+  const pre=document.getElementById('mobNavPreDraft');
+  const post=document.getElementById('mobNavPostDraft');
+  if(pre) pre.style.display=postDraft?'none':'flex';
+  if(post) post.style.display=postDraft?'flex':'none';
+  // Show demo button if admin
+  const demoBtn=document.getElementById('mobDemoBtn');
+  if(demoBtn) demoBtn.style.display=(_pinUnlocked||isAdminUrl())?'flex':'none';
+}
+
+function toggleMoreDrawer(){
+  const d=document.getElementById('moreDrawer');
+  if(!d) return;
+  d.style.display=d.style.display==='none'||!d.style.display?'block':'none';
+}
+
 function showToast(msg){
   const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),3500);
@@ -2873,12 +3368,50 @@ window.onload=async()=>{
   initTournamentNameUI();
   initAdminMode();
   buildDraftSwitcher();
+  updateMobileNav();
   // Draw preview wheel while data loads
   const tiers=getTierDefs();
   if(tiers.length) drawWheel(shuffle([...tiers[0].teams]),TIER_COLORS[0],0);
-  // Load from Supabase (async — shows loading bar)
+  // Load from Supabase
   await loadSaved();
+  // If draft is complete, switch to dashboard as home
+  if(phase===4){
+    updateMobileNav();
+    switchTab('dashboard');
+  }
 };
 </script>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="mob-nav" id="mobNav">
+  <!-- Pre-draft: show setup+wheel -->
+  <div id="mobNavPreDraft" style="display:flex;width:100%">
+    <button class="mob-nav-btn mob-active" data-tab="setup" onclick="switchTab('setup')">⚙<span>Setup</span></button>
+    <button class="mob-nav-btn" data-tab="wheel" onclick="switchTab('wheel')">🎡<span>Wheel</span></button>
+    <button class="mob-nav-btn" data-tab="calendar" onclick="switchTab('calendar')">📅<span>Calendar</span></button>
+    <button class="mob-nav-btn" data-tab="teams" onclick="switchTab('teams')">🌍<span>Groups</span></button>
+    <button class="mob-nav-btn" onclick="toggleMoreDrawer()">•••<span>More</span></button>
+  </div>
+  <!-- Post-draft: prioritised tabs -->
+  <div id="mobNavPostDraft" style="display:none;width:100%">
+    <button class="mob-nav-btn mob-active" data-tab="dashboard" onclick="switchTab('dashboard')">🏠<span>Home</span></button>
+    <button class="mob-nav-btn" data-tab="tracker" onclick="switchTab('tracker')">📊<span>Standings</span></button>
+    <button class="mob-nav-btn" data-tab="calendar" onclick="switchTab('calendar')">📅<span>Calendar</span></button>
+    <button class="mob-nav-btn" data-tab="knockout" onclick="switchTab('knockout')">🏆<span>Bracket</span></button>
+    <button class="mob-nav-btn" onclick="toggleMoreDrawer()">•••<span>More</span></button>
+  </div>
+</nav>
+
+<!-- More drawer -->
+<div id="moreDrawer" style="display:none;position:fixed;bottom:60px;left:0;right:0;background:var(--card);border-top:1px solid var(--border);z-index:200;padding:8px;display:none">
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+    <button class="mob-nav-btn" data-tab="scores" onclick="switchTab('scores')" style="flex-direction:column">⚽<span>Scores</span></button>
+    <button class="mob-nav-btn" data-tab="sleeper" onclick="switchTab('sleeper')" style="flex-direction:column">🌟<span>Sleeper</span></button>
+    <button class="mob-nav-btn" data-tab="teams" onclick="switchTab('teams')" style="flex-direction:column">🌍<span>Groups</span></button>
+    <button class="mob-nav-btn" data-tab="wheel" onclick="switchTab('wheel')" style="flex-direction:column">🎡<span>Wheel</span></button>
+    <button class="mob-nav-btn" data-tab="setup" onclick="switchTab('setup')" style="flex-direction:column">⚙<span>Setup</span></button>
+    <button id="mobDemoBtn" class="mob-nav-btn" data-tab="demo" onclick="switchTab('demo')" style="flex-direction:column;display:none">🎮<span>Demo</span></button>
+  </div>
+</div>
 </body>
 </html>
