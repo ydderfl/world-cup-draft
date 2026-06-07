@@ -276,7 +276,8 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
 </div>
 
 <nav class="tabs">
-  <button class="tab-btn active" id="homeTabBtn" onclick="switchTab(phase===4||(Object.values(draftResults).some(t=>t.length>0))?'dashboard':'setup')">⚙ Setup</button>
+  <button class="tab-btn" id="dashTabBtn" onclick="switchTab('dashboard')" style="display:none">🏠 Home</button>
+  <button class="tab-btn active" id="setupTabBtn" onclick="switchTab('setup')">⚙ Setup</button>
   <button class="tab-btn" onclick="switchTab('wheel')">🎡 Wheel</button>
   <button class="tab-btn" onclick="switchTab('tracker')">📊 Leaderboard</button>
   <button class="tab-btn" onclick="switchTab('scores')">⚽ Scores</button>
@@ -3388,7 +3389,8 @@ function switchTab(id){
   // For dashboard, show dashboard panel (not setup panel)
   const panelId = id==='dashboard' ? 'panel-dashboard' : `panel-${id}`;
   document.getElementById(panelId)?.classList.add('active');
-  const idx={dashboard:0,setup:0,wheel:1,tracker:2,scores:3,calendar:4,knockout:5,sleeper:6,teams:7,demo:8}[id];
+  // Map tab id to desktop nav button index
+  const idx={dashboard:0,setup:1,wheel:2,tracker:3,scores:4,calendar:5,knockout:6,sleeper:7,teams:8,demo:9}[id];
   document.querySelectorAll('.tab-btn')[idx]?.classList.add('active');
   // Mobile nav active state
   document.querySelectorAll('.mob-nav-btn').forEach(b=>b.classList.remove('mob-active'));
@@ -3411,22 +3413,32 @@ function switchTab(id){
   window.scrollTo(0,0);
 }
 function updateHomeTab(){
-  const btn=document.getElementById('homeTabBtn');
+  const hasDraft=phase===4||Object.values(draftResults).some(t=>t.length>0);
+  // Desktop nav — show/hide dashboard tab, update setup panel title
+  const dashBtn=document.getElementById('dashTabBtn');
+  const setupBtn=document.getElementById('setupTabBtn');
+  if(dashBtn) dashBtn.style.display=hasDraft?'':'none';
+  // Setup panel title
   const title=document.getElementById('setupPanelTitle');
   const sub=document.getElementById('setupSub');
-  const hasDraft=phase===4||Object.values(draftResults).some(t=>t.length>0);
-  if(btn) btn.textContent=hasDraft?'🏠 Home':'⚙ Setup';
-  if(title) title.textContent=hasDraft?'Home':'Draft Setup';
+  if(title) title.textContent=hasDraft?'Settings':'Draft Setup';
   if(sub&&hasDraft) sub.textContent='Manage your tournament, update settings, or reset below';
 }
 
 function updateMobileNav(){
-  const postDraft=phase===4;
-  const pre=document.getElementById('mobNavPreDraft');
-  const post=document.getElementById('mobNavPostDraft');
-  if(pre) pre.style.display=postDraft?'none':'flex';
-  if(post) post.style.display=postDraft?'flex':'none';
-  // Show demo button if admin
+  const hasDraft=phase===4||Object.values(draftResults).some(t=>t.length>0);
+  // Show/hide individual mobile nav buttons
+  const show=(id,visible)=>{const el=document.getElementById(id);if(el) el.style.display=visible?'':'none';};
+  show('mobDashBtn', hasDraft);      // Home — visible post-draft
+  show('mobSetupBtn', !hasDraft);    // Setup — visible pre-draft only
+  show('mobWheelBtn', !hasDraft);    // Wheel — visible pre-draft only
+  show('mobTrackerBtn', hasDraft);   // Standings — visible post-draft
+  show('mobBracketBtn', hasDraft);   // Bracket — visible post-draft
+  // Groups stays always visible
+  // In the More drawer: Setup+Wheel move here post-draft
+  show('mobSetupDrawer', hasDraft);
+  show('mobWheelDrawer', hasDraft);
+  // Demo — admin only
   const demoBtn=document.getElementById('mobDemoBtn');
   if(demoBtn) demoBtn.style.display=(_pinUnlocked||isAdminUrl())?'flex':'none';
 }
@@ -3456,42 +3468,38 @@ window.onload=async()=>{
   await loadSaved();
   // Update home tab label and switch to correct starting tab
   updateHomeTab();
+  updateMobileNav();
   const hasDraft=phase===4||Object.values(draftResults).some(t=>t.length>0);
   if(hasDraft){
-    updateMobileNav();
     switchTab('dashboard');
+  } else {
+    // Make sure setup is the active tab and mobile button is marked active
+    document.querySelectorAll('.mob-nav-btn').forEach(b=>b.classList.remove('mob-active'));
+    const setupMob=document.getElementById('mobSetupBtn');
+    if(setupMob) setupMob.classList.add('mob-active');
   }
 };
 </script>
 
-<!-- MOBILE BOTTOM NAV -->
+<!-- MOBILE BOTTOM NAV — single nav, JS shows/hides individual buttons -->
 <nav class="mob-nav" id="mobNav">
-  <!-- Pre-draft: show setup+wheel -->
-  <div id="mobNavPreDraft" style="display:flex;width:100%">
-    <button class="mob-nav-btn mob-active" data-tab="setup" onclick="switchTab('setup')">⚙<span>Setup</span></button>
-    <button class="mob-nav-btn" data-tab="wheel" onclick="switchTab('wheel')">🎡<span>Wheel</span></button>
-    <button class="mob-nav-btn" data-tab="calendar" onclick="switchTab('calendar')">📅<span>Calendar</span></button>
-    <button class="mob-nav-btn" data-tab="teams" onclick="switchTab('teams')">🌍<span>Groups</span></button>
-    <button class="mob-nav-btn" onclick="toggleMoreDrawer()">•••<span>More</span></button>
-  </div>
-  <!-- Post-draft: prioritised tabs -->
-  <div id="mobNavPostDraft" style="display:none;width:100%">
-    <button class="mob-nav-btn mob-active" data-tab="dashboard" onclick="switchTab('dashboard')">🏠<span>Home</span></button>
-    <button class="mob-nav-btn" data-tab="tracker" onclick="switchTab('tracker')">📊<span>Standings</span></button>
-    <button class="mob-nav-btn" data-tab="calendar" onclick="switchTab('calendar')">📅<span>Calendar</span></button>
-    <button class="mob-nav-btn" data-tab="knockout" onclick="switchTab('knockout')">🏆<span>Bracket</span></button>
-    <button class="mob-nav-btn" onclick="toggleMoreDrawer()">•••<span>More</span></button>
-  </div>
+  <button class="mob-nav-btn" id="mobDashBtn" data-tab="dashboard" onclick="switchTab('dashboard')" style="display:none">🏠<span>Home</span></button>
+  <button class="mob-nav-btn mob-active" id="mobSetupBtn" data-tab="setup" onclick="switchTab('setup')">⚙<span>Setup</span></button>
+  <button class="mob-nav-btn" id="mobWheelBtn" data-tab="wheel" onclick="switchTab('wheel')">🎡<span>Wheel</span></button>
+  <button class="mob-nav-btn" id="mobTrackerBtn" data-tab="tracker" onclick="switchTab('tracker')" style="display:none">📊<span>Standings</span></button>
+  <button class="mob-nav-btn" id="mobCalBtn" data-tab="calendar" onclick="switchTab('calendar')">📅<span>Calendar</span></button>
+  <button class="mob-nav-btn" id="mobBracketBtn" data-tab="knockout" onclick="switchTab('knockout')" style="display:none">🏆<span>Bracket</span></button>
+  <button class="mob-nav-btn" id="mobGroupsBtn" data-tab="teams" onclick="switchTab('teams')">🌍<span>Groups</span></button>
+  <button class="mob-nav-btn" onclick="toggleMoreDrawer()">•••<span>More</span></button>
 </nav>
 
 <!-- More drawer -->
-<div id="moreDrawer" style="display:none;position:fixed;bottom:60px;left:0;right:0;background:var(--card);border-top:1px solid var(--border);z-index:200;padding:8px;display:none">
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+<div id="moreDrawer" style="display:none;position:fixed;bottom:58px;left:0;right:0;background:var(--card);border-top:1px solid var(--border);z-index:200;padding:8px">
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px" id="moreDrawerGrid">
     <button class="mob-nav-btn" data-tab="scores" onclick="switchTab('scores')" style="flex-direction:column">⚽<span>Scores</span></button>
     <button class="mob-nav-btn" data-tab="sleeper" onclick="switchTab('sleeper')" style="flex-direction:column">🌟<span>Sleeper</span></button>
-    <button class="mob-nav-btn" data-tab="teams" onclick="switchTab('teams')" style="flex-direction:column">🌍<span>Groups</span></button>
-    <button class="mob-nav-btn" data-tab="wheel" onclick="switchTab('wheel')" style="flex-direction:column">🎡<span>Wheel</span></button>
-    <button class="mob-nav-btn" data-tab="setup" onclick="switchTab('setup')" style="flex-direction:column">⚙<span>Setup</span></button>
+    <button class="mob-nav-btn" id="mobSetupDrawer" data-tab="setup" onclick="switchTab('setup')" style="flex-direction:column;display:none">⚙<span>Setup</span></button>
+    <button class="mob-nav-btn" id="mobWheelDrawer" data-tab="wheel" onclick="switchTab('wheel')" style="flex-direction:column;display:none">🎡<span>Wheel</span></button>
     <button id="mobDemoBtn" class="mob-nav-btn" data-tab="demo" onclick="switchTab('demo')" style="flex-direction:column;display:none">🎮<span>Demo</span></button>
   </div>
 </div>
