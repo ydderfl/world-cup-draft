@@ -2079,59 +2079,6 @@ function _fallbackCopy(text){
 }
 
 // Scan localStorage for all wc2026_ keys and render them as clickable cards
-function buildSavedDraftsList(){
-  const container=document.getElementById('savedDraftsList');
-  if(!container) return;
-  const keys=[];
-  for(let i=0;i<localStorage.length;i++){
-    const k=localStorage.key(i);
-    if(k&&k.startsWith('wc2026_')) keys.push(k);
-  }
-  if(keys.length===0){container.innerHTML='';return;}
-
-  const currentKey=getDraftKey();
-  const cards=keys.map(k=>{
-    const name=k.replace('wc2026_','');
-    const displayName=name==='default'?'Default':name;
-    let summary='Empty';
-    try{
-      const d=JSON.parse(localStorage.getItem(k)||'{}');
-      const pCount=d.players?.length||0;
-      const phase=d.phase||0;
-      const scores=d.matchLog?.length||0;
-      if(pCount>0){
-        const stateLabel=phase===4?'Draft complete':phase>0?`Drafting (Tier ${phase})`:'Setup';
-        summary=`${pCount} players · ${stateLabel}${scores>0?` · ${scores} results`:''}`;
-      }
-    }catch(e){}
-    const isCurrent=k===currentKey;
-    const param=name==='default'?'':`?draft=${encodeURIComponent(name)}`;
-    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;background:${isCurrent?'rgba(245,200,66,.08)':'var(--dark3)'};border:1px solid ${isCurrent?'var(--gold)':'var(--border)'};border-radius:5px;margin-bottom:6px">
-      <div>
-        <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.9rem;color:${isCurrent?'var(--gold)':'var(--text)'}">${displayName}${isCurrent?' <span style="font-size:.65rem;opacity:.7">(current)</span>':''}</span>
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;color:var(--muted)">${summary}</div>
-      </div>
-      <div style="display:flex;gap:6px">
-        ${!isCurrent?`<a href="${window.location.pathname}${param}" class="btn btn-dark" style="padding:5px 12px;font-size:.75rem;text-decoration:none">Load</a>`:''}
-        <button onclick="deleteSavedDraft('${k}')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:5px 8px;cursor:pointer;font-size:.75rem" title="Delete this draft">✕</button>
-      </div>
-    </div>`;
-  }).join('');
-
-  container.innerHTML=`
-    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Saved Drafts (${keys.length})</div>
-    ${cards}`;
-}
-
-function deleteSavedDraft(key){
-  const name=key.replace('wc2026_','');
-  // Don't allow deleting current draft this way — use Reset for that
-  if(key===getDraftKey()){showToast('Use ↺ Reset Everything to clear the current draft.');return;}
-  localStorage.removeItem(key);
-  buildSavedDraftsList();
-  showToast(`🗑 Draft "${name}" deleted.`);
-}
-
 function initTournamentNameUI(){
   const param=new URLSearchParams(window.location.search).get('draft');
   const input=document.getElementById('tournamentNameInput');
@@ -2159,23 +2106,6 @@ function updateHeaderSub(){
   const draftParam=new URLSearchParams(window.location.search).get('draft');
   const draftLabel=draftParam?` · ${draftParam}`:'';
   el.textContent=`48 Teams · ${numPlayers} Players · ${tiers} Tier${tiers!==1?'s':''}${draftLabel} · USA / Canada / Mexico`;
-}
-
-// Clear all scores while keeping the draft intact
-function clearScores(){
-  matchLog=[];
-  knockoutResults={};
-  qualifierOverrides={};
-  saveData();
-  buildTracker();
-  buildTeamsGrid();
-  buildSleeperTracker();
-  renderMatchLog();
-  renderCalendar();
-  buildKnockoutBracket();
-  stopConfetti();
-  document.getElementById('championsOverlay').classList.remove('show');
-  showToast('🗑 All scores cleared. Draft intact.');
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -2377,62 +2307,142 @@ function _showDemoGroupsPreview(){
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// PERSISTENCE  —  draft key is driven by ?draft= URL parameter
+// PERSISTENCE  —  Supabase (cross-device) + localStorage (fallback)
 // ═══════════════════════════════════════════════════════════════════
 
-// Returns the localStorage key for the current draft.
-// URL  ?draft=friends  →  key  wc2026_friends
-// URL  (no param)      →  key  wc2026_default
+const SUPA_URL = 'https://fqniwvhmizfcahdovsra.supabase.co';
+const SUPA_KEY = 'sb_publishable_VMxnzOTpwnveRas9dFFzQQ_t7wgLOrE';
+
+// The draft ID is the ?draft= URL param, or 'default'
 function getDraftKey(){
   const p=new URLSearchParams(window.location.search).get('draft');
-  return p?`wc2026_${p.replace(/[^a-zA-Z0-9_-]/g,'')}`:'wc2026_default';
+  return p?p.replace(/[^a-zA-Z0-9_-]/g,''):'default';
 }
 
-function saveData(){
-  try{localStorage.setItem(getDraftKey(),JSON.stringify({players,numPlayers,teamsPerPlayer,draftResults,phase,phaseIdx,currentTier,matchLog,knockoutResults,qualifierOverrides,_tierOrders:window._tierOrders,_tierRemaining:window._tierRemaining}));}catch(e){}
+// Build the payload object — same shape as before
+function _buildPayload(){
+  return {players,numPlayers,teamsPerPlayer,draftResults,phase,phaseIdx,
+    currentTier,matchLog,knockoutResults,qualifierOverrides,
+    _tierOrders:window._tierOrders,_tierRemaining:window._tierRemaining};
 }
-function loadSaved(){
-  try{
-    const raw=localStorage.getItem(getDraftKey());if(!raw) return;
-    const d=JSON.parse(raw);
-    players=d.players||[];
-    numPlayers=d.numPlayers||players.length||16;
-    teamsPerPlayer=d.teamsPerPlayer||(48/numPlayers);
-    draftResults=d.draftResults||{};phase=d.phase||0;phaseIdx=d.phaseIdx||0;
-    currentTier=d.currentTier||0;
-    matchLog=d.matchLog||[];knockoutResults=d.knockoutResults||{};qualifierOverrides=d.qualifierOverrides||{};
-    if(d._tierOrders) window._tierOrders=d._tierOrders;
-    if(d._tierRemaining) window._tierRemaining=d._tierRemaining;
-    draftOrderA=window._tierOrders?.[0]||[];
-    draftOrderB=window._tierOrders?.[1]||[];
-    draftOrderC=window._tierOrders?.[2]||[];
-    remainingA=window._tierRemaining?.[0]||[];
-    remainingB=window._tierRemaining?.[1]||[];
-    remainingC=window._tierRemaining?.[2]||[];
-    setPlayerCount(numPlayers);
-    buildPlayerInputs();
-    if(phase>0){
-      populateMatchFormTeams();populateFilterPlayers();
-      if(phase===4){
-        document.getElementById('completedBanner').classList.add('show');
-        document.getElementById('wheelLayout').style.opacity='.3';
-        document.getElementById('spinBtn').disabled=true;
-        document.getElementById('autoStepBtn').disabled=true;
-        document.getElementById('progressFill').style.width='100%';
-        document.getElementById('wheelTitle').textContent='🏆 Draft Complete';
-      }else{
-        setPhaseUI();drawCurrentWheel();updateCurrentDrafter();
-        document.getElementById('spinBtn').disabled=false;
-        document.getElementById('autoStepBtn').disabled=false;
-      }
-      buildDraftQueue();buildTracker();buildTeamsGrid();renderMatchLog();
-      showToast('🔄 Session restored!');
+
+// Apply a loaded payload object to app state and rebuild UI
+function _applyPayload(d){
+  players=d.players||[];
+  numPlayers=d.numPlayers||players.length||16;
+  teamsPerPlayer=d.teamsPerPlayer||(48/numPlayers);
+  draftResults=d.draftResults||{};phase=d.phase||0;phaseIdx=d.phaseIdx||0;
+  currentTier=d.currentTier||0;
+  matchLog=d.matchLog||[];knockoutResults=d.knockoutResults||{};qualifierOverrides=d.qualifierOverrides||{};
+  if(d._tierOrders) window._tierOrders=d._tierOrders;
+  if(d._tierRemaining) window._tierRemaining=d._tierRemaining;
+  draftOrderA=window._tierOrders?.[0]||[];
+  draftOrderB=window._tierOrders?.[1]||[];
+  draftOrderC=window._tierOrders?.[2]||[];
+  remainingA=window._tierRemaining?.[0]||[];
+  remainingB=window._tierRemaining?.[1]||[];
+  remainingC=window._tierRemaining?.[2]||[];
+  setPlayerCount(numPlayers);
+  buildPlayerInputs();
+  if(phase>0){
+    populateMatchFormTeams();populateFilterPlayers();
+    if(phase===4){
+      document.getElementById('completedBanner').classList.add('show');
+      document.getElementById('wheelLayout').style.opacity='.3';
+      document.getElementById('spinBtn').disabled=true;
+      document.getElementById('autoStepBtn').disabled=true;
+      document.getElementById('progressFill').style.width='100%';
+      document.getElementById('wheelTitle').textContent='🏆 Draft Complete';
+    }else{
+      setPhaseUI();drawCurrentWheel();updateCurrentDrafter();
+      document.getElementById('spinBtn').disabled=false;
+      document.getElementById('autoStepBtn').disabled=false;
     }
-  }catch(e){localStorage.removeItem(getDraftKey());}
+    buildDraftQueue();buildTracker();buildTeamsGrid();renderMatchLog();
+  }
 }
+
+// Save to Supabase (upsert) AND keep a local copy as fallback
+async function saveData(){
+  const id=getDraftKey();
+  const payload=_buildPayload();
+  // Always write to localStorage first so the app never feels slow
+  try{localStorage.setItem('wc2026_'+id,JSON.stringify(payload));}catch(e){}
+  // Then sync to Supabase in the background
+  try{
+    const res=await fetch(`${SUPA_URL}/rest/v1/drafts`,{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'apikey':SUPA_KEY,
+        'Authorization':'Bearer '+SUPA_KEY,
+        'Prefer':'resolution=merge-duplicates',
+      },
+      body:JSON.stringify({id,data:payload,updated_at:new Date().toISOString()}),
+    });
+    if(!res.ok){const t=await res.text();console.warn('Supabase save error:',res.status,t);}
+  }catch(e){console.warn('Supabase offline, saved locally only:',e.message);}
+}
+
+// Load from Supabase; fall back to localStorage if offline or not found
+async function loadSaved(){
+  const id=getDraftKey();
+  // Show a subtle loading indicator
+  _setLoadingState(true);
+  let d=null;
+  try{
+    const res=await fetch(`${SUPA_URL}/rest/v1/drafts?id=eq.${encodeURIComponent(id)}&select=data`,{
+      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY},
+    });
+    if(res.ok){
+      const rows=await res.json();
+      if(rows&&rows.length>0) d=rows[0].data;
+    }
+  }catch(e){console.warn('Supabase offline, trying localStorage:',e.message);}
+  // Fall back to localStorage
+  if(!d){
+    try{
+      const raw=localStorage.getItem('wc2026_'+id);
+      if(raw) d=JSON.parse(raw);
+    }catch(e){}
+  }
+  _setLoadingState(false);
+  if(!d) return;
+  try{
+    _applyPayload(d);
+    showToast(phase>0?'🔄 Draft loaded!':'');
+  }catch(e){
+    console.error('Failed to apply saved data:',e);
+    try{localStorage.removeItem('wc2026_'+id);}catch(_){}
+  }
+}
+
+// Delete from Supabase and localStorage
+async function _deleteDraftFromSupabase(id){
+  try{
+    await fetch(`${SUPA_URL}/rest/v1/drafts?id=eq.${encodeURIComponent(id)}`,{
+      method:'DELETE',
+      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY},
+    });
+  }catch(e){console.warn('Supabase delete error:',e.message);}
+  try{localStorage.removeItem('wc2026_'+id);}catch(_){}
+}
+
+// Subtle loading overlay
+function _setLoadingState(on){
+  let el=document.getElementById('supaLoadingBar');
+  if(!el){
+    el=document.createElement('div');el.id='supaLoadingBar';
+    el.style.cssText='position:fixed;top:0;left:0;width:0%;height:3px;background:var(--gold);z-index:9999;transition:width 0.4s ease;';
+    document.body.appendChild(el);
+  }
+  el.style.width=on?'70%':'100%';
+  if(!on) setTimeout(()=>{el.style.width='0%';},400);
+}
+
 function resetAll(){
-  // Clear persisted state
-  localStorage.removeItem(getDraftKey());
+  // Clear from Supabase and localStorage
+  _deleteDraftFromSupabase(getDraftKey());
   // Reset all JS state
   players=[];draftOrderA=[];draftOrderB=[];draftOrderC=[];draftResults={};
   phase=0;phaseIdx=0;currentTier=0;
@@ -2442,20 +2452,13 @@ function resetAll(){
   window._tierOrders=null;window._tierRemaining=null;
   remainingA=[];remainingB=[];remainingC=[];
   wheelAngle=0;wheelTeams=[];
-  // Rebuild player inputs with blank values — explicitly zero the array first
-  for(let i=0;i<48;i++) players[i]='';
+  // Rebuild player inputs blank
   players=[];
   buildPlayerInputs();
-  // Also blank any existing input DOM values directly, in case they persisted
-  for(let i=0;i<numPlayers;i++){
-    const el=document.getElementById(`pInput${i}`);
-    if(el) el.value='';
-  }
+  for(let i=0;i<numPlayers;i++){const el=document.getElementById(`pInput${i}`);if(el) el.value='';}
   buildTierPreviews();buildTeamsGrid();
-  // Reset tracker and match log displays
   document.getElementById('trackerBody').innerHTML=`<tr><td colspan="10" class="empty-msg">Complete the draft first.</td></tr>`;
   document.getElementById('matchLogBody').innerHTML=`<tr><td colspan="8" class="empty-msg">No matches logged yet.</td></tr>`;
-  // Reset wheel panel
   document.getElementById('completedBanner').classList.remove('show');
   document.getElementById('wheelLayout').style.opacity='1';
   document.getElementById('progressFill').style.width='0%';
@@ -2468,28 +2471,82 @@ function resetAll(){
   document.getElementById('wheelSubtitle').textContent='Waiting to start...';
   document.getElementById('phaseHeader').innerHTML='';
   document.getElementById('resultBanner').classList.remove('show');
-  // Reset wheel pointer colour and canvas
   const ptr=document.getElementById('wheelPointer');
   if(ptr){ptr.style.borderTopColor='var(--gold)';ptr.style.filter='drop-shadow(0 2px 6px rgba(245,200,66,0.8))';}
   const canvas=getCanvas();if(canvas) canvas.classList.remove('spin-wheel');
   const tiers=getTierDefs();
   if(tiers.length) drawWheel(shuffle([...tiers[0].teams]),TIER_COLORS[0],0);
-  // Reset other panels
   document.getElementById('calendarBody').innerHTML='';
   document.getElementById('bracketBody').innerHTML='';
   document.getElementById('sleeperBody').innerHTML='';
-  // Close any open overlays
   document.getElementById('championsOverlay').classList.remove('show');
   stopConfetti();
-  // Clear demo panel
-  const demoStatus=document.getElementById('demoStatus');
-  if(demoStatus) demoStatus.textContent='';
-  const demoPreview=document.getElementById('demoPreview');
-  if(demoPreview) demoPreview.style.display='none';
-  // Update header
+  const demoStatus=document.getElementById('demoStatus');if(demoStatus) demoStatus.textContent='';
+  const demoPreview=document.getElementById('demoPreview');if(demoPreview) demoPreview.style.display='none';
   updateHeaderSub();
   switchTab('setup');
   showToast('🔄 Reset complete — ready to draft again!');
+}
+
+// Also update clearScores to delete scores from Supabase
+function clearScores(){
+  matchLog=[];
+  knockoutResults={};
+  qualifierOverrides={};
+  saveData();
+  buildTracker();buildTeamsGrid();buildSleeperTracker();renderMatchLog();renderCalendar();buildKnockoutBracket();
+  stopConfetti();
+  document.getElementById('championsOverlay').classList.remove('show');
+  showToast('🗑 All scores cleared. Draft intact.');
+}
+
+// Scan localStorage for saved drafts list (Supabase version would need a separate fetch)
+function buildSavedDraftsList(){
+  const container=document.getElementById('savedDraftsList');
+  if(!container) return;
+  const keys=[];
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(k&&k.startsWith('wc2026_')) keys.push(k);
+  }
+  if(keys.length===0){container.innerHTML='';return;}
+  const currentId='wc2026_'+getDraftKey();
+  const cards=keys.map(k=>{
+    const name=k.replace('wc2026_','');
+    const displayName=name==='default'?'Default':name;
+    let summary='Empty';
+    try{
+      const d=JSON.parse(localStorage.getItem(k)||'{}');
+      const pCount=d.players?.length||0;
+      const ph=d.phase||0;
+      const scores=d.matchLog?.length||0;
+      if(pCount>0){
+        const stateLabel=ph===4?'Draft complete':ph>0?`Drafting (Tier ${ph})`:'Setup';
+        summary=`${pCount} players · ${stateLabel}${scores>0?` · ${scores} results`:''}`;
+      }
+    }catch(e){}
+    const isCurrent=k===currentId;
+    const param=name==='default'?'':`?draft=${encodeURIComponent(name)}`;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;background:${isCurrent?'rgba(245,200,66,.08)':'var(--dark3)'};border:1px solid ${isCurrent?'var(--gold)':'var(--border)'};border-radius:5px;margin-bottom:6px">
+      <div>
+        <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.9rem;color:${isCurrent?'var(--gold)':'var(--text)'}">${displayName}${isCurrent?' <span style="font-size:.65rem;opacity:.7">(current)</span>':''}</span>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;color:var(--muted)">${summary}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        ${!isCurrent?`<a href="${window.location.pathname}${param}" class="btn btn-dark" style="padding:5px 12px;font-size:.75rem;text-decoration:none">Load</a>`:''}
+        <button onclick="deleteSavedDraft('${k}')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:5px 8px;cursor:pointer;font-size:.75rem" title="Delete">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+  container.innerHTML=`<div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Saved Drafts (${keys.length})</div>${cards}`;
+}
+
+function deleteSavedDraft(key){
+  const name=key.replace('wc2026_','');
+  if('wc2026_'+getDraftKey()===key){showToast('Use ↺ Reset Everything to clear the current draft.');return;}
+  _deleteDraftFromSupabase(name);
+  buildSavedDraftsList();
+  showToast(`🗑 Draft "${name}" deleted.`);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -2519,13 +2576,15 @@ function showToast(msg){
   setTimeout(()=>t.classList.remove('show'),3500);
 }
 
-window.onload=()=>{
+window.onload=async()=>{
   init();
   updateHeaderSub();
   initTournamentNameUI();
-  // Draw preview wheel for default player count
+  // Draw preview wheel while data loads
   const tiers=getTierDefs();
   if(tiers.length) drawWheel(shuffle([...tiers[0].teams]),TIER_COLORS[0],0);
+  // Load from Supabase (async — shows loading bar)
+  await loadSaved();
 };
 </script>
 </body>
