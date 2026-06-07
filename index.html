@@ -8,7 +8,7 @@
 <style>
 :root {
   --gold: #F5C842;
-  --silver: #B0B8C1; 
+  --silver: #B0B8C1;
   --bronze: #CD7F32;
   --green: #1A7A3C;
   --green-light: #22a050;
@@ -221,7 +221,7 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
   <div class="trophy">🏆</div>
   <div>
     <h1>World Cup 2026 — Draft Game</h1>
-    <p>48 Teams · 16 Players · 3 Tiers · USA / Canada / Mexico</p>
+    <p id="headerSub">48 Teams · 16 Players · 3 Tiers · USA / Canada / Mexico</p>
   </div>
 </header>
 
@@ -234,7 +234,7 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
   <button class="tab-btn" onclick="switchTab('knockout')">🏆 Knockout</button>
   <button class="tab-btn" onclick="switchTab('sleeper')">🌟 Sleeper</button>
   <button class="tab-btn" onclick="switchTab('teams')">🌍 Teams</button>
-  <button class="tab-btn" onclick="switchTab('demo')" style="color:var(--green)">🎮 Demo</button>
+  <button class="tab-btn" onclick="switchTab('demo')" style="color:#2ecc71">🎮 Demo</button>
 </nav>
 
 <!-- ══ SETUP ══════════════════════════════════════════════════════════════ -->
@@ -275,7 +275,13 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
   <div style="display:flex;gap:10px;flex-wrap:wrap">
     <button class="btn btn-gold" onclick="startDraft()">🎡 Randomise &amp; Start Wheel Draft →</button>
     <button class="btn btn-green" onclick="autoDraft()">⚡ Auto Draft</button>
+    <button class="btn btn-dark" onclick="clearScores()">🗑 Clear Scores</button>
     <button class="btn btn-dark" onclick="resetAll()">↺ Reset Everything</button>
+  </div>
+
+  <!-- Draft name info (shown when ?draft= param is set) -->
+  <div id="draftNameBox" style="display:none;margin-top:20px" class="info-box">
+    <b>Draft:</b> <span id="draftNameLabel"></span> · Share this exact URL with your group so everyone loads the same draft. Each unique <code>?draft=name</code> is a fully separate save.
   </div>
 </div>
 
@@ -499,59 +505,61 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
 <!-- ══ DEMO ════════════════════════════════════════════════════════════ -->
 <div class="panel" id="panel-demo">
   <div class="section-title">🎮 Demo Mode</div>
-  <div class="section-sub">Auto-populate scores to test the full tournament flow — safe to clear anytime</div>
+  <div class="section-sub">Simulate scores to test the full tournament flow — scores only, draft untouched</div>
 
   <div class="info-box" style="margin-bottom:24px">
-    <b>What this does:</b> Generates randomised but realistic scores for all selected stages, then applies them across the leaderboard, group standings, sleeper tracker, bracket, and calendar instantly. Use this to demo the app before the real tournament starts. All results can be cleared individually from the Match Log or all at once below.
-    <br><br><b>Real-time scores:</b> When the tournament starts (June 11, 2026), the best path to live scores is a small <b>Supabase edge function</b> polling a score API (e.g. <a href="https://www.api-football.com" target="_blank" style="color:var(--gold)">API-Football</a> free tier). It writes results to your Supabase DB every few minutes; the app reads from there. This can be added as a future upgrade without changing the draft logic. Until then, manual logging via the Calendar tab takes ~10 seconds per match.
+    <b>What this does:</b> Generates randomised but realistic scores for all selected stages, then updates the leaderboard, group standings, sleeper tracker, bracket, and calendar instantly.
+    <br><b>Real-time scores:</b> When the tournament starts (June 11, 2026), the cleanest upgrade path is a <b>Supabase edge function</b> polling a score API (e.g. <a href="https://www.api-football.com" target="_blank" style="color:var(--gold)">API-Football</a> free tier) on a 2-minute cron, writing results to a DB your app reads. Until then, manual logging via the Calendar tab takes ~10 seconds per match.
   </div>
 
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:28px">
-
     <div class="demo-card">
       <div class="demo-card-title">🗓 Group Stage</div>
       <div class="demo-card-desc">Simulate all 72 group stage matches with random scores. Group standings, leaderboard and sleeper tracker update immediately.</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
-        <button class="btn btn-gold" onclick="demoGroupStage()">Simulate Group Stage</button>
-      </div>
+      <button class="btn btn-gold" onclick="demoGroupStage()" style="margin-top:12px">Simulate Group Stage</button>
     </div>
-
     <div class="demo-card">
       <div class="demo-card-title">⚔️ Knockout Rounds</div>
-      <div class="demo-card-desc">Simulate the full knockout bracket (R32 → Final) based on current group standings. Requires group stage to be complete first.</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
-        <button class="btn btn-gold" onclick="demoKnockouts()">Simulate Knockouts</button>
-      </div>
+      <div class="demo-card-desc">Simulate the full knockout bracket (R32 → Final) based on current group standings. Run Group Stage first for best results.</div>
+      <button class="btn btn-gold" onclick="demoKnockouts()" style="margin-top:12px">Simulate Knockouts</button>
     </div>
-
     <div class="demo-card">
       <div class="demo-card-title">⚡ Full Tournament</div>
-      <div class="demo-card-desc">Simulate the entire World Cup — all 104 matches — in one shot. Groups + knockouts. Best for a complete end-to-end demo.</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
-        <button class="btn btn-green" onclick="demoFullTournament()">Simulate Full Tournament</button>
-      </div>
+      <div class="demo-card-desc">Simulate the entire World Cup — all 104 matches — in one shot. Groups + knockouts + champions reveal.</div>
+      <button class="btn btn-green" onclick="demoFullTournament()" style="margin-top:12px">Simulate Full Tournament</button>
     </div>
-
     <div class="demo-card" style="border-color:var(--red)">
-      <div class="demo-card-title" style="color:var(--red)">🗑 Clear Demo Scores</div>
-      <div class="demo-card-desc">Remove all demo-generated results. Keeps the draft intact — only clears scores from the match log and knockout results.</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
-        <button class="btn btn-red" onclick="clearDemoScores()">Clear All Scores</button>
-      </div>
+      <div class="demo-card-title" style="color:var(--red)">🗑 Clear All Scores</div>
+      <div class="demo-card-desc">Remove all scores and results. Draft picks and player names are kept completely intact.</div>
+      <button class="btn btn-red" onclick="clearScores()" style="margin-top:12px">Clear All Scores</button>
     </div>
-
   </div>
 
   <div id="demoStatus" style="font-family:'Barlow Condensed',sans-serif;font-size:.9rem;color:var(--muted);min-height:24px"></div>
 
-  <!-- Live preview of standings after demo -->
   <div id="demoPreview" style="display:none;margin-top:24px">
-    <div class="section-title" style="font-size:1.2rem;margin-bottom:10px">Demo Results Preview</div>
+    <div class="section-title" style="font-size:1.2rem;margin-bottom:10px">Group Standings Preview</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px" id="demoGroupsPreview"></div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- CHAMPIONS OVERLAY -->
+<canvas id="confettiCanvas"></canvas>
+<div id="championsOverlay">
+  <div class="champ-box">
+    <button class="champ-dismiss" onclick="closeChampions()">✕</button>
+    <div class="champ-trophy">🏆</div>
+    <div class="champ-label">FIFA World Cup 2026 Champions</div>
+    <div class="champ-flag" id="champFlag"></div>
+    <div class="champ-team" id="champTeam"></div>
+    <div class="champ-owner" id="champOwner"></div>
+    <div class="champ-score" id="champScore"></div>
+    <div class="champ-subtitle">New York / New Jersey · 19 July 2026</div>
+    <button class="btn btn-gold champ-close" onclick="closeChampions()">🎉 Celebrate!</button>
+  </div>
+</div>
 
 <!-- LOG MODAL -->
 <div class="modal-overlay" id="logModal">
@@ -598,6 +606,11 @@ option{background:var(--dark3)}
 .del-btn:hover{color:var(--red)}
 .info-box{background:var(--dark3);border-left:3px solid var(--gold);padding:10px 14px;border-radius:0 6px 6px 0;font-size:.82rem;color:var(--muted);line-height:1.7}
 .info-box b{color:var(--text)}
+.info-box code{background:rgba(255,255,255,.06);padding:1px 5px;border-radius:3px;font-family:monospace;font-size:.85em;color:var(--gold)}
+/* DEMO CARDS */
+.demo-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:18px}
+.demo-card-title{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:var(--gold);margin-bottom:6px}
+.demo-card-desc{font-family:'Barlow Condensed',sans-serif;font-size:.82rem;color:var(--muted);line-height:1.5}
 
 /* CALENDAR */
 .cal-day{margin-bottom:26px}
@@ -673,6 +686,26 @@ option{background:var(--dark3)}
 .modal-scores input{width:100%;background:var(--dark3);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:8px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.5rem;outline:none;transition:border-color .2s}
 .modal-scores input:focus{border-color:var(--gold)}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end}
+
+/* CHAMPIONS OVERLAY */
+#championsOverlay{display:none;position:fixed;inset:0;z-index:500;align-items:center;justify-content:center;background:rgba(0,0,0,.92)}
+#championsOverlay.show{display:flex}
+.champ-box{position:relative;text-align:center;padding:48px 40px;max-width:540px;width:92%;background:linear-gradient(160deg,#0a1a0a 0%,#0D0D0D 50%,#1a1000 100%);border:2px solid var(--gold);border-radius:16px;box-shadow:0 0 80px rgba(245,200,66,.35),0 0 160px rgba(245,200,66,.1);overflow:hidden}
+.champ-box::before{content:'';position:absolute;inset:-2px;border-radius:18px;background:linear-gradient(135deg,var(--gold),transparent,var(--gold),transparent);opacity:.15;pointer-events:none}
+.champ-trophy{font-size:5rem;line-height:1;margin-bottom:8px;animation:trophy-bounce 1s ease-out}
+@keyframes trophy-bounce{0%{transform:scale(0) rotate(-10deg);opacity:0}60%{transform:scale(1.25) rotate(3deg);opacity:1}80%{transform:scale(.92) rotate(-1deg)}100%{transform:scale(1) rotate(0)}}
+.champ-label{font-family:'Barlow Condensed',sans-serif;font-size:.8rem;letter-spacing:4px;text-transform:uppercase;color:rgba(245,200,66,.6);margin-bottom:6px;animation:fade-up .5s .3s both}
+.champ-team{font-family:'Bebas Neue',sans-serif;font-size:3.2rem;letter-spacing:4px;color:var(--gold);line-height:1;margin-bottom:6px;animation:fade-up .5s .45s both;text-shadow:0 0 40px rgba(245,200,66,.6)}
+.champ-flag{font-size:3.5rem;line-height:1;margin-bottom:8px;animation:fade-up .5s .55s both}
+.champ-owner{font-family:'Barlow Condensed',sans-serif;font-size:1rem;color:var(--text);letter-spacing:2px;margin-bottom:6px;animation:fade-up .5s .65s both}
+.champ-score{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;color:var(--muted);animation:fade-up .5s .75s both}
+.champ-subtitle{font-family:'Barlow Condensed',sans-serif;font-size:.75rem;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.3);margin-top:4px;animation:fade-up .5s .8s both}
+@keyframes fade-up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.champ-close{margin-top:24px;animation:fade-up .5s .9s both;display:inline-block}
+.champ-dismiss{position:absolute;top:14px;right:16px;background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;font-family:'Barlow Condensed',sans-serif;padding:4px 8px;border-radius:4px;transition:color .15s}
+.champ-dismiss:hover{color:var(--text)}
+/* Confetti canvas sits behind the box */
+#confettiCanvas{position:fixed;inset:0;z-index:499;pointer-events:none}
 </style>
 
 <script>
@@ -922,6 +955,7 @@ function setPlayerCount(n){
   document.getElementById('setupSub').textContent=`Enter ${n} players — draft order is randomised automatically`;
   buildPlayerInputs();
   buildTierPreviews(); // Rebuild tier previews for new count
+  updateHeaderSub();   // Keep header in sync
   // Redraw the preview wheel for tier 0 of new config
   const tiers=getTierDefs();
   if(tiers.length&&phase===0){
@@ -1146,152 +1180,7 @@ function deleteMatch(id){
 // ═══════════════════════════════════════════════════════════════════
 
 // Random score generator — weighted toward low-scoring realistic results
-function rngScore(){
-  const r=rngInt(100);
-  // ~60% of games: 0-0, 1-0, 1-1, 2-1, 2-0
-  if(r<8)  return [0,0];
-  if(r<20) return [1,0];
-  if(r<30) return [0,1];
-  if(r<40) return [1,1];
-  if(r<50) return [2,1];
-  if(r<57) return [1,2];
-  if(r<63) return [2,0];
-  if(r<68) return [0,2];
-  if(r<73) return [3,1];
-  if(r<77) return [1,3];
-  if(r<80) return [3,0];
-  if(r<83) return [0,3];
-  if(r<86) return [2,2];
-  if(r<89) return [3,2];
-  if(r<91) return [2,3];
-  if(r<93) return [4,1];
-  if(r<95) return [1,4];
-  if(r<97) return [4,0];
-  if(r<99) return [0,4];
-  return [3,3];
-}
 
-// For knockout — no draws, add a penalty shootout notation
-function rngKnockoutScore(){
-  let [h,a]=rngScore();
-  while(h===a){[h,a]=rngScore();}
-  return [h,a];
-}
-
-function _logDemoMatch(num, homeScore, awayScore){
-  const m=SCHEDULE.find(x=>x.num===num);if(!m) return;
-  const hName=cn(m.home)||resolveTeam(m.home);
-  const aName=cn(m.away)||resolveTeam(m.away);
-  knockoutResults[num]={homeScore,awayScore};
-  const roundLabel=STAGE_LABEL[m.stage]||'Match';
-  // Log for home team if drafted
-  const hOwner=ownerOf(hName);
-  if(hOwner){
-    matchLog=matchLog.filter(x=>!(x.matchNum===num&&x.team===hName));
-    const to=ALL_TEAMS.find(t=>t.name===hName);
-    const result=homeScore>awayScore?'W':homeScore===awayScore?'D':'L';
-    matchLog.push({id:Date.now()+num*2,date:m.date,team:hName,teamFlag:to?.flag||'🏳',player:hOwner,opponent:aName,scoreFor:homeScore,scoreAgainst:awayScore,result,round:roundLabel,matchNum:num,demo:true});
-  }
-  // Log for away team if drafted
-  const aOwner=ownerOf(aName);
-  if(aOwner){
-    matchLog=matchLog.filter(x=>!(x.matchNum===num&&x.team===aName));
-    const to=ALL_TEAMS.find(t=>t.name===aName);
-    const result=awayScore>homeScore?'W':awayScore===homeScore?'D':'L';
-    matchLog.push({id:Date.now()+num*2+1,date:m.date,team:aName,teamFlag:to?.flag||'🏳',player:aOwner,opponent:hName,scoreFor:awayScore,scoreAgainst:homeScore,result,round:roundLabel,matchNum:num,demo:true});
-  }
-}
-
-function demoGroupStage(){
-  if(phase===0){showToast('⚠ Complete the draft first!');return;}
-  const groupMatches=SCHEDULE.filter(m=>m.stage==='group');
-  groupMatches.forEach(m=>{
-    const [h,a]=rngScore();
-    _logDemoMatch(m.num,h,a);
-  });
-  matchLog.sort((a,b)=>new Date(b.date)-new Date(a.date));
-  saveData();buildTracker();buildTeamsGrid();buildSleeperTracker();renderMatchLog();renderCalendar();
-  _showDemoGroupsPreview();
-  document.getElementById('demoStatus').textContent=`✅ Simulated ${groupMatches.length} group stage matches.`;
-  showToast('✅ Group stage simulated! Check the Teams and Leaderboard tabs.');
-}
-
-function demoKnockouts(){
-  if(phase===0){showToast('⚠ Complete the draft first!');return;}
-  // Resolve bracket in order — each match depends on previous
-  const knockoutNums=[73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,
-                      89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104];
-  knockoutNums.forEach(num=>{
-    const [h,a]=rngKnockoutScore();
-    _logDemoMatch(num,h,a);
-  });
-  matchLog.sort((a,b)=>new Date(b.date)-new Date(a.date));
-  saveData();buildTracker();buildTeamsGrid();buildSleeperTracker();renderMatchLog();renderCalendar();buildKnockoutBracket();
-  document.getElementById('demoStatus').textContent=`✅ Simulated ${knockoutNums.length} knockout matches.`;
-  showToast('✅ Knockouts simulated! Check the Bracket tab.');
-}
-
-function demoFullTournament(){
-  if(phase===0){showToast('⚠ Complete the draft first!');return;}
-  // Group stage
-  SCHEDULE.filter(m=>m.stage==='group').forEach(m=>{
-    const [h,a]=rngScore();
-    _logDemoMatch(m.num,h,a);
-  });
-  // Knockout in order so resolveTeam() works correctly
-  [73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,
-   89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104].forEach(num=>{
-    const [h,a]=rngKnockoutScore();
-    _logDemoMatch(num,h,a);
-  });
-  matchLog.sort((a,b)=>new Date(b.date)-new Date(a.date));
-  saveData();buildTracker();buildTeamsGrid();buildSleeperTracker();renderMatchLog();renderCalendar();buildKnockoutBracket();
-  _showDemoGroupsPreview();
-  document.getElementById('demoStatus').textContent=`✅ Full tournament simulated — all 104 matches.`;
-  showToast('🏆 Full tournament simulated! Explore every tab.');
-}
-
-function clearDemoScores(){
-  if(!confirm('Clear all match scores? Draft picks are kept.')) return;
-  matchLog=matchLog.filter(m=>!m.demo);
-  // Clear knockout results that came from demo
-  SCHEDULE.forEach(m=>{delete knockoutResults[m.num];});
-  // Also clear non-demo group stage knockoutResults that were logged via calendar
-  Object.keys(knockoutResults).forEach(k=>delete knockoutResults[k]);
-  saveData();buildTracker();buildTeamsGrid();buildSleeperTracker();renderMatchLog();renderCalendar();buildKnockoutBracket();
-  document.getElementById('demoStatus').textContent='🗑 All scores cleared.';
-  document.getElementById('demoPreview').style.display='none';
-  showToast('🗑 All scores cleared. Draft intact.');
-}
-
-function _showDemoGroupsPreview(){
-  const teamStats={};
-  matchLog.forEach(m=>{
-    if(!teamStats[m.team]) teamStats[m.team]={W:0,D:0,L:0,GF:0,GA:0};
-    teamStats[m.team][m.result]++;
-    teamStats[m.team].GF+=m.scoreFor;
-    teamStats[m.team].GA+=m.scoreAgainst;
-  });
-  const preview=document.getElementById('demoGroupsPreview');
-  preview.innerHTML=Object.entries(GROUPS).map(([grp,names])=>{
-    const rows=names.map(n=>{
-      const s=teamStats[n]||{W:0,D:0,L:0,GF:0,GA:0};
-      return {n,pts:s.W*3+s.D,gd:s.GF-s.GA,gf:s.GF,s};
-    }).sort((a,b)=>b.pts-a.pts||(b.gd-a.gd)||(b.gf-a.gf));
-    const team0=ALL_TEAMS.find(t=>t.name===rows[0]?.n);
-    return `<div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:var(--gold);border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:6px">Group ${grp}</div>
-      ${rows.map(({n,pts,s},i)=>{
-        const td=ALL_TEAMS.find(t=>t.name===n);
-        return `<div style="display:flex;justify-content:space-between;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;padding:2px 0;${i<2?'color:var(--text)':'opacity:.55'}">
-          <span>${td?.flag||''} ${n}</span>
-          <span style="color:var(--gold);font-family:'Bebas Neue',sans-serif">${pts}</span>
-        </div>`;
-      }).join('')}
-    </div>`;
-  }).join('');
-  document.getElementById('demoPreview').style.display='block';
-}
 
 // ═══════════════════════════════════════════════════════════════════
 function renderMatchLog(){
@@ -1676,6 +1565,8 @@ function submitModalScore(){
   }
   saveData();closeModal();buildTracker();renderCalendar();buildKnockoutBracket();buildTeamsGrid();buildSleeperTracker();renderMatchLog();
   showToast(`✅ Match #${num} result saved!`);
+  // Show champions overlay if the final was just logged
+  if(num===104) checkForChampion();
 }
 document.getElementById('logModal').addEventListener('click',function(e){if(e.target===this) closeModal();});
 
@@ -2061,6 +1952,7 @@ function finalizeDraft(){
   document.getElementById('progressFill').style.width='100%';
   document.getElementById('wheelTitle').textContent='🏆 Draft Complete';
   document.getElementById('wheelSubtitle').textContent=`All 48 teams assigned · ${numPlayers} players · ${teamsPerPlayer} teams each`;
+  updateHeaderSub();
   populateMatchFormTeams();populateFilterPlayers();
   buildDraftQueue();buildTracker();buildTeamsGrid();
   saveData();showToast('🎉 Draft complete! Check the Calendar and Bracket!');
@@ -2099,14 +1991,250 @@ function buildDraftQueue(){
 
 
 // ═══════════════════════════════════════════════════════════════════
-// PERSISTENCE
+// DYNAMIC HEADER
 // ═══════════════════════════════════════════════════════════════════
+function updateHeaderSub(){
+  const el=document.getElementById('headerSub');
+  if(!el) return;
+  const tiers=48/numPlayers;
+  const draftParam=new URLSearchParams(window.location.search).get('draft');
+  const draftLabel=draftParam?` · ${draftParam}`:'';
+  el.textContent=`48 Teams · ${numPlayers} Players · ${tiers} Tier${tiers!==1?'s':''}${draftLabel} · USA / Canada / Mexico`;
+}
+
+// Clear all scores while keeping the draft intact
+function clearScores(){
+  matchLog=[];
+  knockoutResults={};
+  qualifierOverrides={};
+  saveData();
+  buildTracker();
+  buildTeamsGrid();
+  buildSleeperTracker();
+  renderMatchLog();
+  renderCalendar();
+  buildKnockoutBracket();
+  stopConfetti();
+  document.getElementById('championsOverlay').classList.remove('show');
+  showToast('🗑 All scores cleared. Draft intact.');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CHAMPIONS
+// ═══════════════════════════════════════════════════════════════════
+let confettiRAF=null;
+let confettiParticles=[];
+
+function checkForChampion(){
+  const kr=knockoutResults[104];
+  if(!kr||kr.homeScore===kr.awayScore) return; // no result or draw (shouldn't happen for final)
+  const m=SCHEDULE.find(x=>x.num===104);if(!m) return;
+  const hName=resolveTeam(m.home),aName=resolveTeam(m.away);
+  const champName=kr.homeScore>kr.awayScore?hName:aName;
+  const champScore=kr.homeScore>kr.awayScore?`${kr.homeScore}–${kr.awayScore}`:`${kr.awayScore}–${kr.homeScore}`;
+  const runnerUp=kr.homeScore>kr.awayScore?aName:hName;
+  showChampions(champName,champScore,runnerUp);
+}
+
+function showChampions(teamName, scoreStr, runnerUp){
+  const flag=tf(teamName);
+  const owner=ownerOf(teamName);
+  document.getElementById('champFlag').textContent=flag;
+  document.getElementById('champTeam').textContent=teamName.toUpperCase();
+  document.getElementById('champOwner').textContent=owner?`🏅 Drafted by ${owner}`:'';
+  document.getElementById('champScore').textContent=`Final: ${scoreStr} vs ${runnerUp}`;
+  document.getElementById('championsOverlay').classList.add('show');
+  startConfetti();
+}
+
+function closeChampions(){
+  document.getElementById('championsOverlay').classList.remove('show');
+  stopConfetti();
+}
+
+// Confetti engine
+function startConfetti(){
+  const canvas=document.getElementById('confettiCanvas');
+  canvas.width=window.innerWidth;
+  canvas.height=window.innerHeight;
+  const ctx=canvas.getContext('2d');
+  const COLORS=['#F5C842','#ffffff','#1A7A3C','#C0392B','#3498DB','#e74c3c','#f39c12','#2ecc71','#9b59b6'];
+  confettiParticles=Array.from({length:160},()=>({
+    x:Math.random()*canvas.width,
+    y:Math.random()*canvas.height-canvas.height,
+    w:Math.random()*10+4,
+    h:Math.random()*6+3,
+    color:COLORS[Math.floor(Math.random()*COLORS.length)],
+    rot:Math.random()*Math.PI*2,
+    rotV:(Math.random()-.5)*.12,
+    vx:(Math.random()-.5)*2.5,
+    vy:Math.random()*3+2,
+    opacity:Math.random()*.5+.5,
+  }));
+  function frame(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    confettiParticles.forEach(p=>{
+      p.x+=p.vx; p.y+=p.vy; p.rot+=p.rotV;
+      if(p.y>canvas.height) p.y=-12;
+      ctx.save();
+      ctx.globalAlpha=p.opacity;
+      ctx.translate(p.x,p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle=p.color;
+      ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);
+      ctx.restore();
+    });
+    confettiRAF=requestAnimationFrame(frame);
+  }
+  stopConfetti();
+  confettiRAF=requestAnimationFrame(frame);
+  // Resize canvas on window resize
+  window._champResize=()=>{canvas.width=window.innerWidth;canvas.height=window.innerHeight;};
+  window.addEventListener('resize',window._champResize);
+}
+
+function stopConfetti(){
+  if(confettiRAF){cancelAnimationFrame(confettiRAF);confettiRAF=null;}
+  const canvas=document.getElementById('confettiCanvas');
+  if(canvas){canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);}
+  if(window._champResize){window.removeEventListener('resize',window._champResize);window._champResize=null;}
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DEMO MODE
+// ═══════════════════════════════════════════════════════════════════
+
+function rngScore(){
+  const r=rngInt(100);
+  if(r<8)  return [0,0];
+  if(r<20) return [1,0];
+  if(r<30) return [0,1];
+  if(r<40) return [1,1];
+  if(r<50) return [2,1];
+  if(r<57) return [1,2];
+  if(r<63) return [2,0];
+  if(r<68) return [0,2];
+  if(r<73) return [3,1];
+  if(r<77) return [1,3];
+  if(r<80) return [3,0];
+  if(r<83) return [0,3];
+  if(r<86) return [2,2];
+  if(r<89) return [3,2];
+  if(r<91) return [2,3];
+  if(r<93) return [4,1];
+  if(r<95) return [1,4];
+  if(r<97) return [4,0];
+  if(r<99) return [0,4];
+  return [3,3];
+}
+function rngKnockoutScore(){
+  let [h,a]=rngScore();
+  while(h===a){[h,a]=rngScore();}
+  return [h,a];
+}
+function _logDemoMatch(num,homeScore,awayScore){
+  const m=SCHEDULE.find(x=>x.num===num);if(!m) return;
+  const hName=resolveTeam(m.home);
+  const aName=resolveTeam(m.away);
+  knockoutResults[num]={homeScore,awayScore};
+  const roundLabel=STAGE_LABEL[m.stage]||'Match';
+  const hOwner=ownerOf(hName);
+  if(hOwner){
+    matchLog=matchLog.filter(x=>!(x.matchNum===num&&x.team===hName));
+    const to=ALL_TEAMS.find(t=>t.name===hName);
+    const result=homeScore>awayScore?'W':homeScore===awayScore?'D':'L';
+    matchLog.push({id:Date.now()+num*2,date:m.date,team:hName,teamFlag:to?.flag||'🏳',player:hOwner,opponent:aName,scoreFor:homeScore,scoreAgainst:awayScore,result,round:roundLabel,matchNum:num,demo:true});
+  }
+  const aOwner=ownerOf(aName);
+  if(aOwner){
+    matchLog=matchLog.filter(x=>!(x.matchNum===num&&x.team===aName));
+    const to=ALL_TEAMS.find(t=>t.name===aName);
+    const result=awayScore>homeScore?'W':awayScore===homeScore?'D':'L';
+    matchLog.push({id:Date.now()+num*2+1,date:m.date,team:aName,teamFlag:to?.flag||'🏳',player:aOwner,opponent:hName,scoreFor:awayScore,scoreAgainst:homeScore,result,round:roundLabel,matchNum:num,demo:true});
+  }
+}
+function demoGroupStage(){
+  if(phase===0){showToast('⚠ Complete the draft first!');return;}
+  SCHEDULE.filter(m=>m.stage==='group').forEach(m=>{const [h,a]=rngScore();_logDemoMatch(m.num,h,a);});
+  matchLog.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  saveData();buildTracker();buildTeamsGrid();buildSleeperTracker();renderMatchLog();renderCalendar();
+  _showDemoGroupsPreview();
+  document.getElementById('demoStatus').textContent='✅ Simulated 72 group stage matches.';
+  showToast('✅ Group stage simulated! Check Leaderboard and Teams.');
+}
+function demoKnockouts(){
+  if(phase===0){showToast('⚠ Complete the draft first!');return;}
+  [73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,
+   89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104].forEach(num=>{
+    const [h,a]=rngKnockoutScore();_logDemoMatch(num,h,a);
+  });
+  matchLog.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  saveData();buildTracker();buildTeamsGrid();buildSleeperTracker();renderMatchLog();renderCalendar();buildKnockoutBracket();
+  document.getElementById('demoStatus').textContent='✅ Simulated 32 knockout matches.';
+  showToast('✅ Knockouts simulated! Check the Bracket tab.');
+  checkForChampion();
+}
+function demoFullTournament(){
+  if(phase===0){showToast('⚠ Complete the draft first!');return;}
+  SCHEDULE.filter(m=>m.stage==='group').forEach(m=>{const [h,a]=rngScore();_logDemoMatch(m.num,h,a);});
+  [73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,
+   89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104].forEach(num=>{
+    const [h,a]=rngKnockoutScore();_logDemoMatch(num,h,a);
+  });
+  matchLog.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  saveData();buildTracker();buildTeamsGrid();buildSleeperTracker();renderMatchLog();renderCalendar();buildKnockoutBracket();
+  _showDemoGroupsPreview();
+  document.getElementById('demoStatus').textContent='✅ Full tournament simulated — all 104 matches.';
+  showToast('🏆 Full tournament simulated! Explore every tab.');
+  checkForChampion();
+}
+function _showDemoGroupsPreview(){
+  const teamStats={};
+  matchLog.forEach(m=>{
+    if(!teamStats[m.team]) teamStats[m.team]={W:0,D:0,L:0,GF:0,GA:0};
+    teamStats[m.team][m.result]++;
+    teamStats[m.team].GF+=m.scoreFor;
+    teamStats[m.team].GA+=m.scoreAgainst;
+  });
+  const preview=document.getElementById('demoGroupsPreview');
+  if(!preview) return;
+  preview.innerHTML=Object.entries(GROUPS).map(([grp,names])=>{
+    const rows=names.map(n=>{
+      const s=teamStats[n]||{W:0,D:0,L:0,GF:0,GA:0};
+      return {n,pts:s.W*3+s.D,gd:s.GF-s.GA,gf:s.GF};
+    }).sort((a,b)=>b.pts-a.pts||(b.gd-a.gd)||(b.gf-a.gf));
+    return `<div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:var(--gold);border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:6px">Group ${grp}</div>
+      ${rows.map(({n,pts},i)=>{
+        const td=ALL_TEAMS.find(t=>t.name===n);
+        return `<div style="display:flex;justify-content:space-between;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;padding:2px 0;${i<2?'color:var(--text)':'opacity:.5'}">
+          <span>${td?.flag||''} ${n}</span>
+          <span style="color:var(--gold);font-family:'Bebas Neue',sans-serif">${pts}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+  document.getElementById('demoPreview').style.display='block';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PERSISTENCE  —  draft key is driven by ?draft= URL parameter
+// ═══════════════════════════════════════════════════════════════════
+
+// Returns the localStorage key for the current draft.
+// URL  ?draft=friends  →  key  wc2026_friends
+// URL  (no param)      →  key  wc2026_default
+function getDraftKey(){
+  const p=new URLSearchParams(window.location.search).get('draft');
+  return p?`wc2026_${p.replace(/[^a-zA-Z0-9_-]/g,'')}`:'wc2026_default';
+}
+
 function saveData(){
-  try{localStorage.setItem('wc2026v5',JSON.stringify({players,numPlayers,teamsPerPlayer,draftResults,phase,phaseIdx,currentTier,matchLog,knockoutResults,qualifierOverrides,_tierOrders:window._tierOrders,_tierRemaining:window._tierRemaining}));}catch(e){}
+  try{localStorage.setItem(getDraftKey(),JSON.stringify({players,numPlayers,teamsPerPlayer,draftResults,phase,phaseIdx,currentTier,matchLog,knockoutResults,qualifierOverrides,_tierOrders:window._tierOrders,_tierRemaining:window._tierRemaining}));}catch(e){}
 }
 function loadSaved(){
   try{
-    const raw=localStorage.getItem('wc2026v5');if(!raw) return;
+    const raw=localStorage.getItem(getDraftKey());if(!raw) return;
     const d=JSON.parse(raw);
     players=d.players||[];
     numPlayers=d.numPlayers||players.length||16;
@@ -2116,14 +2244,12 @@ function loadSaved(){
     matchLog=d.matchLog||[];knockoutResults=d.knockoutResults||{};qualifierOverrides=d.qualifierOverrides||{};
     if(d._tierOrders) window._tierOrders=d._tierOrders;
     if(d._tierRemaining) window._tierRemaining=d._tierRemaining;
-    // Restore legacy flat arrays for any references
     draftOrderA=window._tierOrders?.[0]||[];
     draftOrderB=window._tierOrders?.[1]||[];
     draftOrderC=window._tierOrders?.[2]||[];
     remainingA=window._tierRemaining?.[0]||[];
     remainingB=window._tierRemaining?.[1]||[];
     remainingC=window._tierRemaining?.[2]||[];
-    // Restore player count UI
     setPlayerCount(numPlayers);
     buildPlayerInputs();
     if(phase>0){
@@ -2143,21 +2269,34 @@ function loadSaved(){
       buildDraftQueue();buildTracker();buildTeamsGrid();renderMatchLog();
       showToast('🔄 Session restored!');
     }
-  }catch(e){localStorage.removeItem('wc2026v5');}
+  }catch(e){localStorage.removeItem(getDraftKey());}
 }
 function resetAll(){
-  if(!confirm('Reset everything — draft AND all results?')) return;
-  localStorage.removeItem('wc2026v5');
-  players=[];draftOrderA=[];draftOrderB=[];draftOrderC=[];draftResults={};phase=0;phaseIdx=0;currentTier=0;
-  matchLog=[];knockoutResults={};qualifierOverrides={};pendingConfirm=false;pendingTeam=null;isSpinning=false;
+  // Clear persisted state
+  localStorage.removeItem(getDraftKey());
+  // Reset all JS state
+  players=[];draftOrderA=[];draftOrderB=[];draftOrderC=[];draftResults={};
+  phase=0;phaseIdx=0;currentTier=0;
+  matchLog=[];knockoutResults={};qualifierOverrides={};
+  pendingConfirm=false;pendingTeam=null;isSpinning=false;
   if(spinRAF){cancelAnimationFrame(spinRAF);spinRAF=null;}
   window._tierOrders=null;window._tierRemaining=null;
   remainingA=[];remainingB=[];remainingC=[];
   wheelAngle=0;wheelTeams=[];
-  // Rebuild inputs (keep selected player count)
-  buildPlayerInputs();buildTierPreviews();buildTeamsGrid();
+  // Rebuild player inputs with blank values — explicitly zero the array first
+  for(let i=0;i<48;i++) players[i]='';
+  players=[];
+  buildPlayerInputs();
+  // Also blank any existing input DOM values directly, in case they persisted
+  for(let i=0;i<numPlayers;i++){
+    const el=document.getElementById(`pInput${i}`);
+    if(el) el.value='';
+  }
+  buildTierPreviews();buildTeamsGrid();
+  // Reset tracker and match log displays
   document.getElementById('trackerBody').innerHTML=`<tr><td colspan="10" class="empty-msg">Complete the draft first.</td></tr>`;
   document.getElementById('matchLogBody').innerHTML=`<tr><td colspan="8" class="empty-msg">No matches logged yet.</td></tr>`;
+  // Reset wheel panel
   document.getElementById('completedBanner').classList.remove('show');
   document.getElementById('wheelLayout').style.opacity='1';
   document.getElementById('progressFill').style.width='0%';
@@ -2166,21 +2305,30 @@ function resetAll(){
   document.getElementById('drafterInfo').textContent='Set up the draft to begin';
   document.getElementById('spinBtn').disabled=false;
   document.getElementById('autoStepBtn').disabled=false;
-  // Reset wheel pointer to gold default
-  const ptr=document.getElementById('wheelPointer');
-  if(ptr){ptr.style.borderTopColor='var(--gold)';ptr.style.filter='drop-shadow(0 2px 6px rgba(245,200,66,0.8))';}
-  // Clear spin glow
-  const canvas=getCanvas();if(canvas) canvas.classList.remove('spin-wheel');
-  // Redraw Tier A (or first tier for selected count) on the single canvas
-  const tiers=getTierDefs();
-  if(tiers.length){drawWheel(shuffle([...tiers[0].teams]),TIER_COLORS[0],0);}
-  document.getElementById('phaseHeader').innerHTML='';
   document.getElementById('wheelTitle').textContent='Draft Wheel';
   document.getElementById('wheelSubtitle').textContent='Waiting to start...';
+  document.getElementById('phaseHeader').innerHTML='';
+  document.getElementById('resultBanner').classList.remove('show');
+  // Reset wheel pointer colour and canvas
+  const ptr=document.getElementById('wheelPointer');
+  if(ptr){ptr.style.borderTopColor='var(--gold)';ptr.style.filter='drop-shadow(0 2px 6px rgba(245,200,66,0.8))';}
+  const canvas=getCanvas();if(canvas) canvas.classList.remove('spin-wheel');
+  const tiers=getTierDefs();
+  if(tiers.length) drawWheel(shuffle([...tiers[0].teams]),TIER_COLORS[0],0);
+  // Reset other panels
   document.getElementById('calendarBody').innerHTML='';
   document.getElementById('bracketBody').innerHTML='';
   document.getElementById('sleeperBody').innerHTML='';
-  document.getElementById('resultBanner').classList.remove('show');
+  // Close any open overlays
+  document.getElementById('championsOverlay').classList.remove('show');
+  stopConfetti();
+  // Clear demo panel
+  const demoStatus=document.getElementById('demoStatus');
+  if(demoStatus) demoStatus.textContent='';
+  const demoPreview=document.getElementById('demoPreview');
+  if(demoPreview) demoPreview.style.display='none';
+  // Update header
+  updateHeaderSub();
   switchTab('setup');
   showToast('🔄 Reset complete — ready to draft again!');
 }
@@ -2200,6 +2348,9 @@ function switchTab(id){
   if(id==='knockout'){buildKnockoutBracket();}
   if(id==='sleeper') buildSleeperTracker();
   if(id==='teams') buildTeamsGrid();
+  if(id==='demo'){
+    const ds=document.getElementById('demoStatus');if(ds&&!ds.textContent) ds.textContent='';
+  }
   if(id==='wheel'&&phase>0&&phase<4){setPhaseUI();drawCurrentWheel();}
   if(id==='wheel'&&phase===0){const tiers=getTierDefs();if(tiers.length){drawWheel(shuffle([...tiers[0].teams]),TIER_COLORS[0],wheelAngle);}}
 }
@@ -2210,6 +2361,13 @@ function showToast(msg){
 
 window.onload=()=>{
   init();
+  updateHeaderSub();
+  // Show draft name box if ?draft= param is set
+  const draftParam=new URLSearchParams(window.location.search).get('draft');
+  if(draftParam){
+    document.getElementById('draftNameBox').style.display='block';
+    document.getElementById('draftNameLabel').textContent=draftParam;
+  }
   // Draw preview wheel for default player count
   const tiers=getTierDefs();
   if(tiers.length) drawWheel(shuffle([...tiers[0].teams]),TIER_COLORS[0],0);
