@@ -219,11 +219,46 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
 
 <header class="site-header">
   <div class="trophy">🏆</div>
-  <div>
+  <div style="flex:1">
     <h1>World Cup 2026 — Draft Game</h1>
     <p id="headerSub">48 Teams · 16 Players · 3 Tiers · USA / Canada / Mexico</p>
   </div>
+  <button onclick="openDraftManager()" class="btn btn-dark" style="white-space:nowrap;font-size:.8rem;padding:7px 12px" title="Switch or create a draft">
+    📋 Drafts
+  </button>
 </header>
+
+<!-- DRAFT MANAGER MODAL -->
+<div class="modal-overlay" id="draftManagerModal">
+  <div class="modal" style="max-width:480px;width:95%">
+    <h3 style="margin-bottom:4px">📋 Draft Manager</h3>
+    <p style="font-family:'Barlow Condensed',sans-serif;font-size:.82rem;color:var(--muted);margin-bottom:16px">Switch between drafts or create a new one</p>
+
+    <!-- Create new draft -->
+    <div style="background:var(--dark3);border:1px solid var(--border);border-radius:6px;padding:14px;margin-bottom:16px">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">➕ Create New Draft</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input type="text" id="newDraftSlug" class="fi" placeholder="URL name (e.g. work2026)"
+          style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:8px 10px;font-family:'Barlow Condensed',sans-serif;font-size:.9rem"
+          oninput="this.value=this.value.replace(/[^a-zA-Z0-9_-]/g,'').toLowerCase()"/>
+        <input type="text" id="newDraftDisplay" class="fi" placeholder="Display name (optional)"
+          style="flex:1;min-width:140px;background:var(--card);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:8px 10px;font-family:'Barlow Condensed',sans-serif;font-size:.9rem"/>
+        <button class="btn btn-gold" onclick="createNewDraft()" style="padding:8px 14px;font-size:.85rem">Create →</button>
+      </div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;color:var(--muted);margin-top:6px">Creates a fresh draft at worldcupdraft.xyz/?draft=<span id="newDraftSlugPreview" style="color:var(--gold)">name</span></div>
+    </div>
+
+    <!-- Existing drafts list -->
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Your Drafts</div>
+    <div id="draftManagerList" style="max-height:280px;overflow-y:auto">
+      <div style="text-align:center;padding:20px;font-family:'Barlow Condensed',sans-serif;color:var(--muted)">Loading...</div>
+    </div>
+
+    <div style="margin-top:14px;text-align:right">
+      <button class="btn btn-dark" onclick="closeDraftManager()">Close</button>
+    </div>
+  </div>
+</div>
 
 <nav class="tabs">
   <button class="tab-btn active" onclick="switchTab('setup')">⚙ Setup</button>
@@ -1244,9 +1279,23 @@ function addMatch(){
   setTimeout(()=>{msg.textContent='';},3500);
 }
 function populateFilterPlayers(){
+  // Match log filter
   const s=document.getElementById('filterPlayer');
   s.innerHTML='<option value="">All Players</option>';
   players.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;s.appendChild(o);});
+  // Calendar player dropdown
+  const cal=document.getElementById('calPlayer');
+  if(cal){
+    cal.innerHTML='<option value="">👥 All Players</option>';
+    players.forEach(p=>{
+      const teams=draftResults[p]||[];
+      const flags=teams.slice(0,3).map(t=>t.flag).join('');
+      const o=document.createElement('option');
+      o.value=p;
+      o.textContent=`${p}${flags?' '+flags:''}`;
+      cal.appendChild(o);
+    });
+  }
 }
 function deleteMatch(id){
   // Also remove from knockoutResults if this was a schedule match
@@ -1363,12 +1412,15 @@ function exportCSV(){
 function renderCalendar(){
   const stageF=document.getElementById('calStage')?.value||'';
   const groupF=document.getElementById('calGroup')?.value||'';
-  const myOnly=document.getElementById('calMyOnly')?.checked||false;
+  const selectedPlayer=document.getElementById('calPlayer')?.value||'';
+  const playerTeams=selectedPlayer&&draftResults[selectedPlayer]
+    ?new Set(draftResults[selectedPlayer].map(t=>t.name))
+    :null;
   const myTeams=new Set(Object.values(draftResults).flat().map(t=>t.name));
   let ms=[...SCHEDULE];
   if(stageF) ms=ms.filter(m=>m.stage===stageF);
   if(groupF) ms=ms.filter(m=>m.group===groupF);
-  if(myOnly) ms=ms.filter(m=>myTeams.has(cn(m.home))||myTeams.has(resolveTeam(m.home))||myTeams.has(cn(m.away))||myTeams.has(resolveTeam(m.away)));
+  if(playerTeams) ms=ms.filter(m=>playerTeams.has(cn(m.home))||playerTeams.has(resolveTeam(m.home))||playerTeams.has(cn(m.away))||playerTeams.has(resolveTeam(m.away)));
   ms.sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time));
   const byDate={};ms.forEach(m=>{(byDate[m.date]=byDate[m.date]||[]).push(m);});
   const body=document.getElementById('calendarBody');
@@ -2183,8 +2235,97 @@ function initTournamentNameUI(){
   buildSavedDraftsList();
 }
 
+// ── Draft Manager ─────────────────────────────────────────────────────
+async function openDraftManager(){
+  document.getElementById('draftManagerModal').classList.add('show');
+  document.getElementById('newDraftSlug').value='';
+  document.getElementById('newDraftDisplay').value='';
+  document.getElementById('newDraftSlugPreview').textContent='name';
+  await _loadDraftManagerList();
+}
+function closeDraftManager(){
+  document.getElementById('draftManagerModal').classList.remove('show');
+}
+document.getElementById('draftManagerModal').addEventListener('click',function(e){
+  if(e.target===this) closeDraftManager();
+});
+// Live preview of URL slug as user types
+document.getElementById('newDraftSlug').addEventListener('input',function(){
+  const v=this.value||'name';
+  document.getElementById('newDraftSlugPreview').textContent=v;
+});
+
+async function _loadDraftManagerList(){
+  const list=document.getElementById('draftManagerList');
+  list.innerHTML='<div style="text-align:center;padding:20px;font-family:\'Barlow Condensed\',sans-serif;color:var(--muted)">Loading...</div>';
+  const currentKey=getDraftKey();
+
+  // Fetch all rows from Supabase drafts table
+  let rows=[];
+  try{
+    const res=await fetch(`${SUPA_URL}/rest/v1/drafts?select=id,data,updated_at&order=updated_at.desc`,{
+      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY},
+    });
+    if(res.ok) rows=await res.json();
+  }catch(e){console.warn('Draft manager fetch error:',e.message);}
+
+  if(!rows.length){
+    list.innerHTML='<div style="text-align:center;padding:20px;font-family:\'Barlow Condensed\',sans-serif;color:var(--muted)">No saved drafts found.</div>';
+    return;
+  }
+
+  list.innerHTML=rows.map(row=>{
+    const id=row.id;
+    const d=row.data||{};
+    const isCurrent=id===currentKey;
+    const displayName=d.tournamentDisplayName||id;
+    const pCount=d.players?.length||0;
+    const ph=d.phase||0;
+    const stateLabel=ph===4?'✅ Draft complete':ph>0?'⏳ Drafting':'⚙ Setup';
+    const updated=row.updated_at?new Date(row.updated_at).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
+    const param=id==='default'?'':`?draft=${encodeURIComponent(id)}`;
+    const url=`${window.location.pathname}${param}`;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:${isCurrent?'rgba(245,200,66,.08)':'var(--dark3)'};border:1px solid ${isCurrent?'var(--gold)':'var(--border)'};border-radius:6px;margin-bottom:8px">
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.95rem;color:${isCurrent?'var(--gold)':'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+          ${isCurrent?'▶ ':''}${displayName}${displayName!==id?` <span style="opacity:.5;font-size:.75rem">(${id})</span>`:''}
+        </div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;color:var(--muted)">${pCount>0?`${pCount} players · `:''}${stateLabel} · ${updated}</div>
+      </div>
+      ${isCurrent
+        ?`<span style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;color:var(--gold);padding:4px 10px;border:1px solid var(--gold);border-radius:4px">Current</span>`
+        :`<a href="${url}" class="btn btn-gold" style="text-decoration:none;padding:5px 14px;font-size:.8rem;white-space:nowrap">Load →</a>`
+      }
+    </div>`;
+  }).join('');
+}
+
+function createNewDraft(){
+  const slug=document.getElementById('newDraftSlug').value.trim().replace(/[^a-zA-Z0-9_-]/g,'').toLowerCase();
+  const display=document.getElementById('newDraftDisplay').value.trim();
+  if(!slug){
+    document.getElementById('newDraftSlug').style.borderColor='var(--red)';
+    setTimeout(()=>{document.getElementById('newDraftSlug').style.borderColor='';},2000);
+    showToast('⚠ Enter a URL name first');
+    return;
+  }
+  // Save display name to localStorage
+  if(display) try{localStorage.setItem('wc2026_displayname_'+slug,display);}catch(e){}
+  // Navigate to the new draft URL — it will be empty/fresh
+  closeDraftManager();
+  window.location.href=`${window.location.pathname}?draft=${encodeURIComponent(slug)}`;
+}
+
+function switchDraft(name){
+  if(!name) return;
+  const param=name==='default'?'':`?draft=${encodeURIComponent(name)}`;
+  window.location.href=window.location.pathname+param;
+}
+
+// Keep buildDraftSwitcher as a no-op since we replaced it with the modal
+function buildDraftSwitcher(){}
+
 function updateHeaderSub(){
-  const el=document.getElementById('headerSub');
   if(!el) return;
   const tiers=48/numPlayers;
   const draftParam=new URLSearchParams(window.location.search).get('draft');
@@ -2591,6 +2732,11 @@ function clearScores(){
 function buildSavedDraftsList(){
   const container=document.getElementById('savedDraftsList');
   if(!container) return;
+  // Only show to admin (PIN unlocked or ?scores URL)
+  if(!_pinUnlocked && !isAdminUrl()){
+    container.innerHTML='';
+    return;
+  }
   const keys=[];
   for(let i=0;i<localStorage.length;i++){
     const k=localStorage.key(i);
@@ -2621,9 +2767,10 @@ function buildSavedDraftsList(){
       </div>
     </div>`;
   }).join('');
-  container.innerHTML=`<div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Saved Drafts (${keys.length})</div>${cards}`;
+  container.innerHTML=`<div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">🔐 Admin — Saved Drafts (${keys.length})</div>${cards}`;
 }
 function deleteSavedDraft(key){
+  if(!_pinUnlocked&&!isAdminUrl()){showToast('Admin access required.');return;}
   const name=key.replace('wc2026_draft_','');
   if('wc2026_draft_'+getDraftKey()===key){showToast('Use ↺ Reset Everything to clear the current draft.');return;}
   _supaDelete('drafts',name);
@@ -2705,7 +2852,7 @@ function switchTab(id){
   if(id==='tracker') buildTracker();
   if(id==='setup') buildSavedDraftsList();
   if(id==='scores'){renderMatchLog();populateMatchFormTeams();}
-  if(id==='calendar') renderCalendar();
+  if(id==='calendar'){populateFilterPlayers();renderCalendar();}
   if(id==='knockout'){buildKnockoutBracket();}
   if(id==='sleeper') buildSleeperTracker();
   if(id==='teams') buildTeamsGrid();
@@ -2725,6 +2872,7 @@ window.onload=async()=>{
   updateHeaderSub();
   initTournamentNameUI();
   initAdminMode();
+  buildDraftSwitcher();
   // Draw preview wheel while data loads
   const tiers=getTierDefs();
   if(tiers.length) drawWheel(shuffle([...tiers[0].teams]),TIER_COLORS[0],0);
