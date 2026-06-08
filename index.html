@@ -7,51 +7,91 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet"/>
 <style>
 :root {
-  --gold: #F5C842;
+  /* FIFA WC2026 palette — inspired by official schedule design */
+  --gold: #F5C842;        /* FIFA gold */
+  --fifa-red: #C8102E;    /* Official FIFA red */
   --silver: #B0B8C1;
   --bronze: #CD7F32;
   --green: #1A7A3C;
   --green-light: #22a050;
-  --red: #C0392B;
-  --dark: #0D0D0D;
-  --dark2: #141414;
-  --dark3: #1C1C1C;
-  --card: #212121;
-  --border: #2e2e2e;
-  --text: #EEEEEE;
-  --muted: #888;
-  --white: #FAFAFA;
+  --red: #C8102E;         /* Unified to FIFA red */
+  --dark: #080B14;        /* Deep navy-black */
+  --dark2: #0D1120;       /* Slightly lighter navy */
+  --dark3: #141825;       /* Card dark navy */
+  --card: #1A2035;        /* Card surface */
+  --border: #252d45;      /* Subtle navy border */
+  --text: #F0F2F8;        /* Slightly blue-white */
+  --muted: #7A84A0;       /* Muted blue-grey */
+  --white: #FAFCFF;
   --tier-a: #F5C842;
   --tier-b: #B0B8C1;
   --tier-c: #CD7F32;
 }
+/* LIGHT MODE — inspired by official WC2026 vivid poster aesthetic */
+body.light-mode {
+  --gold: #D4A000;
+  --fifa-red: #C8102E;
+  --dark: #F5F5F0;
+  --dark2: #EEEEE8;
+  --dark3: #E4E4DC;
+  --card: #FFFFFF;
+  --border: #D0D0C8;
+  --text: #0A0A14;
+  --muted: #606070;
+  --white: #0A0A14;
+  --tier-a: #B8860B;
+  --tier-b: #5A6070;
+  --tier-c: #8B5E00;
+}
+body.light-mode .site-header {
+  background: linear-gradient(135deg, #C8102E 0%, #8B0000 50%, #C8102E 100%);
+  box-shadow: 0 2px 20px rgba(200,16,46,0.3);
+}
+body.light-mode .site-header h1 { color: #FFFFFF; }
+body.light-mode .site-header h1 span { color: #F5C842; }
+body.light-mode .site-header p { color: rgba(255,255,255,.7); }
+body.light-mode #themeToggleBtn { border-color: rgba(255,255,255,.4); color: #fff; }
+body.light-mode .tabs { background: #FFFFFF; border-bottom-color: #D0D0C8; }
+body.light-mode .tab-btn { color: #606070; }
+body.light-mode .tab-btn:hover { background: rgba(200,16,46,0.06); color: var(--text); }
+body.light-mode .tab-btn.active { color: var(--fifa-red); border-bottom-color: var(--fifa-red); background: rgba(200,16,46,0.06); }
+body.light-mode .mob-nav { background: #FFFFFF; border-top-color: var(--fifa-red); }
+body.light-mode .mob-nav-btn { color: #909090; }
+body.light-mode .mob-nav-btn.mob-active { color: var(--fifa-red); }
+body.light-mode .btn-dark { background: #E8E8E2; color: #0A0A14; border: 1px solid #C8C8C0; }
+body.light-mode .btn-dark:hover { background: #D8D8D0; }
+body.light-mode .champ-box { background: linear-gradient(160deg, #FFF8E8 0%, #FFFFFF 50%, #FFF0F0 100%); border-color: var(--fifa-red); }
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--dark); color: var(--text); font-family: 'Barlow', sans-serif; min-height: 100vh; }
+body { background: var(--dark); color: var(--text); font-family: 'Barlow', sans-serif; min-height: 100vh; transition: background .3s, color .3s; }
 
 /* HEADER */
 .site-header {
-  background: linear-gradient(135deg, #0a3020 0%, #0D0D0D 50%, #1a0800 100%);
-  border-bottom: 3px solid var(--gold);
-  padding: 18px 32px;
+  background: linear-gradient(135deg, #0a0e1a 0%, #080B14 40%, #1a0510 100%);
+  border-bottom: 3px solid var(--fifa-red);
+  padding: 16px 32px;
   display: flex; align-items: center; gap: 20px;
   position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 20px rgba(200,16,46,0.2);
 }
-.site-header .trophy { font-size: 2.6rem; }
-.site-header h1 { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; color: var(--gold); letter-spacing: 3px; line-height: 1; }
-.site-header p { font-family: 'Barlow Condensed', sans-serif; color: var(--muted); font-size: 0.85rem; letter-spacing: 2px; text-transform: uppercase; }
+.site-header .trophy { font-size: 2.4rem; }
+.site-header h1 { font-family: 'Bebas Neue', sans-serif; font-size: 1.9rem; color: var(--white); letter-spacing: 4px; line-height: 1; }
+.site-header h1 span { color: var(--fifa-red); }
+.site-header p { font-family: 'Barlow Condensed', sans-serif; color: var(--muted); font-size: 0.82rem; letter-spacing: 2px; text-transform: uppercase; }
 
 /* TABS */
-.tabs { display: flex; border-bottom: 2px solid var(--border); background: var(--dark2); position: sticky; top: 80px; z-index: 90; overflow-x: auto; }
+.tabs { display: flex; border-bottom: 2px solid var(--border); background: var(--dark2); position: sticky; top: 74px; z-index: 90; overflow-x: auto; border-top: 1px solid rgba(200,16,46,0.2); }
 .tab-btn { font-family: 'Barlow Condensed', sans-serif; font-size: 0.9rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 14px 22px; background: none; border: none; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; margin-bottom: -2px; white-space: nowrap; }
 .tab-btn:hover { color: var(--text); }
-.tab-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
+.tab-btn.active { color: var(--white); border-bottom-color: var(--fifa-red); background: rgba(200,16,46,0.08); }
+.tab-btn:hover { color: var(--white); background: rgba(255,255,255,0.04); }
 
 /* PANELS */
 .panel { display: none; padding: 28px 32px; max-width: 1280px; margin: 0 auto; }
 .panel.active { display: block; }
 
 /* TYPOGRAPHY */
-.section-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.7rem; letter-spacing: 3px; color: var(--gold); margin-bottom: 4px; }
+.section-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.7rem; letter-spacing: 3px; color: var(--white); margin-bottom: 4px; }
 .section-sub { font-family: 'Barlow Condensed', sans-serif; font-size: 0.8rem; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 20px; }
 
 /* SETUP */
@@ -220,9 +260,11 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
 <header class="site-header">
   <div class="trophy">🏆</div>
   <div style="flex:1">
-    <h1>World Cup 2026 — Draft Game</h1>
+    <h1>World Cup <span>2026</span> — Draft Game</h1>
     <p id="headerSub">48 Teams · 16 Players · 3 Tiers · USA / Canada / Mexico</p>
   </div>
+  <button onclick="toggleTheme()" id="themeToggleBtn" title="Toggle light/dark mode"
+    style="background:none;border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:6px 10px;cursor:pointer;font-size:1rem;color:var(--text);margin-right:4px">🌙</button>
   <button onclick="openDraftManager()" class="btn btn-dark" style="white-space:nowrap;font-size:.8rem;padding:7px 12px" title="Switch or create a draft">
     📋 Drafts
   </button>
@@ -283,6 +325,7 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
   <button class="tab-btn" onclick="switchTab('knockout')">🏆 Bracket</button>
   <button class="tab-btn" onclick="switchTab('sleeper')">🌟 Sleeper</button>
   <button class="tab-btn" onclick="switchTab('teams')">🌍 Groups</button>
+  <button class="tab-btn" onclick="switchTab('howto')">ℹ️ How It Works</button>
   <button class="tab-btn" onclick="switchTab('setup')">⚙ Setup</button>
   <button class="tab-btn" onclick="switchTab('wheel')">🎡 Wheel</button>
   <button class="tab-btn" id="demoTabBtn" onclick="switchTab('demo')" style="display:none;color:#2ecc71">🎮 Demo</button>
@@ -329,6 +372,22 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
     <b>Dynamic Tiers.</b> Teams are split into equal tiers based on FIFA rank. Each player spins once per tier. Tiers and wheels update automatically when you change the player count. Draft order per tier is randomised via <b>cryptographic RNG</b>; the wheel animation lands on the pre-selected winner.
   </div>
 
+  <!-- Draft Mode selector -->
+  <div class="setup-card" style="margin-bottom:16px;padding:16px 20px">
+    <label style="display:block;font-family:'Barlow Condensed',sans-serif;font-size:.75rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Draft Mode</label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap" id="draftModeBtns">
+      <button class="btn btn-gold dmode-btn active-count" data-mode="standard" onclick="setDraftMode('standard')">
+        ⚖️ Standard — FIFA Rank Tiers
+      </button>
+      <button class="btn btn-dark dmode-btn" data-mode="yolo" onclick="setDraftMode('yolo')">
+        🎲 YOLO — Pure Random, No Tiers
+      </button>
+    </div>
+    <div id="draftModeDesc" style="margin-top:10px;font-family:'Barlow Condensed',sans-serif;font-size:.8rem;color:var(--muted)">
+      Teams split into equal tiers by FIFA world ranking. Each player gets one team per tier — guaranteed balance.
+    </div>
+  </div>
+
   <!-- Player count selector -->
   <div class="setup-card" style="margin-bottom:20px;padding:16px 20px">
     <label style="display:block;font-family:'Barlow Condensed',sans-serif;font-size:.75rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Number of Players</label>
@@ -366,8 +425,8 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
   <div class="info-box" style="margin-top:20px;border-left-color:var(--silver)">
     <b>Already drafted?</b> Manually input your picks or upload a CSV to access the full Leaderboard, live standings, and the <b>Cinderella/Sleeper tracker</b> — which rewards lower-tier teams that outperform their FIFA ranking (not betting odds). Great for groups who ran a paper draft or used a different tool.
     <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-dark" onclick="requirePin(openManualDraft)" style="font-size:.85rem">✏️ Manual Draft Entry</button>
-      <button class="btn btn-dark" onclick="requirePin(openCsvUpload)" style="font-size:.85rem">📄 Upload CSV</button>
+      <button class="btn btn-dark" onclick="openManualDraftConditional()" style="font-size:.85rem">✏️ Manual Draft Entry</button>
+      <button class="btn btn-dark" onclick="openCsvUploadConditional()" style="font-size:.85rem">📄 Upload CSV</button>
     </div>
   </div>
 </div>
@@ -617,14 +676,133 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
   <div class="teams-grid" id="teamsGrid"></div>
 </div>
 
+<!-- ══ HOW IT WORKS ══════════════════════════════════════════════════════ -->
+<div class="panel" id="panel-howto">
+
+  <div style="max-width:780px;margin:0 auto">
+
+    <!-- Hero -->
+    <div style="text-align:center;padding:32px 0 40px">
+      <div style="font-size:3rem;margin-bottom:12px">🏆</div>
+      <div class="section-title" style="font-size:2.2rem;color:var(--white)">How World Cup Draft Works</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:1rem;color:var(--muted);letter-spacing:1px;margin-top:8px;line-height:1.7;max-width:560px;margin-left:auto;margin-right:auto">
+        A World Cup pool reimagined. Pick teams across FIFA-ranked tiers, follow every match, and see who drafted the tournament's best — and most surprising — teams.
+      </div>
+    </div>
+
+    <!-- Step 1: The Draft -->
+    <div class="howto-section">
+      <div class="howto-num">01</div>
+      <div class="howto-body">
+        <div class="howto-title">The Draft</div>
+        <div class="howto-text">
+          All 48 World Cup teams are divided into equal tiers based on their official FIFA world ranking — not betting odds or public perception. Tier A is the tournament favourites (ranks 1–16), Tier B the contenders, and so on down to the underdogs.
+          <br><br>
+          Each player spins a wheel once per tier and receives one randomly assigned team. The wheel uses <b>cryptographic randomness</b> — the same standard used in bank-level encryption — so every pick is genuinely fair. The wheel result is determined before the spin animation even starts; it simply lands where the math already decided.
+          <br><br>
+          With 16 players you each get 3 teams — one from each tier. With 24 players it's 2 teams each. The format scales to any group size.
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Leaderboard -->
+    <div class="howto-section">
+      <div class="howto-num">02</div>
+      <div class="howto-body">
+        <div class="howto-title">The Leaderboard</div>
+        <div class="howto-text">
+          Points follow standard football scoring — the same system used in every World Cup group stage since 1994:
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0">
+          <div class="howto-stat-card" style="border-color:var(--green)">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:#2ecc71">3</div>
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Points for a Win</div>
+          </div>
+          <div class="howto-stat-card" style="border-color:var(--gold)">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--gold)">1</div>
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Point for a Draw</div>
+          </div>
+          <div class="howto-stat-card" style="border-color:var(--fifa-red)">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--fifa-red)">0</div>
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Points for a Loss</div>
+          </div>
+        </div>
+        <div class="howto-text">
+          Points accumulate across <b>all your teams, all the way through to the Final</b>. A team that goes deep in the knockouts scores more points for its owner. The leaderboard updates the moment a score is logged — which means standings can flip completely on a single result.
+          <br><br>
+          Tiebreakers go: total points → goal difference → goals scored. Same rules FIFA uses.
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Tiering -->
+    <div class="howto-section">
+      <div class="howto-num">03</div>
+      <div class="howto-body">
+        <div class="howto-title">The Tier System</div>
+        <div class="howto-text">
+          Teams are ranked by their <b>official FIFA world ranking</b> — the authoritative global measure of national team performance. This is deliberately different from betting odds or media expectations.
+          <br><br>
+          FIFA rankings are calculated from competitive match results weighted by opponent strength and match importance. A team ranked 40th has earned that position through years of qualifying matches and tournaments — they're a genuine football nation, not a minnow.
+          <br><br>
+          Why does this matter? Because it creates fair tiers. Every player is guaranteed one strong team, one mid-tier team, and one underdog. No one gets three favourites. No one gets three hopeless cases. Everyone has a real chance — but lower-tier teams winning matches is genuinely surprising, which is what makes the Sleeper Tracker interesting.
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Sleeper / Cinderella -->
+    <div class="howto-section">
+      <div class="howto-num">04</div>
+      <div class="howto-body">
+        <div class="howto-title">The Cinderella / Sleeper Tracker</div>
+        <div class="howto-text">
+          The leaderboard rewards having good teams. The Sleeper Tracker rewards having <b>surprising</b> teams — specifically, lower-tier teams that outperform what their FIFA ranking would predict.
+          <br><br>
+          The formula:
+        </div>
+        <div style="background:var(--dark3);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin:12px 0;font-family:'Barlow Condensed',sans-serif;font-size:.85rem;line-height:2">
+          <div style="color:var(--white)"><b>Cinderella Score</b> = (Overperformance × Tier Bonus) + (Goals Scored × 0.2) − (Goals Conceded × 0.1)</div>
+          <div style="color:var(--muted);margin-top:6px"><b>Overperformance</b> = Actual Points − Expected Points</div>
+          <div style="color:var(--muted)"><b>Expected Points</b> ≈ 1.8 pts/game at top of Tier B, sliding to 0.5 pts/game at bottom of Tier C</div>
+          <div style="color:var(--muted)"><b>Tier Bonus</b>: Tier B = ×1.15 · Tier C = ×1.30 · lower tiers more</div>
+        </div>
+        <div class="howto-text">
+          A Tier C team winning two group games when they were expected to lose all three scores massively. A Tier B team doing exactly what their ranking predicts scores near zero. Negative scores mean underperforming.
+          <br><br>
+          <b>This is purely based on FIFA rankings, not betting odds.</b> If a team ranked 60th beats a team ranked 8th, the Cinderella tracker treats it as the upset it is — regardless of what the bookmakers said.
+          <br><br>
+          Only Tier B and below are tracked. Tier A teams are the favourites — outperforming expectations isn't a Cinderella story, it's just Tuesday.
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 5: Scores flow -->
+    <div class="howto-section" style="border-bottom:none">
+      <div class="howto-num">05</div>
+      <div class="howto-body">
+        <div class="howto-title">Live Scores & Results</div>
+        <div class="howto-text">
+          One designated admin logs match results as the tournament progresses. Every score update flows instantly to every device — leaderboard, group standings, knockout bracket, and Sleeper tracker all update in real time.
+          <br><br>
+          You don't need to refresh or do anything. Just open your group's link and everything is current. Group stage results via the Scores tab, knockout results via the Calendar or Bracket.
+          <br><br>
+          The bracket auto-resolves as results come in — 1st and 2nd place qualifiers are calculated from the live group standings the moment all six group matches are logged. You can also manually confirm third-place qualifiers in the Bracket tab (FIFA picks the 8 best third-placed teams by points, goal difference, and goals scored).
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <!-- ══ DEMO ════════════════════════════════════════════════════════════ -->
 <div class="panel" id="panel-demo">
   <div class="section-title">🎮 Demo Mode</div>
-  <div class="section-sub">Simulate scores to test the full tournament flow — scores only, draft untouched</div>
+  <div class="section-sub">Simulate scores safely — demo data is completely isolated from real scores</div>
 
-  <div class="info-box" style="margin-bottom:24px">
-    <b>What this does:</b> Generates randomised but realistic scores for all selected stages, then updates the leaderboard, group standings, sleeper tracker, bracket, and calendar instantly.
-    <br><b>Real-time scores:</b> When the tournament starts (June 11, 2026), the cleanest upgrade path is a <b>Supabase edge function</b> polling a score API (e.g. <a href="https://www.api-football.com" target="_blank" style="color:var(--gold)">API-Football</a> free tier) on a 2-minute cron, writing results to a DB your app reads. Until then, manual logging via the Calendar tab takes ~10 seconds per match.
+  <div class="info-box" style="margin-bottom:24px;border-left-color:var(--green)">
+    <b>🔒 Demo is fully isolated.</b> Simulated scores save to a separate demo row in the database and <b>never affect your real leaderboard, standings, or bracket.</b> Your group's actual scores are completely untouched. Use this freely to show people how the app works without any risk.
+    <br><br>
+    <b>Real-time scores:</b> When the tournament starts (June 11, 2026), scores are logged manually via the Calendar tab. A future upgrade can automate this via API.
   </div>
 
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:28px">
@@ -643,10 +821,10 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
       <div class="demo-card-desc">Simulate the entire World Cup — all 104 matches — in one shot. Groups + knockouts + champions reveal.</div>
       <button class="btn btn-green" onclick="demoFullTournament()" style="margin-top:12px">Simulate Full Tournament</button>
     </div>
-    <div class="demo-card" style="border-color:var(--red)">
-      <div class="demo-card-title" style="color:var(--red)">🗑 Clear All Scores</div>
-      <div class="demo-card-desc">Remove all scores and results. Draft picks and player names are kept completely intact.</div>
-      <button class="btn btn-red" onclick="clearScores()" style="margin-top:12px">Clear All Scores</button>
+    <div class="demo-card" style="border-color:var(--fifa-red)">
+      <div class="demo-card-title" style="color:var(--fifa-red)">🗑 Clear Demo Data</div>
+      <div class="demo-card-desc">Remove all demo-generated results from the isolated demo row. Your real scores and leaderboard are never affected by demo mode.</div>
+      <button class="btn btn-red" onclick="clearDemoData()" style="margin-top:12px">Clear Demo Data</button>
     </div>
   </div>
 
@@ -751,14 +929,20 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
 </div>
 
 <style>
+/* HOW IT WORKS */
+.howto-section{display:flex;gap:20px;padding:24px 0;border-bottom:1px solid var(--border)}
+.howto-num{font-family:'Bebas Neue',sans-serif;font-size:3rem;color:var(--fifa-red);opacity:.4;min-width:52px;line-height:1;padding-top:4px}
+.howto-body{flex:1}
+.howto-title{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;color:var(--white);margin-bottom:10px}
+.howto-text{font-family:'Barlow Condensed',sans-serif;font-size:.9rem;color:var(--muted);line-height:1.75}
+.howto-text b{color:var(--text)}
+.howto-stat-card{background:var(--dark3);border:1px solid;border-radius:8px;padding:16px;text-align:center}
+@media(max-width:700px){.howto-section{flex-direction:column;gap:8px}.howto-num{font-size:1.8rem;min-width:auto}}
 /* UTILITY */
 .sc{text-align:center}.empty-msg{text-align:center;color:var(--muted);padding:36px;font-family:'Barlow Condensed',sans-serif}
 /* SCORES ROW */
 .scores-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:9px;margin-bottom:0}
 /* DEMO CARDS */
-.demo-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:18px}
-.demo-card-title{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:var(--gold);margin-bottom:6px}
-.demo-card-desc{font-family:'Barlow Condensed',sans-serif;font-size:.82rem;color:var(--muted);line-height:1.5}
 /* FORMS */
 .score-form{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:18px;margin-bottom:22px}
 .form-title{font-family:'Bebas Neue',sans-serif;font-size:1.05rem;letter-spacing:2px;color:var(--gold);margin-bottom:10px}
@@ -776,7 +960,7 @@ option{background:var(--dark3)}
 .gd-pos{color:#2ecc71}.gd-neg{color:var(--red)}.gd-zero{color:var(--muted)}
 .del-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;padding:2px 4px;border-radius:3px}
 .del-btn:hover{color:var(--red)}
-.info-box{background:var(--dark3);border-left:3px solid var(--gold);padding:10px 14px;border-radius:0 6px 6px 0;font-size:.82rem;color:var(--muted);line-height:1.7}
+.info-box{background:var(--dark3);border-left:3px solid var(--fifa-red);padding:10px 14px;border-radius:0 6px 6px 0;font-size:.82rem;color:var(--muted);line-height:1.7}
 .info-box b{color:var(--text)}
 .info-box code{background:rgba(255,255,255,.06);padding:1px 5px;border-radius:3px;font-family:monospace;font-size:.85em;color:var(--gold)}
 /* DEMO CARDS */
@@ -880,11 +1064,11 @@ option{background:var(--dark3)}
 #confettiCanvas{position:fixed;inset:0;z-index:499;pointer-events:none}
 
 /* ══ MOBILE NAV ════════════════════════════════════════════════════ */
-.mob-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);z-index:200;height:58px;align-items:stretch}
+.mob-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--dark2);border-top:2px solid var(--fifa-red);z-index:200;height:58px;align-items:stretch}
 .mob-nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:none;border:none;color:var(--muted);font-size:.55rem;font-family:'Barlow Condensed',sans-serif;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;padding:4px 0;transition:color .15s;min-width:0}
 .mob-nav-btn span{font-size:.55rem;line-height:1}
 .mob-nav-btn svg,.mob-nav-btn:first-child{font-size:.9rem}
-.mob-nav-btn.mob-active{color:var(--gold)}
+.mob-nav-btn.mob-active{color:var(--fifa-red)}
 .mob-nav-btn:active{background:rgba(255,255,255,.05)}
 @media(max-width:700px){
   .mob-nav{display:flex}
@@ -1171,7 +1355,7 @@ function ownerOfCode(c){return ownerOf(cn(c));}
 // INIT
 // ═══════════════════════════════════════════════════════════════════
 function init(){
-  buildPlayerInputs();buildTierPreviews();buildTeamsGrid();loadSaved();
+  buildPlayerInputs();buildTierPreviews();buildTeamsGrid();
   document.getElementById('fDate').value=new Date().toISOString().split('T')[0];
 }
 // Player count selector
@@ -1231,18 +1415,75 @@ function buildTierPreviews(){
 // ═══════════════════════════════════════════════════════════════════
 // Returns array of {label, teams[]} each with exactly (48/numTiers) teams
 // sorted by rank within each tier.
+// ── Draft Mode ────────────────────────────────────────────────────────
+let draftMode = 'standard'; // 'standard' | 'power' | 'yolo'
+
+const DRAFT_MODE_DESCS = {
+  standard: 'Teams split into equal tiers by FIFA world ranking. Each player gets one team per tier — guaranteed balance across all groups.',
+  power:    'Everyone gets one guaranteed top-16 team (Tier A). Remaining picks are fully random from the rest of the 48. High-stakes and dramatic.',
+  yolo:     'No tiers. All 48 teams go into one pool. Completely random — you could get Brazil and Mexico, or you could get Haiti and Curaçao. Pure chaos.',
+};
+
+function setDraftMode(mode){
+  draftMode=mode;
+  document.querySelectorAll('.dmode-btn').forEach(b=>{
+    const active=b.dataset.mode===mode;
+    b.classList.toggle('active-count',active);
+    b.classList.toggle('btn-gold',active);
+    b.classList.toggle('btn-dark',!active);
+  });
+  document.getElementById('draftModeDesc').textContent=DRAFT_MODE_DESCS[mode];
+  buildTierPreviews(); // Refresh tier preview for new mode
+}
+
+// ── Theme toggle ──────────────────────────────────────────────────────
+let _lightMode = false;
+
+function toggleTheme(){
+  _lightMode=!_lightMode;
+  document.body.classList.toggle('light-mode',_lightMode);
+  const btn=document.getElementById('themeToggleBtn');
+  if(btn) btn.textContent=_lightMode?'🌙':'☀️';
+  try{localStorage.setItem('wc2026_theme',_lightMode?'light':'dark');}catch(e){}
+}
+
+function initTheme(){
+  try{
+    const saved=localStorage.getItem('wc2026_theme');
+    if(saved==='light'){_lightMode=true;document.body.classList.add('light-mode');const btn=document.getElementById('themeToggleBtn');if(btn) btn.textContent='🌙';}
+  }catch(e){}
+}
+
 function getTierDefs(){
-  // numTiers = teamsPerPlayer = 48/numPlayers
-  const numTiers=48/numPlayers; // e.g. 16p→3, 12p→4, 8p→6, 6p→8, 24p→2, 48p→1
-  const teamsPerTier=numPlayers; // each tier has exactly numPlayers teams
-  // Sort all 48 teams by rank ascending
   const sorted=[...ALL_TEAMS].sort((a,b)=>a.rank-b.rank);
+
+  // YOLO mode: one big pool, no tiers
+  if(draftMode==='yolo'){
+    return [{label:'All 48 Teams — Pure Random',teams:shuffle([...ALL_TEAMS])}];
+  }
+
+  // POWER BALANCE mode: Tier A (top 16) + one random pool from remaining 32
+  if(draftMode==='power'){
+    const tierA=sorted.slice(0,16);
+    const rest=shuffle(sorted.slice(16));
+    // Split rest evenly based on teams per player minus 1 (for the guaranteed A)
+    const remainingTeamsPerPlayer=Math.max(1,(48/numPlayers)-1);
+    const poolSize=numPlayers; // one team per player per remaining tier
+    const tiers=[{label:'Tier A — Top 16 (Guaranteed)',teams:tierA}];
+    for(let i=0;i<remainingTeamsPerPlayer;i++){
+      const chunk=rest.slice(i*poolSize,(i+1)*poolSize);
+      if(chunk.length) tiers.push({label:`Random Pool ${i+1}`,teams:chunk});
+    }
+    return tiers;
+  }
+
+  // STANDARD mode: equal tiers by FIFA rank (original behaviour)
+  const numTiers=48/numPlayers;
+  const teamsPerTier=numPlayers;
   const tiers=[];
-  const rankRanges=[];
   for(let i=0;i<numTiers;i++){
     const chunk=sorted.slice(i*teamsPerTier,(i+1)*teamsPerTier);
     const minR=chunk[0].rank, maxR=chunk[chunk.length-1].rank;
-    rankRanges.push(`Ranks ${minR}–${maxR}`);
     tiers.push({label:`Ranks ${minR}–${maxR}`,teams:chunk});
   }
   return tiers;
@@ -1827,7 +2068,6 @@ function submitModalScore(){
   // Show champions overlay if the final was just logged
   if(num===104) checkForChampion();
 }
-document.getElementById('logModal').addEventListener('click',function(e){if(e.target===this) closeModal();});
 
 // ═══════════════════════════════════════════════════════════════════
 // KNOCKOUT BRACKET
@@ -2383,12 +2623,6 @@ async function openDraftManager(){
 function closeDraftManager(){
   document.getElementById('draftManagerModal').classList.remove('show');
 }
-document.getElementById('draftManagerModal').addEventListener('click',function(e){
-  if(e.target===this) closeDraftManager();
-});
-document.getElementById('newDraftSlug').addEventListener('input',function(){
-  document.getElementById('newDraftSlugPreview').textContent=this.value||'name';
-});
 
 // Find a specific draft by name or URL — non-admin path
 async function findDraft(){
@@ -2502,6 +2736,7 @@ function switchDraft(name){
 function buildDraftSwitcher(){}
 
 function updateHeaderSub(){
+  const el=document.getElementById('headerSub');
   if(!el) return;
   const tiers=48/numPlayers;
   const draftParam=new URLSearchParams(window.location.search).get('draft');
@@ -2647,42 +2882,131 @@ function _logDemoMatch(num,homeScore,awayScore){
 }
 function demoGroupStage(){
   if(phase===0){showToast('⚠ Complete the draft first!');return;}
-  SCHEDULE.filter(m=>m.stage==='group').forEach(m=>{const [h,a]=rngScore();_logDemoMatch(m.num,h,a);});
-  matchLog.sort((a,b)=>new Date(b.date)-new Date(a.date));
-  saveData();buildTracker();buildTeamsGrid();buildSleeperTracker();renderMatchLog();renderCalendar();
-  _showDemoGroupsPreview();
-  document.getElementById('demoStatus').textContent='✅ Simulated 72 group stage matches.';
-  showToast('✅ Group stage simulated! Check Leaderboard and Teams.');
+  // Demo uses isolated copies — never touches real matchLog or knockoutResults
+  const demoMatchLog=[];
+  const demoKR={};
+  SCHEDULE.filter(m=>m.stage==='group').forEach(m=>{
+    const [h,a]=rngScore();
+    demoKR[m.num]={homeScore:h,awayScore:a};
+    const hName=resolveTeamWith(m.home,demoKR);
+    const aName=resolveTeamWith(m.away,demoKR);
+    _logDemoMatchTo(m,h,a,hName,aName,demoMatchLog);
+  });
+  // Save demo scores to isolated Supabase row
+  _saveDemoScores(demoKR,demoMatchLog);
+  // Show preview using demo data without touching live state
+  _showDemoGroupsPreviewFrom(demoMatchLog,demoKR);
+  document.getElementById('demoStatus').textContent='✅ Demo: Simulated 72 group stage matches. Real scores untouched.';
+  showToast('✅ Demo group stage ready! Real leaderboard unchanged.');
 }
+
 function demoKnockouts(){
   if(phase===0){showToast('⚠ Complete the draft first!');return;}
+  const demoKR={...knockoutResults}; // start from real group results if any
+  const demoMatchLog=[...matchLog];
   [73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,
    89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104].forEach(num=>{
-    const [h,a]=rngKnockoutScore();_logDemoMatch(num,h,a);
+    const [h,a]=rngKnockoutScore();
+    demoKR[num]={homeScore:h,awayScore:a};
+    const m=SCHEDULE.find(x=>x.num===num);if(!m) return;
+    const hName=resolveTeamWith(m.home,demoKR);
+    const aName=resolveTeamWith(m.away,demoKR);
+    _logDemoMatchTo(m,h,a,hName,aName,demoMatchLog);
   });
-  matchLog.sort((a,b)=>new Date(b.date)-new Date(a.date));
-  saveData();buildTracker();buildTeamsGrid();buildSleeperTracker();renderMatchLog();renderCalendar();buildKnockoutBracket();
-  document.getElementById('demoStatus').textContent='✅ Simulated 32 knockout matches.';
-  showToast('✅ Knockouts simulated! Check the Bracket tab.');
-  checkForChampion();
+  _saveDemoScores(demoKR,demoMatchLog);
+  document.getElementById('demoStatus').textContent='✅ Demo: Simulated knockouts. Real scores untouched.';
+  showToast('✅ Demo knockouts ready! Real leaderboard unchanged.');
 }
+
 function demoFullTournament(){
   if(phase===0){showToast('⚠ Complete the draft first!');return;}
-  SCHEDULE.filter(m=>m.stage==='group').forEach(m=>{const [h,a]=rngScore();_logDemoMatch(m.num,h,a);});
+  const demoKR={};
+  const demoMatchLog=[];
+  SCHEDULE.filter(m=>m.stage==='group').forEach(m=>{
+    const [h,a]=rngScore();
+    demoKR[m.num]={homeScore:h,awayScore:a};
+    const hName=resolveTeamWith(m.home,demoKR);
+    const aName=resolveTeamWith(m.away,demoKR);
+    _logDemoMatchTo(m,h,a,hName,aName,demoMatchLog);
+  });
   [73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,
    89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104].forEach(num=>{
-    const [h,a]=rngKnockoutScore();_logDemoMatch(num,h,a);
+    const [h,a]=rngKnockoutScore();
+    demoKR[num]={homeScore:h,awayScore:a};
+    const m=SCHEDULE.find(x=>x.num===num);if(!m) return;
+    const hName=resolveTeamWith(m.home,demoKR);
+    const aName=resolveTeamWith(m.away,demoKR);
+    _logDemoMatchTo(m,h,a,hName,aName,demoMatchLog);
   });
-  matchLog.sort((a,b)=>new Date(b.date)-new Date(a.date));
-  saveData();buildTracker();buildTeamsGrid();buildSleeperTracker();renderMatchLog();renderCalendar();buildKnockoutBracket();
-  _showDemoGroupsPreview();
-  document.getElementById('demoStatus').textContent='✅ Full tournament simulated — all 104 matches.';
-  showToast('🏆 Full tournament simulated! Explore every tab.');
-  checkForChampion();
+  _saveDemoScores(demoKR,demoMatchLog);
+  _showDemoGroupsPreviewFrom(demoMatchLog,demoKR);
+  document.getElementById('demoStatus').textContent='✅ Demo: Full tournament simulated. Real scores completely untouched.';
+  showToast('🏆 Demo tournament complete! Real data safe.');
 }
-function _showDemoGroupsPreview(){
+
+// Helper: resolve team name using a given knockoutResults object (not global)
+function resolveTeamWith(code,kr){
+  if(CODE2NAME[code]) return CODE2NAME[code];
+  if(qualifierOverrides[code]) return qualifierOverrides[code];
+  const pos=code.match(/^([12])([A-L])$/);
+  if(pos){
+    const grp=pos[2];
+    // Use global knockoutResults for group standings (they're real)
+    if(groupComplete(grp)){const st=getGroupStandings(grp);return st[parseInt(pos[1])-1]?.name||code;}
+    return code;
+  }
+  if(code.startsWith('W')){
+    const prev=parseInt(code.slice(1));
+    const r=kr[prev];if(!r) return code;
+    const pm=SCHEDULE.find(x=>x.num===prev);if(!pm) return code;
+    const h=resolveTeamWith(pm.home,kr),a=resolveTeamWith(pm.away,kr);
+    return r.homeScore>=r.awayScore?h:a;
+  }
+  if(code.startsWith('L')){
+    const prev=parseInt(code.slice(1));
+    const r=kr[prev];if(!r) return code;
+    const pm=SCHEDULE.find(x=>x.num===prev);if(!pm) return code;
+    const h=resolveTeamWith(pm.home,kr),a=resolveTeamWith(pm.away,kr);
+    return r.homeScore<r.awayScore?h:a;
+  }
+  return code;
+}
+
+function _logDemoMatchTo(m,homeScore,awayScore,hName,aName,log){
+  const roundLabel=STAGE_LABEL[m.stage]||'Match';
+  const hOwner=ownerOf(hName);
+  if(hOwner){
+    const to=ALL_TEAMS.find(t=>t.name===hName);
+    const result=homeScore>awayScore?'W':homeScore===awayScore?'D':'L';
+    log.push({id:Date.now()+m.num*2,date:m.date,team:hName,teamFlag:to?.flag||'🏳',player:hOwner,opponent:aName,scoreFor:homeScore,scoreAgainst:awayScore,result,round:roundLabel,matchNum:m.num,demo:true});
+  }
+  const aOwner=ownerOf(aName);
+  if(aOwner){
+    const to=ALL_TEAMS.find(t=>t.name===aName);
+    const result=awayScore>homeScore?'W':awayScore===homeScore?'D':'L';
+    log.push({id:Date.now()+m.num*2+1,date:m.date,team:aName,teamFlag:to?.flag||'🏳',player:aOwner,opponent:hName,scoreFor:awayScore,scoreAgainst:homeScore,result,round:roundLabel,matchNum:m.num,demo:true});
+  }
+}
+
+async function _saveDemoScores(kr,log){
+  // Save to isolated demo row — never touches 'global'
+  const payload={matchLog:log,knockoutResults:kr,qualifierOverrides};
+  try{localStorage.setItem('wc2026_scores_demo',JSON.stringify(payload));}catch(e){}
+  await _supaUpsert('scores',SCORES_DEMO_ID,payload);
+}
+
+async function clearDemoData(){
+  // Clear only the demo scores row
+  await _supaDelete('scores',SCORES_DEMO_ID);
+  try{localStorage.removeItem('wc2026_scores_demo');}catch(e){}
+  document.getElementById('demoStatus').textContent='🗑 Demo data cleared. Real scores untouched.';
+  document.getElementById('demoPreview').style.display='none';
+  showToast('🗑 Demo cleared. Real leaderboard safe.');
+}
+
+function _showDemoGroupsPreviewFrom(log,kr){
   const teamStats={};
-  matchLog.forEach(m=>{
+  log.forEach(m=>{
     if(!teamStats[m.team]) teamStats[m.team]={W:0,D:0,L:0,GF:0,GA:0};
     teamStats[m.team][m.result]++;
     teamStats[m.team].GF+=m.scoreFor;
@@ -2696,7 +3020,7 @@ function _showDemoGroupsPreview(){
       return {n,pts:s.W*3+s.D,gd:s.GF-s.GA,gf:s.GF};
     }).sort((a,b)=>b.pts-a.pts||(b.gd-a.gd)||(b.gf-a.gf));
     return `<div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:var(--gold);border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:6px">Group ${grp}</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:var(--fifa-red);border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:6px">Group ${grp}</div>
       ${rows.map(({n,pts},i)=>{
         const td=ALL_TEAMS.find(t=>t.name===n);
         return `<div style="display:flex;justify-content:space-between;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;padding:2px 0;${i<2?'color:var(--text)':'opacity:.5'}">
@@ -2718,6 +3042,10 @@ function _showDemoGroupsPreview(){
 const SUPA_URL = 'https://fqniwvhmizfcahdovsra.supabase.co';
 const SUPA_KEY = 'sb_publishable_VMxnzOTpwnveRas9dFFzQQ_t7wgLOrE';
 const SCORES_ID = 'global'; // single shared row for all match results
+const SCORES_DEMO_ID = 'demo'; // isolated demo row — never affects real scores
+
+// Is the current demo simulation running in isolated mode?
+let _demoIsolated = true; // always true — demo never writes to global
 
 function getDraftKey(){
   const p=new URLSearchParams(window.location.search).get('draft');
@@ -2757,7 +3085,7 @@ async function _supaDelete(table,id){
 // ── Payloads ─────────────────────────────────────────────────────────
 function _buildDraftPayload(){
   return {players,numPlayers,teamsPerPlayer,draftResults,phase,phaseIdx,
-    currentTier,tournamentDisplayName,_tierOrders:window._tierOrders,_tierRemaining:window._tierRemaining};
+    currentTier,tournamentDisplayName,draftMode,_tierOrders:window._tierOrders,_tierRemaining:window._tierRemaining};
 }
 function _buildScoresPayload(){
   return {matchLog,knockoutResults,qualifierOverrides};
@@ -2799,6 +3127,7 @@ async function loadSaved(){
     draftResults=draft.draftResults||{};phase=draft.phase||0;phaseIdx=draft.phaseIdx||0;
     currentTier=draft.currentTier||0;
     tournamentDisplayName=draft.tournamentDisplayName||'';
+    if(draft.draftMode) setDraftMode(draft.draftMode);
     if(draft._tierOrders) window._tierOrders=draft._tierOrders;
     if(draft._tierRemaining) window._tierRemaining=draft._tierRemaining;
     draftOrderA=window._tierOrders?.[0]||[];
@@ -3017,14 +3346,29 @@ function _closePin(){
   _pendingPinFn=null;
 }
 // Close PIN modal on backdrop click
-document.getElementById('pinModal').addEventListener('click',function(e){
-  if(e.target===this) _closePin();
-});
 
 // ═══════════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════════
 // MANUAL DRAFT ENTRY
 // ═══════════════════════════════════════════════════════════════════
+
+// Manual entry and CSV — only require PIN if draft already exists
+function openManualDraftConditional(){
+  const hasDraft=phase===4||Object.values(draftResults).some(t=>t.length>0);
+  if(hasDraft){
+    requirePin(openManualDraft);
+  } else {
+    openManualDraft(); // no draft yet — no PIN needed
+  }
+}
+function openCsvUploadConditional(){
+  const hasDraft=phase===4||Object.values(draftResults).some(t=>t.length>0);
+  if(hasDraft){
+    requirePin(openCsvUpload);
+  } else {
+    openCsvUpload();
+  }
+}
 
 function openManualDraft(){
   // Ensure players are set — if not, read from inputs
@@ -3042,7 +3386,6 @@ function openManualDraft(){
 function closeManualDraft(){
   document.getElementById('manualDraftModal').classList.remove('show');
 }
-document.getElementById('manualDraftModal').addEventListener('click',function(e){if(e.target===this) closeManualDraft();});
 
 function _buildManualDraftGrid(){
   const tiers=getTierDefs();
@@ -3142,18 +3485,7 @@ function openCsvUpload(){
   _csvParsed=null;
 }
 function closeCsvUpload(){document.getElementById('csvUploadModal').classList.remove('show');}
-document.getElementById('csvUploadModal').addEventListener('click',function(e){if(e.target===this) closeCsvUpload();});
 
-document.getElementById('csvFileInput').addEventListener('change',function(e){
-  const file=e.target.files[0];
-  if(!file) return;
-  const reader=new FileReader();
-  reader.onload=function(ev){
-    const text=ev.target.result;
-    _parseCsvPreview(text);
-  };
-  reader.readAsText(file);
-});
 
 function _parseCsvPreview(text){
   const preview=document.getElementById('csvPreview');
@@ -3287,13 +3619,35 @@ function buildDashboard(){
   const player=document.getElementById('dashViewingAs')?.value||'';
   try{if(player) localStorage.setItem('wc2026_viewingAs',player);}catch(e){}
   const content=document.getElementById('dashContent');
-  if(!content) return;
+  if(!content) return; // panel not in DOM yet — safe exit
   const label=tournamentDisplayName||new URLSearchParams(window.location.search).get('draft')||'World Cup 2026';
   const sub=document.getElementById('dashSubtitle');
   if(sub) sub.textContent=player?`Viewing: ${player}`:`${label} · ${players.length} players`;
   const draftDone=phase===4||Object.values(draftResults).some(t=>t.length>0);
   if(!draftDone){
-    content.innerHTML=`<div class="info-box" style="text-align:center;padding:24px"><div style="font-size:2rem;margin-bottom:8px">🎡</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;color:var(--text);margin-bottom:6px">Draft not started yet</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;color:var(--muted)">Complete the draft to see picks and standings here.</div><button class="btn btn-gold" onclick="switchTab('setup')" style="margin-top:14px">Go to Setup →</button></div>`;
+    content.innerHTML=`<div style="max-width:500px;margin:0 auto">
+      <div class="info-box" style="text-align:center;padding:28px;margin-bottom:20px">
+        <div style="font-size:2.5rem;margin-bottom:10px">🎡</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;color:var(--text);margin-bottom:6px">No draft started on this URL</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;color:var(--muted);margin-bottom:16px">Head to Setup to create a new draft, or find an existing one below.</div>
+        <button class="btn btn-gold" onclick="switchTab('setup')" style="margin-right:8px">⚙ Go to Setup</button>
+        <button class="btn btn-dark" onclick="openDraftManager()">📋 Draft Manager</button>
+        <button class="btn btn-dark" onclick="switchTab('howto')" style="margin-top:8px">ℹ️ How It Works</button>
+      </div>
+
+      <!-- Already Drafted? Search -->
+      <div class="setup-card" style="padding:20px">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">🔍 Already in a Draft?</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;color:var(--muted);margin-bottom:10px">Enter your draft name or paste the full URL you were sent</div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="dashDraftSearch" class="fi" placeholder="e.g. tsworldcup or full URL"
+            style="flex:1;background:var(--dark3);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:8px 10px;font-family:'Barlow Condensed',sans-serif;font-size:.9rem"
+            onkeydown="if(event.key==='Enter') dashFindDraft()"/>
+          <button class="btn btn-gold" onclick="dashFindDraft()" style="padding:8px 14px;font-size:.85rem">Find →</button>
+        </div>
+        <div id="dashSearchResult" style="margin-top:10px;min-height:16px"></div>
+      </div>
+    </div>`;
     return;
   }
   const stats=calcStats();
@@ -3390,7 +3744,7 @@ function switchTab(id){
   const panelId = id==='dashboard' ? 'panel-dashboard' : `panel-${id}`;
   document.getElementById(panelId)?.classList.add('active');
   // Map tab id to desktop nav button index
-  const idx={dashboard:0,tracker:1,scores:2,calendar:3,knockout:4,sleeper:5,teams:6,setup:7,wheel:8,demo:9}[id];
+  const idx={dashboard:0,tracker:1,scores:2,calendar:3,knockout:4,sleeper:5,teams:6,howto:7,setup:8,wheel:9,demo:10}[id];
   document.querySelectorAll('.tab-btn')[idx]?.classList.add('active');
   // Mobile nav active state
   document.querySelectorAll('.mob-nav-btn').forEach(b=>b.classList.remove('mob-active'));
@@ -3403,6 +3757,7 @@ function switchTab(id){
   if(id==='knockout'){buildKnockoutBracket();}
   if(id==='sleeper') buildSleeperTracker();
   if(id==='teams') buildTeamsGrid();
+  if(id==='howto'){} // static content, nothing to build
   if(id==='demo'){const ds=document.getElementById('demoStatus');if(ds&&!ds.textContent) ds.textContent='';}
   if(id==='wheel'&&phase>0&&phase<4){setPhaseUI();drawCurrentWheel();}
   if(id==='wheel'&&phase===0){const tiers=getTierDefs();if(tiers.length){drawWheel(shuffle([...tiers[0].teams]),TIER_COLORS[0],wheelAngle);}}
@@ -3433,25 +3788,85 @@ function toggleMoreDrawer(){
   d.style.display=d.style.display==='none'||!d.style.display?'block':'none';
 }
 
+// Dashboard draft search (mirrors findDraft in Draft Manager)
+async function dashFindDraft(){
+  const raw=document.getElementById('dashDraftSearch')?.value.trim()||'';
+  const result=document.getElementById('dashSearchResult');
+  if(!raw||!result) return;
+  let slug=raw;
+  try{const url=new URL(raw.includes('://')?raw:'https://x.com/'+raw);const p=new URLSearchParams(url.search).get('draft');if(p) slug=p;}catch(e){}
+  slug=slug.replace(/[^a-zA-Z0-9_-]/g,'').toLowerCase();
+  if(!slug){result.innerHTML='<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:.8rem;color:var(--fifa-red)">Could not extract a valid draft name.</div>';return;}
+  result.innerHTML='<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:.8rem;color:var(--muted)">Searching...</div>';
+  let found=null;
+  try{
+    const res=await fetch(`${SUPA_URL}/rest/v1/drafts?id=eq.${encodeURIComponent(slug)}&select=id,data`,{
+      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY},
+    });
+    if(res.ok){const rows=await res.json();if(rows&&rows.length>0) found=rows[0];}
+  }catch(e){}
+  if(!found){result.innerHTML=`<div style="font-family:'Barlow Condensed',sans-serif;font-size:.8rem;color:var(--fifa-red)">No draft found with name "<b>${slug}</b>". Check the spelling and try again.</div>`;return;}
+  const d=found.data||{};
+  const displayName=d.tournamentDisplayName||slug;
+  const url=`${window.location.pathname}?draft=${encodeURIComponent(slug)}`;
+  result.innerHTML=`<div style="background:rgba(200,16,46,.08);border:1px solid var(--fifa-red);border-radius:6px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <div><div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.95rem;color:var(--fifa-red)">${displayName}</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;color:var(--muted)">${d.players?.length||0} players · ${d.phase===4?'Draft complete':'In progress'}</div></div>
+    <a href="${url}" class="btn btn-gold" style="text-decoration:none;padding:5px 14px;font-size:.8rem">Load →</a>
+  </div>`;
+}
+
 function showToast(msg){
   const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),3500);
 }
 
 window.onload=async()=>{
-  init();
-  updateHeaderSub();
-  initTournamentNameUI();
-  initAdminMode();
-  buildDraftSwitcher();
-  updateMobileNav();
-  const tiers=getTierDefs();
-  if(tiers.length) drawWheel(shuffle([...tiers[0].teams]),TIER_COLORS[0],0);
-  await loadSaved();
-  updateHomeTab();
-  updateMobileNav();
-  // Always start on dashboard — it handles the "no draft yet" state itself
-  switchTab('dashboard');
+  // Step 1: Make dashboard panel visible immediately — no blank page ever
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  const dash=document.getElementById('panel-dashboard');
+  if(dash) dash.classList.add('active');
+  document.querySelectorAll('.tab-btn')[0]?.classList.add('active');
+
+  // Step 2: Initialise all state and UI — wrapped so any error can't blank the page
+  try{
+    initTheme();
+    init();                    // sets up players[], draftResults, etc.
+    updateHeaderSub();
+    initTournamentNameUI();
+    initAdminMode();
+    buildDraftSwitcher();
+    updateMobileNav();
+    const tiers=getTierDefs();
+    if(tiers.length) drawWheel(shuffle([...tiers[0].teams]),TIER_COLORS[0],0);
+
+    // Wire up DOM event listeners
+    const _wire=(id,evt,fn)=>{const el=document.getElementById(id);if(el) el.addEventListener(evt,fn);};
+    _wire('logModal','click',function(e){if(e.target===this) closeModal();});
+    _wire('draftManagerModal','click',function(e){if(e.target===this) closeDraftManager();});
+    _wire('pinModal','click',function(e){if(e.target===this) _closePin();});
+    _wire('manualDraftModal','click',function(e){if(e.target===this) closeManualDraft();});
+    _wire('csvUploadModal','click',function(e){if(e.target===this) closeCsvUpload();});
+    _wire('newDraftSlug','input',function(){const el=document.getElementById('newDraftSlugPreview');if(el) el.textContent=this.value||'name';});
+    _wire('csvFileInput','change',function(e){
+      const file=e.target.files[0];if(!file) return;
+      const reader=new FileReader();
+      reader.onload=ev=>_parseCsvPreview(ev.target.result);
+      reader.readAsText(file);
+    });
+
+    // Step 3: Show empty-state dashboard (state is initialised, Supabase not yet loaded)
+    buildDashboard();
+
+    // Step 4: Load saved data from Supabase / localStorage
+    await loadSaved();
+    updateHomeTab();
+    updateMobileNav();
+  }catch(e){
+    console.error('Init error:',e);
+  }
+
+  // Step 5: Always refresh dashboard with final state — inside its own try/catch
+  try{ switchTab('dashboard'); }catch(e){ console.error('switchTab error:',e); }
 };
 </script>
 
@@ -3470,6 +3885,7 @@ window.onload=async()=>{
     <button class="mob-nav-btn" data-tab="scores" onclick="switchTab('scores')" style="flex-direction:column">⚽<span>Scores</span></button>
     <button class="mob-nav-btn" data-tab="sleeper" onclick="switchTab('sleeper')" style="flex-direction:column">🌟<span>Sleeper</span></button>
     <button class="mob-nav-btn" data-tab="teams" onclick="switchTab('teams')" style="flex-direction:column">🌍<span>Groups</span></button>
+    <button class="mob-nav-btn" data-tab="howto" onclick="switchTab('howto')" style="flex-direction:column">ℹ️<span>How It Works</span></button>
     <button class="mob-nav-btn" data-tab="setup" onclick="switchTab('setup')" style="flex-direction:column">⚙<span>Setup</span></button>
     <button class="mob-nav-btn" data-tab="wheel" onclick="switchTab('wheel')" style="flex-direction:column">🎡<span>Wheel</span></button>
     <button id="mobDemoBtn" class="mob-nav-btn" data-tab="demo" onclick="switchTab('demo')" style="flex-direction:column;display:none">🎮<span>Demo</span></button>
