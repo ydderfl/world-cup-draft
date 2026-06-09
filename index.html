@@ -24,8 +24,16 @@
   --muted: #7A84A0;       /* Muted blue-grey */
   --white: #FAFCFF;
   --tier-a: #F5C842;
-  --tier-b: #B0B8C1;
-  --tier-c: #CD7F32;
+  --tier-b: #FF6B6B;
+  --tier-c: #4ECDC4;
+  /* WC2026 poster palette — vivid primary colors */
+  --wc-coral: #FF6B6B;
+  --wc-teal: #4ECDC4;
+  --wc-blue: #45B7D1;
+  --wc-yellow: #F5C842;
+  --wc-green: #96CEB4;
+  --wc-purple: #DDA0DD;
+  --wc-salmon: #F7A072;
 }
 /* LIGHT MODE — inspired by official WC2026 vivid poster aesthetic */
 body.light-mode {
@@ -110,14 +118,24 @@ body { background: var(--dark); color: var(--text); font-family: 'Barlow', sans-
 /* TIER PREVIEW */
 .tier-section { margin-bottom: 16px; }
 .tier-label { font-family: 'Barlow Condensed', sans-serif; font-size: 0.75rem; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
-.tier-label.ta { color: var(--tier-a); }
-.tier-label.tb { color: var(--tier-b); }
-.tier-label.tc { color: var(--tier-c); }
+.tier-label.ta { color: #F5C842; }
+.tier-label.tb { color: #FF6B6B; }
+.tier-label.tc { color: #4ECDC4; }
+.tier-label.td { color: #45B7D1; }
+.tier-label.te { color: #96CEB4; }
+.tier-label.tf { color: #DDA0DD; }
+.tier-label.tg { color: #F7A072; }
+.tier-label.th { color: #FFD93D; }
 .chip-wrap { display: flex; flex-wrap: wrap; gap: 5px; }
 .team-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--dark3); border: 1px solid var(--border); border-radius: 20px; padding: 3px 9px; font-family: 'Barlow Condensed', sans-serif; font-size: 0.8rem; }
-.team-chip.ta { border-color: var(--tier-a); color: var(--tier-a); }
-.team-chip.tb { border-color: var(--tier-b); color: var(--tier-b); }
-.team-chip.tc { border-color: var(--tier-c); color: var(--tier-c); }
+.team-chip.ta { border-color: #F5C842; color: #F5C842; }
+.team-chip.tb { border-color: #FF6B6B; color: #FF6B6B; }
+.team-chip.tc { border-color: #4ECDC4; color: #4ECDC4; }
+.team-chip.td { border-color: #45B7D1; color: #45B7D1; }
+.team-chip.te { border-color: #96CEB4; color: #96CEB4; }
+.team-chip.tf { border-color: #DDA0DD; color: #DDA0DD; }
+.team-chip.tg { border-color: #F7A072; color: #F7A072; }
+.team-chip.th { border-color: #FFD93D; color: #FFD93D; }
 
 /* BUTTONS */
 .btn { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; border: none; border-radius: 4px; cursor: pointer; padding: 11px 22px; font-size: 0.9rem; transition: all 0.15s; }
@@ -180,18 +198,18 @@ canvas.wheel-canvas:hover { box-shadow: 0 0 60px rgba(245,200,66,0.35); }
 .q-name { font-weight: 700; color: var(--white); font-size: 0.9rem; }
 .q-teams { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
 .q-tag { font-size: 0.7rem; padding: 2px 7px; border-radius: 3px; background: var(--dark3); border: 1px solid var(--border); }
-.q-tag.ta { border-color: rgba(245,200,66,0.5); color: var(--tier-a); }
-.q-tag.tb { border-color: rgba(176,184,193,0.5); color: var(--tier-b); }
-.q-tag.tc { border-color: rgba(205,127,50,0.5); color: #e0a060; }
-.q-tag.td { border-color: rgba(93,173,226,0.5); color: #5dade2; }
-.q-tag.te { border-color: rgba(162,155,254,0.5); color: #a29bfe; }
-.q-tag.tf { border-color: rgba(253,121,168,0.5); color: #fd79a8; }
-.q-tag.tg { border-color: rgba(0,206,201,0.5); color: #00cec9; }
-.q-tag.th { border-color: rgba(225,112,85,0.5); color: #e17055; }
+.q-tag.ta { border-color: rgba(245,200,66,0.5); color: #F5C842; }
+.q-tag.tb { border-color: rgba(255,107,107,0.5); color: #FF6B6B; }
+.q-tag.tc { border-color: rgba(78,205,196,0.5); color: #4ECDC4; }
+.q-tag.td { border-color: rgba(69,183,209,0.5); color: #45B7D1; }
+.q-tag.te { border-color: rgba(150,206,180,0.5); color: #96CEB4; }
+.q-tag.tf { border-color: rgba(221,160,221,0.5); color: #DDA0DD; }
+.q-tag.tg { border-color: rgba(247,160,114,0.5); color: #F7A072; }
+.q-tag.th { border-color: rgba(255,217,61,0.5); color: #FFD93D; }
 .q-status { font-size: 0.7rem; margin-top: 2px; color: var(--muted); }
 
 /* COMPLETED */
-.completed-banner { background: linear-gradient(135deg, #0a3020 0%, #1a0800 100%); border: 2px solid var(--gold); border-radius: 10px; padding: 28px; text-align: center; margin-bottom: 24px; display: none; }
+.completed-banner { background: linear-gradient(135deg, rgba(78,205,196,0.12) 0%, rgba(255,107,107,0.08) 50%, rgba(245,200,66,0.12) 100%); border: 2px solid var(--gold); border-radius: 10px; padding: 28px; text-align: center; margin-bottom: 24px; display: none; }
 .completed-banner.show { display: block; }
 .completed-banner h2 { font-family: 'Bebas Neue', sans-serif; font-size: 2.2rem; color: var(--gold); letter-spacing: 3px; }
 
@@ -199,7 +217,7 @@ canvas.wheel-canvas:hover { box-shadow: 0 0 60px rgba(245,200,66,0.35); }
 .tracker-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 20px; }
 .tracker-table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-family: 'Barlow Condensed', sans-serif; font-size: 0.88rem; }
-thead tr { background: var(--dark3); border-bottom: 2px solid var(--gold); }
+thead tr { background: var(--dark3); border-bottom: 2px solid var(--fifa-red); }
 thead th { padding: 11px 12px; text-align: left; letter-spacing: 1px; text-transform: uppercase; font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
 thead th.sortable { cursor: pointer; user-select: none; }
 thead th.sortable:hover { color: var(--gold); }
@@ -209,45 +227,45 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
 .player-name-cell { font-weight: 700; font-size: 0.95rem; color: var(--white); white-space: nowrap; }
 .teams-cell { display: flex; flex-wrap: wrap; gap: 4px; }
 .t-tag { display: inline-flex; align-items: center; gap: 3px; font-size: 0.75rem; padding: 3px 7px; border-radius: 3px; background: var(--dark3); border: 1px solid var(--border); white-space: nowrap; }
-.t-tag.ta { border-color: rgba(245,200,66,0.5); color: var(--tier-a); }
-.t-tag.tb { border-color: rgba(176,184,193,0.4); color: var(--tier-b); }
-.t-tag.tc { border-color: rgba(205,127,50,0.5); color: #e0a060; }
-.t-tag.td { border-color: rgba(93,173,226,0.4); color: #5dade2; }
-.t-tag.te { border-color: rgba(162,155,254,0.4); color: #a29bfe; }
-.t-tag.tf { border-color: rgba(253,121,168,0.4); color: #fd79a8; }
-.t-tag.tg { border-color: rgba(0,206,201,0.4); color: #00cec9; }
-.t-tag.th { border-color: rgba(225,112,85,0.4); color: #e17055; }
+.t-tag.ta { border-color: rgba(245,200,66,0.4); color: #F5C842; }
+.t-tag.tb { border-color: rgba(255,107,107,0.4); color: #FF6B6B; }
+.t-tag.tc { border-color: rgba(78,205,196,0.4); color: #4ECDC4; }
+.t-tag.td { border-color: rgba(69,183,209,0.4); color: #45B7D1; }
+.t-tag.te { border-color: rgba(150,206,180,0.4); color: #96CEB4; }
+.t-tag.tf { border-color: rgba(221,160,221,0.4); color: #DDA0DD; }
+.t-tag.tg { border-color: rgba(247,160,114,0.4); color: #F7A072; }
+.t-tag.th { border-color: rgba(255,217,61,0.4); color: #FFD93D; }
 .stat-cell { text-align: center; }
 .stat-input { width: 46px; background: var(--dark3); border: 1px solid var(--border); border-radius: 3px; color: var(--text); text-align: center; padding: 4px; font-family: 'Barlow Condensed', sans-serif; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
 .stat-input:focus { border-color: var(--gold); }
 .pts-cell { text-align: center; font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; color: var(--gold); }
 .rank-badge { display: inline-block; width: 26px; height: 26px; border-radius: 50%; background: var(--dark3); color: var(--muted); text-align: center; line-height: 26px; font-size: 0.8rem; font-weight: 600; }
-.rank-badge.r1 { background: var(--gold); color: #000; }
-.rank-badge.r2 { background: #C0C0C0; color: #000; }
-.rank-badge.r3 { background: #cd7f32; color: #000; }
+.rank-badge.r1 { background: #F5C842; color: #000; }
+.rank-badge.r2 { background: #FF6B6B; color: #fff; }
+.rank-badge.r3 { background: #4ECDC4; color: #000; }
 
 /* TEAMS GRID */
 .teams-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
 .group-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-.group-card-header { background: var(--dark3); padding: 7px 13px; font-family: 'Bebas Neue', sans-serif; font-size: 0.95rem; letter-spacing: 2px; color: var(--gold); border-bottom: 1px solid var(--border); }
+.group-card-header { background: var(--dark3); padding: 7px 13px; font-family: 'Bebas Neue', sans-serif; font-size: 0.95rem; letter-spacing: 2px; color: var(--wc-teal); border-bottom: 2px solid currentColor; }
 .group-card-body { padding: 9px 13px; display: flex; flex-direction: column; gap: 5px; }
 .group-team-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 0.85rem; }
 .tier-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.dot-a { background: var(--tier-a); }
-.dot-b { background: var(--tier-b); }
-.dot-c { background: var(--tier-c); }
-.dot-d { background: #5dade2; }
-.dot-e { background: #a29bfe; }
-.dot-f { background: #fd79a8; }
-.dot-g { background: #00cec9; }
-.dot-h { background: #e17055; }
+.dot-a { background: #F5C842; }
+.dot-b { background: #FF6B6B; }
+.dot-c { background: #4ECDC4; }
+.dot-d { background: #45B7D1; }
+.dot-e { background: #96CEB4; }
+.dot-f { background: #DDA0DD; }
+.dot-g { background: #F7A072; }
+.dot-h { background: #FFD93D; }
 
 /* TOAST */
-.toast { position: fixed; bottom: 24px; right: 24px; background: var(--card); border: 1px solid var(--gold); border-radius: 6px; padding: 12px 18px; font-family: 'Barlow Condensed', sans-serif; font-size: 0.9rem; z-index: 999; transform: translateY(80px); opacity: 0; transition: all 0.3s; max-width: 320px; }
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--card); border: 1px solid var(--wc-teal); border-radius: 6px; padding: 12px 18px; font-family: 'Barlow Condensed', sans-serif; font-size: 0.9rem; z-index: 999; transform: translateY(80px); opacity: 0; transition: all 0.3s; max-width: 320px; }
 .toast.show { transform: translateY(0); opacity: 1; }
 
 /* SPIN GLOW */
-@keyframes glow-wheel { 0%,100%{ box-shadow:0 0 40px rgba(245,200,66,0.2); } 50%{ box-shadow:0 0 80px rgba(245,200,66,0.7); } }
+@keyframes glow-wheel { 0%{ box-shadow:0 0 40px rgba(245,200,66,0.3); } 33%{ box-shadow:0 0 70px rgba(78,205,196,0.5); } 66%{ box-shadow:0 0 70px rgba(255,107,107,0.5); } 100%{ box-shadow:0 0 40px rgba(245,200,66,0.3); } }
 .spin-wheel { animation: glow-wheel 0.4s infinite; }
 
 ::-webkit-scrollbar { width: 5px; height: 5px; }
@@ -1501,7 +1519,7 @@ const TIER_COLORS=[
   ['#0D1B2A','#2A1B0D','#1B2A0D','#2A0D1B','#0D2A1B','#1B0D2A','#2A2A0D','#0D2A2A','#2A0D2A','#0D0D2A','#2A2A2A','#0D2A0D','#2A0D0D','#0D0D0D','#1B1B1B','#2A2A2A','#0D1B2A','#2A1B0D','#1B2A0D','#2A0D1B','#0D2A1B','#1B0D2A','#2A2A0D','#0D2A2A'],
 ];
 
-const TIER_ACCENT_COLORS=['#F5C842','#B0B8C1','#CD7F32','#5dade2','#a29bfe','#fd79a8','#00cec9','#e17055'];
+const TIER_ACCENT_COLORS=['#F5C842','#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#DDA0DD','#F7A072','#FFD93D'];
 const TIER_LETTERS='ABCDEFGH';
 const TIER_CHIP_CLASSES=['ta','tb','tc','td','te','tf','tg','th'];
 const TIER_DOT_CLASSES=['dot-a','dot-b','dot-c','dot-d','dot-e','dot-f','dot-g','dot-h'];
@@ -3040,19 +3058,41 @@ function _showDemoGroupsPreviewFrom(log,kr){
 // ═══════════════════════════════════════════════════════════════════
 
 const SUPA_URL = 'https://fqniwvhmizfcahdovsra.supabase.co';
-const SUPA_KEY = 'sb_publishable_VMxnzOTpwnveRas9dFFzQQ_t7wgLOrE';
-const SCORES_ID = 'global'; // single shared row for all match results
-const SCORES_DEMO_ID = 'demo'; // isolated demo row — never affects real scores
-
-// Is the current demo simulation running in isolated mode?
-let _demoIsolated = true; // always true — demo never writes to global
+const SUPA_KEY = 'sb_publishable_VMxnzOTpwnveRas9dFFzQQ_t7wgLOrE'; // read-only anon key
+const EDGE_FN  = `${SUPA_URL}/functions/v1/wc2026-scores`;
+const SCORES_ID = 'global';
+const SCORES_DEMO_ID = 'demo';
+let _demoIsolated = true;
+let _lastPin = ''; // session-only PIN cache, never persisted
 
 function getDraftKey(){
   const p=new URLSearchParams(window.location.search).get('draft');
   return p?p.replace(/[^a-zA-Z0-9_-]/g,''):'default';
 }
 
-// ── Supabase helpers ─────────────────────────────────────────────────
+// ── Edge Function (score writes — PIN validated server-side) ──────────
+async function _edgeCall(action,payload={}){
+  try{
+    const res=await fetch(EDGE_FN,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPA_KEY},
+      body:JSON.stringify({action,pin:_lastPin,...payload}),
+    });
+    const data=await res.json();
+    if(res.status===401||data.error==='Unauthorized'){
+      showToast('⚠ Incorrect PIN — not saved');
+      _pinUnlocked=false;
+      return null;
+    }
+    if(!res.ok){console.warn('Edge error:',data.error);return null;}
+    return data;
+  }catch(e){
+    console.warn('Edge offline, direct fallback:',e.message);
+    return null;
+  }
+}
+
+// ── Supabase helpers (reads use anon key — writes for drafts only) ────
 async function _supaUpsert(table,id,data){
   try{
     const res=await fetch(`${SUPA_URL}/rest/v1/${table}`,{
@@ -3096,15 +3136,61 @@ async function saveDraft(){
   const id=getDraftKey();
   const p=_buildDraftPayload();
   try{localStorage.setItem('wc2026_draft_'+id,JSON.stringify(p));}catch(e){}
-  await _supaUpsert('drafts',id,p);
+  await _supaUpsert('drafts',id,p); // draft picks write direct (no PIN needed)
 }
 async function saveScores(){
   const p=_buildScoresPayload();
   try{localStorage.setItem('wc2026_scores',JSON.stringify(p));}catch(e){}
-  await _supaUpsert('scores',SCORES_ID,p);
+  // Route through Edge Function — PIN validated server-side
+  const ok=await _edgeCall('save_score',{scoresPayload:p,matchNum:'bulk'});
+  if(!ok) await _supaUpsert('scores',SCORES_ID,p); // fallback if Edge fn offline
 }
 async function saveData(){
   await Promise.all([saveDraft(),saveScores()]);
+}
+
+// ── Live score polling ────────────────────────────────────────────────
+let _liveScoreInterval=null;
+function startLiveScorePolling(){
+  if(_liveScoreInterval) return;
+  _pollLiveScores();
+  _liveScoreInterval=setInterval(_pollLiveScores,90000);
+}
+function stopLiveScorePolling(){
+  if(_liveScoreInterval){clearInterval(_liveScoreInterval);_liveScoreInterval=null;}
+}
+async function _pollLiveScores(){
+  const today=new Date().toISOString().split('T')[0];
+  const todayMatches=SCHEDULE.filter(m=>m.date===today);
+  if(!todayMatches.length) return;
+  const now=new Date();
+  const anyLive=todayMatches.some(m=>{
+    const ko=new Date(m.date+'T'+m.time+':00-07:00');
+    const diff=(now-ko)/60000;
+    return diff>=0&&diff<=120;
+  });
+  if(!anyLive) return;
+  try{
+    const res=await fetch(EDGE_FN,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPA_KEY},
+      body:JSON.stringify({action:'fetch_scores'}),
+    });
+    if(!res.ok) return;
+    const data=await res.json();
+    if(data.updated>0){
+      const fresh=await _supaGet('scores',SCORES_ID);
+      if(fresh){
+        matchLog=fresh.matchLog||[];
+        knockoutResults=fresh.knockoutResults||{};
+        qualifierOverrides=fresh.qualifierOverrides||{};
+        try{localStorage.setItem('wc2026_scores',JSON.stringify(fresh));}catch(e){}
+        buildTracker();buildTeamsGrid();buildSleeperTracker();
+        renderCalendar();buildKnockoutBracket();buildDashboard();
+        showToast(`⚽ Score updated: ${data.matches.map(m=>`M${m.matchNum} ${m.homeScore}-${m.awayScore}`).join(', ')}`);
+      }
+    }
+  }catch(e){console.warn('Live poll error:',e.message);}
 }
 
 // ── Load ─────────────────────────────────────────────────────────────
@@ -3330,8 +3416,8 @@ function _submitPin(){
   const entered=document.getElementById('pinInput').value;
   if(entered===ADMIN_PIN){
     _pinUnlocked=true;
+    _lastPin=entered; // cache for Edge Function calls
     document.getElementById('pinModal').classList.remove('show');
-    // Show demo tab now that PIN is unlocked
     const demoBtn=document.getElementById('demoTabBtn');
     if(demoBtn) demoBtn.style.display='';
     if(_pendingPinFn){const fn=_pendingPinFn;_pendingPinFn=null;fn();}
@@ -3867,6 +3953,9 @@ window.onload=async()=>{
 
   // Step 5: Always refresh dashboard with final state — inside its own try/catch
   try{ switchTab('dashboard'); }catch(e){ console.error('switchTab error:',e); }
+
+  // Start live score polling — only fires during actual match windows
+  try{ startLiveScorePolling(); }catch(e){}
 };
 </script>
 
@@ -3891,5 +3980,11 @@ window.onload=async()=>{
     <button id="mobDemoBtn" class="mob-nav-btn" data-tab="demo" onclick="switchTab('demo')" style="flex-direction:column;display:none">🎮<span>Demo</span></button>
   </div>
 </div>
+
+<!-- Fan disclaimer footer -->
+<div style="text-align:center;padding:16px 20px;font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--muted);border-top:1px solid var(--border);margin-top:40px;letter-spacing:.5px">
+  🏟 An unofficial fan draft game · Not affiliated with or endorsed by FIFA · For personal, non-commercial use only
+</div>
+
 </body>
 </html>
