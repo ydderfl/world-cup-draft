@@ -3311,6 +3311,7 @@ async function _pollLiveScores(){
   });
   if(!anyLive) return;
   try{
+    // Always tell the Edge Function to fetch latest scores
     const res=await fetch(EDGE_FN,{
       method:'POST',
       headers:{'Content-Type':'application/json','apikey':SUPA_KEY},
@@ -3318,16 +3319,22 @@ async function _pollLiveScores(){
     });
     if(!res.ok) return;
     const data=await res.json();
-    if(data.updated>0){
-      const fresh=await _supaGet('scores',SCORES_ID);
-      if(fresh){
-        matchLog=fresh.matchLog||[];
-        knockoutResults=fresh.knockoutResults||{};
-        qualifierOverrides=fresh.qualifierOverrides||{};
-        try{localStorage.setItem('wc2026_scores',JSON.stringify(fresh));}catch(e){}
-        buildTracker();buildTeamsGrid();buildSleeperTracker();
-        renderCalendar();buildKnockoutBracket();buildDashboard();buildLiveScores();
-        showToast(`⚽ Score updated: ${data.matches.map(m=>`M${m.matchNum} ${m.homeScore}-${m.awayScore}`).join(', ')}`);
+
+    // Always pull fresh data from Supabase — minute updates even without goals
+    const fresh=await _supaGet('scores',SCORES_ID);
+    if(fresh){
+      matchLog=fresh.matchLog||[];
+      knockoutResults=fresh.knockoutResults||{};
+      qualifierOverrides=fresh.qualifierOverrides||{};
+      try{localStorage.setItem('wc2026_scores',JSON.stringify(fresh));}catch(e){}
+      // Always refresh calendar and live scores view (shows updated minute)
+      renderCalendar();
+      buildLiveScores();
+      buildDashboard();
+      // Only rebuild heavier views if goals/results actually changed
+      if(data.updated>0){
+        buildTracker();buildTeamsGrid();buildSleeperTracker();buildKnockoutBracket();
+        showToast(`⚽ ${data.matches.map(m=>`M${m.matchNum} ${m.homeScore}-${m.awayScore}`).join(', ')}`);
       }
     }
   }catch(e){console.warn('Live poll error:',e.message);}
