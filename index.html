@@ -1559,6 +1559,7 @@ function startDraft(){
 // ═══════════════════════════════════════════════════════════════════
 function populateMatchFormTeams(){
   const s=document.getElementById('fTeam');
+  if(!s) return;
   s.innerHTML='<option value="">— select team —</option>';
   // Sort drafted teams by their first scheduled group stage appearance
   const drafted=Object.values(draftResults).flat();
@@ -1577,25 +1578,24 @@ function populateMatchFormTeams(){
 
 // Called when a team is selected — populate the match dropdown with their group stage schedule
 function onTeamSelect(){
-  const teamName=document.getElementById('fTeam').value;
+  const teamName=document.getElementById('fTeam')?.value||'';
   const matchSel=document.getElementById('fMatch');
   const oppDisp=document.getElementById('fOpponentDisplay');
   const datDisp=document.getElementById('fDateDisplay');
-  document.getElementById('fDate').value='';
+  const fDate=document.getElementById('fDate');
+  if(!matchSel||!oppDisp||!datDisp||!fDate) return;
+  fDate.value='';
   datDisp.value='';
   oppDisp.textContent='Select a match above';
   oppDisp.style.color='var(--muted)';
   oppDisp.style.fontStyle='italic';
   matchSel.innerHTML='<option value="">— select match —</option>';
   if(!teamName) return;
-  // Find all group stage matches for this team, sorted by date
-  const teamCode=Object.keys(CODE2NAME).find(k=>CODE2NAME[k]===teamName)||teamName;
   const matches=SCHEDULE.filter(m=>m.stage==='group'&&(cn(m.home)===teamName||cn(m.away)===teamName))
     .sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
   if(!matches.length){matchSel.innerHTML='<option value="">No group matches found</option>';return;}
   matches.forEach(m=>{
-    const oppCode=cn(m.home)===teamName?m.away:m.home;
-    const oppName=cn(oppCode);
+    const oppName=cn(m.home)===teamName?cn(m.away):cn(m.home);
     const oppFlag=tf(oppName);
     const alreadyLogged=knockoutResults[m.num]!==undefined||matchLog.some(x=>x.matchNum===m.num&&x.team===teamName);
     const d=new Date(m.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
@@ -1606,13 +1606,14 @@ function onTeamSelect(){
   });
 }
 
-// Called when a match is selected — fill in opponent and date
 function onMatchSelect(){
-  const matchNum=parseInt(document.getElementById('fMatch').value);
-  const teamName=document.getElementById('fTeam').value;
+  const matchNum=parseInt(document.getElementById('fMatch')?.value||'0');
+  const teamName=document.getElementById('fTeam')?.value||'';
   const oppDisp=document.getElementById('fOpponentDisplay');
   const datDisp=document.getElementById('fDateDisplay');
-  document.getElementById('fDate').value='';
+  const fDate=document.getElementById('fDate');
+  if(!oppDisp||!datDisp||!fDate) return;
+  fDate.value='';
   datDisp.value='';
   oppDisp.textContent='Select a match above';
   oppDisp.style.color='var(--muted)'; oppDisp.style.fontStyle='italic';
@@ -1624,24 +1625,27 @@ function onMatchSelect(){
   oppDisp.style.color='var(--text)'; oppDisp.style.fontStyle='normal';
   const d=new Date(m.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
   datDisp.value=d;
-  document.getElementById('fDate').value=m.date;
-  // Pre-fill scores if already logged
+  fDate.value=m.date;
   const existing=matchLog.find(x=>x.matchNum===matchNum&&x.team===teamName);
   if(existing){
-    document.getElementById('fScoreFor').value=existing.scoreFor;
-    document.getElementById('fScoreAgainst').value=existing.scoreAgainst;
+    const sf=document.getElementById('fScoreFor');
+    const sa=document.getElementById('fScoreAgainst');
+    if(sf) sf.value=existing.scoreFor;
+    if(sa) sa.value=existing.scoreAgainst;
   } else {
-    document.getElementById('fScoreFor').value=0;
-    document.getElementById('fScoreAgainst').value=0;
+    const sf=document.getElementById('fScoreFor');
+    const sa=document.getElementById('fScoreAgainst');
+    if(sf) sf.value=0;
+    if(sa) sa.value=0;
   }
 }
 
 function addMatch(){
-  const team=document.getElementById('fTeam').value;
-  const matchNum=parseInt(document.getElementById('fMatch').value)||null;
-  const sf=parseInt(document.getElementById('fScoreFor').value)||0;
-  const sa=parseInt(document.getElementById('fScoreAgainst').value)||0;
-  const date=document.getElementById('fDate').value;
+  const team=document.getElementById('fTeam')?.value||'';
+  const matchNum=parseInt(document.getElementById('fMatch')?.value||'0')||null;
+  const sf=parseInt(document.getElementById('fScoreFor')?.value||'0')||0;
+  const sa=parseInt(document.getElementById('fScoreAgainst')?.value||'0')||0;
+  const date=document.getElementById('fDate')?.value||'';
   const msg=document.getElementById('matchFormMsg');
   if(!team){msg.textContent='⚠ Select a team.';msg.style.color='var(--red)';return;}
   if(!matchNum){msg.textContent='⚠ Select a match.';msg.style.color='var(--red)';return;}
