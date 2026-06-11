@@ -341,6 +341,7 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
   <button class="tab-btn" onclick="switchTab('scores')">⚽ Scores</button>
   <button class="tab-btn" onclick="switchTab('calendar')">📅 Calendar</button>
   <button class="tab-btn" onclick="switchTab('knockout')">🏆 Bracket</button>
+  <button class="tab-btn" onclick="switchTab('scorers')">🥇 Top Scorers</button>
   <button class="tab-btn" onclick="switchTab('sleeper')">🌟 Sleeper</button>
   <button class="tab-btn" onclick="switchTab('teams')">🌍 Groups</button>
   <button class="tab-btn" onclick="switchTab('howto')">ℹ️ How It Works</button>
@@ -681,6 +682,24 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
   </details>
 
   <div id="bracketBody" style="overflow-x:auto;padding-bottom:16px"></div>
+</div>
+
+<!-- ══ TOP SCORERS ══════════════════════════════════════════════════════════ -->
+<div class="panel" id="panel-scorers">
+  <div class="section-title">🥇 Top Scorers</div>
+  <div class="section-sub">Goals scored across the tournament · auto-updated from live API · own goals excluded</div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+    <select id="scorerFilter" class="fi" onchange="buildTopScorers()" style="min-width:160px">
+      <option value="draft">My Draft Players</option>
+      <option value="all">All Teams</option>
+    </select>
+    <div id="scorerCount" style="font-family:'Barlow Condensed',sans-serif;font-size:.82rem;color:var(--muted)"></div>
+  </div>
+
+  <div id="topScorersBody">
+    <div class="empty-msg">No goals logged yet.</div>
+  </div>
 </div>
 
 <!-- ══ SLEEPER TRACKER ════════════════════════════════════════════════════ -->
@@ -1679,10 +1698,12 @@ function addMatch(){
   setTimeout(()=>{msg.textContent='';},3500);
 }
 function populateFilterPlayers(){
-  // Match log filter
+  // Match log filter (admin only — may not exist)
   const s=document.getElementById('filterPlayer');
-  s.innerHTML='<option value="">All Players</option>';
-  players.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;s.appendChild(o);});
+  if(s){
+    s.innerHTML='<option value="">All Players</option>';
+    players.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;s.appendChild(o);});
+  }
   // Calendar player dropdown
   const cal=document.getElementById('calPlayer');
   if(cal){
@@ -1713,6 +1734,97 @@ function deleteMatch(id){
 
 
 // ═══════════════════════════════════════════════════════════════════
+function buildTopScorers(){
+  const body=document.getElementById('topScorersBody');
+  const countEl=document.getElementById('scorerCount');
+  if(!body) return;
+
+  const filterMode=document.getElementById('scorerFilter')?.value||'draft';
+  const draftTeams=new Set(Object.values(draftResults).flat().map(t=>t.name));
+
+  // Aggregate all goal scorers from knockoutResults
+  const scorerMap={};
+  for(const[matchNumStr,kr] of Object.entries(knockoutResults)){
+    const matchNum=parseInt(matchNumStr);
+    const m=SCHEDULE.find(x=>x.num===matchNum);
+    if(!m) continue;
+    const scorers=kr.scorers||[];
+    for(const s of scorers){
+      if(s.type==='Own Goal') continue; // exclude own goals
+      const teamName=normScorerTeam(s.team,m);
+      if(filterMode==='draft'&&!draftTeams.has(teamName)) continue;
+      const key=`${s.player}|${teamName}`;
+      if(!scorerMap[key]){
+        scorerMap[key]={
+          player:s.player,
+          team:teamName,
+          flag:tf(teamName)||'🏳',
+          owner:ownerOf(teamName),
+          goals:0,
+          pens:0,
+          matches:[],
+        };
+      }
+      scorerMap[key].goals++;
+      if(s.type==='Penalty') scorerMap[key].pens++;
+      if(!scorerMap[key].matches.includes(matchNum)) scorerMap[key].matches.push(matchNum);
+    }
+  }
+
+  const scorers=Object.values(scorerMap).sort((a,b)=>b.goals-a.goals||a.player.localeCompare(b.player));
+
+  if(countEl) countEl.textContent=`${scorers.length} scorer${scorers.length!==1?'s':''} · ${scorers.reduce((s,x)=>s+x.goals,0)} goals`;
+
+  if(!scorers.length){
+    body.innerHTML='<div class="empty-msg">No goals logged yet — check back once matches are played.</div>';
+    return;
+  }
+
+  const tierColors=['var(--gold)','var(--wc-coral)','var(--wc-teal)','var(--wc-blue)','var(--wc-green)','var(--wc-purple)','var(--wc-salmon)','var(--wc-yellow)'];
+
+  body.innerHTML=`
+  <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-family:'Barlow Condensed',sans-serif">
+      <thead>
+        <tr style="background:var(--dark3);border-bottom:2px solid var(--fifa-red)">
+          <th style="padding:10px 12px;text-align:left;font-size:.72rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);width:36px">#</th>
+          <th style="padding:10px 12px;text-align:left;font-size:.72rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted)">Player</th>
+          <th style="padding:10px 12px;text-align:left;font-size:.72rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted)">Team</th>
+          <th style="padding:10px 12px;text-align:left;font-size:.72rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted)">Owner</th>
+          <th style="padding:10px 12px;text-align:center;font-size:.72rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted)">Goals</th>
+          <th style="padding:10px 12px;text-align:center;font-size:.72rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted)">Pens</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${scorers.map((s,i)=>{
+          const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+          const rankColor=i===0?'var(--gold)':i===1?'var(--wc-coral)':i===2?'var(--wc-teal)':'var(--muted)';
+          const ownerPill=s.owner?`<span style="background:rgba(245,200,66,.12);color:var(--gold);border:1px solid rgba(245,200,66,.3);border-radius:3px;padding:1px 6px;font-size:.7rem">${s.owner.split(' ')[0]}</span>`:'<span style="color:var(--muted);font-size:.75rem">—</span>';
+          return `<tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:10px 12px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${rankColor}">${medal||i+1}</td>
+            <td style="padding:10px 12px;font-weight:700;font-size:.95rem;color:var(--text)">${s.player}</td>
+            <td style="padding:10px 12px;color:var(--muted);font-size:.88rem">${s.flag} ${s.team}</td>
+            <td style="padding:10px 12px">${ownerPill}</td>
+            <td style="padding:10px 12px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--gold)">${s.goals}</td>
+            <td style="padding:10px 12px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--muted)">${s.pens||'—'}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+// Normalise scorer team name to match our team names
+function normScorerTeam(apiTeamName, match){
+  // Try to match against the two teams in this match
+  const hName=cn(match.home), aName=cn(match.away);
+  const norm=apiTeamName?.toLowerCase()||'';
+  if(hName.toLowerCase()===norm||hName.toLowerCase().includes(norm)||norm.includes(hName.toLowerCase())) return hName;
+  if(aName.toLowerCase()===norm||aName.toLowerCase().includes(norm)||norm.includes(aName.toLowerCase())) return aName;
+  // Fallback to our standard normalisation
+  const map={'korea republic':'South Korea','czech republic':'Czechia','curaçao':'Curacao',"côte d'ivoire":'Ivory Coast','united states':'USA','ir iran':'Iran','congo dr':'DR Congo'};
+  return map[norm]||apiTeamName;
+}
 function buildLiveScores(){
   const today=new Date().toISOString().split('T')[0];
   const todayMatches=SCHEDULE.filter(m=>m.date===today);
@@ -1842,8 +1954,35 @@ function clearFilters(){document.getElementById('filterPlayer').value='';documen
 // LEADERBOARD
 // ═══════════════════════════════════════════════════════════════════
 function calcStats(){
-  const s={};players.forEach(p=>{s[p]={W:0,D:0,L:0,GF:0,GA:0};});
-  matchLog.forEach(m=>{if(s[m.player]){s[m.player][m.result]++;s[m.player].GF+=m.scoreFor;s[m.player].GA+=m.scoreAgainst;}});
+  const s={};
+  players.forEach(p=>{s[p]={W:0,D:0,L:0,GF:0,GA:0};});
+
+  // Build stats from knockoutResults (auto-updated by API) for finished matches
+  SCHEDULE.forEach(m=>{
+    const kr=knockoutResults[m.num];
+    if(!kr||kr.homeScore===undefined||kr.awayScore===undefined) return;
+    // Only count finished matches (FT, AET, PEN) or any result without status (manual entry)
+    const finished=!kr.status||['FT','AET','PEN'].includes(kr.status);
+    if(!finished) return;
+
+    const hName=cn(m.home), aName=cn(m.away);
+    const hs=kr.homeScore, as=kr.awayScore;
+    const hOwner=ownerOf(hName), aOwner=ownerOf(aName);
+
+    if(hOwner&&s[hOwner]){
+      const result=hs>as?'W':hs===as?'D':'L';
+      s[hOwner][result]++;
+      s[hOwner].GF+=hs;
+      s[hOwner].GA+=as;
+    }
+    if(aOwner&&s[aOwner]){
+      const result=as>hs?'W':as===hs?'D':'L';
+      s[aOwner][result]++;
+      s[aOwner].GF+=as;
+      s[aOwner].GA+=hs;
+    }
+  });
+
   return s;
 }
 function buildTracker(){
@@ -2003,6 +2142,8 @@ function getGroupStandings(grp){
   // Read from knockoutResults for group stage matches
   SCHEDULE.filter(m=>m.stage==='group'&&m.group===grp).forEach(m=>{
     const kr=knockoutResults[m.num];if(!kr) return;
+    // Only count finished matches
+    if(kr.status&&!['FT','AET','PEN'].includes(kr.status)) return;
     const hName=cn(m.home),aName=cn(m.away);
     const hs=kr.homeScore,as=kr.awayScore;
     if(stats[hName]){
@@ -2286,15 +2427,12 @@ function buildKnockoutBracket(){
 function buildSleeperTracker(){
   const body=document.getElementById('sleeperBody');
   const tiers=getTierDefs();
-  // Sleeper pool = all tiers except the first (Tier A = best teams)
   const sleeperPool=tiers.length>1?tiers.slice(1).flatMap(t=>t.teams):tiers[0].teams;
+  const rawStats=calcTeamStats();
+  // Add played count
   const teamStats={};
-  matchLog.forEach(m=>{
-    if(!teamStats[m.team]) teamStats[m.team]={W:0,D:0,L:0,GF:0,GA:0,played:0};
-    teamStats[m.team][m.result]++;
-    teamStats[m.team].GF+=m.scoreFor;
-    teamStats[m.team].GA+=m.scoreAgainst;
-    teamStats[m.team].played++;
+  Object.entries(rawStats).forEach(([name,s])=>{
+    teamStats[name]={...s,played:s.W+s.D+s.L};
   });
   const minRank=sleeperPool[0]?.rank||18, maxRank=sleeperPool[sleeperPool.length-1]?.rank||88;
   const sleeperData=sleeperPool.map(team=>{
@@ -2354,14 +2492,29 @@ function buildSleeperTracker(){
 // ═══════════════════════════════════════════════════════════════════
 // TEAMS GRID (with live standings)
 // ═══════════════════════════════════════════════════════════════════
-function buildTeamsGrid(){
+// Shared helper — builds per-team stats from knockoutResults (API-updated)
+function calcTeamStats(){
   const teamStats={};
-  matchLog.forEach(m=>{
-    if(!teamStats[m.team]) teamStats[m.team]={W:0,D:0,L:0,GF:0,GA:0};
-    teamStats[m.team][m.result]++;
-    teamStats[m.team].GF+=m.scoreFor;
-    teamStats[m.team].GA+=m.scoreAgainst;
+  SCHEDULE.forEach(m=>{
+    const kr=knockoutResults[m.num];
+    if(!kr||kr.homeScore===undefined||kr.awayScore===undefined) return;
+    const finished=!kr.status||['FT','AET','PEN'].includes(kr.status);
+    if(!finished) return;
+    const hName=cn(m.home), aName=cn(m.away);
+    const hs=kr.homeScore, as=kr.awayScore;
+    if(!teamStats[hName]) teamStats[hName]={W:0,D:0,L:0,GF:0,GA:0};
+    if(!teamStats[aName]) teamStats[aName]={W:0,D:0,L:0,GF:0,GA:0};
+    if(hs>as){teamStats[hName].W++;teamStats[aName].L++;}
+    else if(hs<as){teamStats[aName].W++;teamStats[hName].L++;}
+    else{teamStats[hName].D++;teamStats[aName].D++;}
+    teamStats[hName].GF+=hs; teamStats[hName].GA+=as;
+    teamStats[aName].GF+=as; teamStats[aName].GA+=hs;
   });
+  return teamStats;
+}
+
+function buildTeamsGrid(){
+  const teamStats=calcTeamStats();
   const tiers=getTierDefs();
   function tierDotCls(name){
     const ti=tiers.findIndex(t=>t.teams.some(x=>x.name===name));
@@ -3304,12 +3457,18 @@ async function _pollLiveScores(){
   const todayMatches=SCHEDULE.filter(m=>m.date===today);
   if(!todayMatches.length) return;
   const now=new Date();
-  const anyLive=todayMatches.some(m=>{
+  // Poll if any match kicked off in the last 200 minutes (covers 90+ET+buffer)
+  // OR if any match finished recently (status not yet FT in our data)
+  const anyRelevant=todayMatches.some(m=>{
     const ko=new Date(m.date+'T'+m.time+':00-07:00');
     const diff=(now-ko)/60000;
-    return diff>=0&&diff<=120;
+    if(diff>=0&&diff<=200) return true; // within match window
+    // Also keep polling if we have a result that isn't marked finished yet
+    const kr=knockoutResults[m.num];
+    if(diff>0&&diff<=300&&kr&&!['FT','AET','PEN'].includes(kr.status)) return true;
+    return false;
   });
-  if(!anyLive) return;
+  if(!anyRelevant) return;
   try{
     // Always tell the Edge Function to fetch latest scores
     const res=await fetch(EDGE_FN,{
@@ -3331,13 +3490,8 @@ async function _pollLiveScores(){
       renderCalendar();
       buildLiveScores();
       buildDashboard();
-      // Rebuild standings/tracker whenever any match data changed (score, status, or minute)
-      const anyMatchChanged = data.updated > 0 || (data.matches && data.matches.length > 0);
-      // Always rebuild if a match just finished (status=FT) even if score was already correct
-      const anyFinished = fresh && Object.values(knockoutResults).some(kr => kr.status === 'FT' || kr.status === 'AET' || kr.status === 'PEN');
-      if(anyMatchChanged || anyFinished){
-        buildTracker();buildTeamsGrid();buildSleeperTracker();buildKnockoutBracket();
-      }
+      // Always rebuild all views — ensures FT triggers standings update
+      buildTracker();buildTeamsGrid();buildSleeperTracker();buildKnockoutBracket();buildTopScorers();
       if(data.updated>0){
         showToast(`⚽ ${data.matches.map(m=>`M${m.matchNum} ${m.homeScore}-${m.awayScore}`).join(', ')}`);
       }
@@ -3988,7 +4142,7 @@ function switchTab(id){
   const panelId = id==='dashboard' ? 'panel-dashboard' : `panel-${id}`;
   document.getElementById(panelId)?.classList.add('active');
   // Map tab id to desktop nav button index
-  const idx={dashboard:0,tracker:1,scores:2,calendar:3,knockout:4,sleeper:5,teams:6,howto:7,setup:8,wheel:9,demo:10}[id];
+  const idx={dashboard:0,tracker:1,scores:2,calendar:3,knockout:4,scorers:5,sleeper:6,teams:7,howto:8,setup:9,wheel:10,demo:11}[id];
   document.querySelectorAll('.tab-btn')[idx]?.classList.add('active');
   // Mobile nav active state
   document.querySelectorAll('.mob-nav-btn').forEach(b=>b.classList.remove('mob-active'));
@@ -3999,6 +4153,7 @@ function switchTab(id){
   if(id==='scores'){buildLiveScores();}
   if(id==='calendar'){populateFilterPlayers();renderCalendar();}
   if(id==='knockout'){buildKnockoutBracket();}
+  if(id==='scorers') buildTopScorers();
   if(id==='sleeper') buildSleeperTracker();
   if(id==='teams') buildTeamsGrid();
   if(id==='howto'){} // static content, nothing to build
@@ -4130,6 +4285,7 @@ window.onload=async()=>{
 <div id="moreDrawer" style="display:none;position:fixed;bottom:58px;left:0;right:0;background:var(--card);border-top:1px solid var(--border);z-index:200;padding:8px">
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
     <button class="mob-nav-btn" data-tab="scores" onclick="switchTab('scores')" style="flex-direction:column">⚽<span>Scores</span></button>
+    <button class="mob-nav-btn" data-tab="scorers" onclick="switchTab('scorers')" style="flex-direction:column">🥇<span>Scorers</span></button>
     <button class="mob-nav-btn" data-tab="sleeper" onclick="switchTab('sleeper')" style="flex-direction:column">🌟<span>Sleeper</span></button>
     <button class="mob-nav-btn" data-tab="teams" onclick="switchTab('teams')" style="flex-direction:column">🌍<span>Groups</span></button>
     <button class="mob-nav-btn" data-tab="howto" onclick="switchTab('howto')" style="flex-direction:column">ℹ️<span>How It Works</span></button>
