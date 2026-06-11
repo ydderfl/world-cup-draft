@@ -3345,6 +3345,17 @@ async function loadSaved(){
   let scores=scoresData;
   if(!scores){try{const r=localStorage.getItem('wc2026_scores');if(r) scores=JSON.parse(r);}catch(e){}}
   _setLoadingState(false);
+
+  // Always apply scores regardless of whether a draft exists
+  if(scores){
+    matchLog=scores.matchLog||[];
+    knockoutResults=scores.knockoutResults||{};
+    qualifierOverrides=scores.qualifierOverrides||{};
+    renderCalendar();
+    buildLiveScores();
+    buildKnockoutBracket();
+  }
+
   if(!draft) return;
   try{
     players=draft.players||[];
@@ -3356,17 +3367,6 @@ async function loadSaved(){
     if(draft.draftMode) setDraftMode(draft.draftMode);
     if(draft._tierOrders) window._tierOrders=draft._tierOrders;
     if(draft._tierRemaining) window._tierRemaining=draft._tierRemaining;
-    draftOrderA=window._tierOrders?.[0]||[];
-    draftOrderB=window._tierOrders?.[1]||[];
-    draftOrderC=window._tierOrders?.[2]||[];
-    remainingA=window._tierRemaining?.[0]||[];
-    remainingB=window._tierRemaining?.[1]||[];
-    remainingC=window._tierRemaining?.[2]||[];
-    if(scores){
-      matchLog=scores.matchLog||[];
-      knockoutResults=scores.knockoutResults||{};
-      qualifierOverrides=scores.qualifierOverrides||{};
-    }
     setPlayerCount(numPlayers);
     buildPlayerInputs();
     if(phase>0){
@@ -3390,6 +3390,10 @@ async function loadSaved(){
     updateHeaderSub();
     updateHomeTab();
     updateMobileNav();
+    // Refresh score-dependent views so calendar shows results immediately
+    renderCalendar();
+    buildLiveScores();
+    buildKnockoutBracket();
   }catch(e){console.error('Failed to apply saved data:',e);}
 }
 
