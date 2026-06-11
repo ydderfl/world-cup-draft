@@ -3331,9 +3331,14 @@ async function _pollLiveScores(){
       renderCalendar();
       buildLiveScores();
       buildDashboard();
-      // Only rebuild heavier views if goals/results actually changed
-      if(data.updated>0){
+      // Rebuild standings/tracker whenever any match data changed (score, status, or minute)
+      const anyMatchChanged = data.updated > 0 || (data.matches && data.matches.length > 0);
+      // Always rebuild if a match just finished (status=FT) even if score was already correct
+      const anyFinished = fresh && Object.values(knockoutResults).some(kr => kr.status === 'FT' || kr.status === 'AET' || kr.status === 'PEN');
+      if(anyMatchChanged || anyFinished){
         buildTracker();buildTeamsGrid();buildSleeperTracker();buildKnockoutBracket();
+      }
+      if(data.updated>0){
         showToast(`⚽ ${data.matches.map(m=>`M${m.matchNum} ${m.homeScore}-${m.awayScore}`).join(', ')}`);
       }
     }
@@ -3358,12 +3363,13 @@ async function loadSaved(){
     matchLog=scores.matchLog||[];
     knockoutResults=scores.knockoutResults||{};
     qualifierOverrides=scores.qualifierOverrides||{};
-    renderCalendar();
-    buildLiveScores();
-    buildKnockoutBracket();
   }
 
-  if(!draft) return;
+  if(!draft){
+    // No draft — just render score views with whatever we have
+    renderCalendar();buildLiveScores();buildKnockoutBracket();
+    return;
+  }
   try{
     players=draft.players||[];
     numPlayers=draft.numPlayers||players.length||16;
@@ -3376,8 +3382,9 @@ async function loadSaved(){
     if(draft._tierRemaining) window._tierRemaining=draft._tierRemaining;
     setPlayerCount(numPlayers);
     buildPlayerInputs();
+    populateFilterPlayers(); // always populate calendar dropdown
     if(phase>0){
-      populateMatchFormTeams();populateFilterPlayers();
+      populateMatchFormTeams();
       if(phase===4){
         document.getElementById('completedBanner').classList.add('show');
         document.getElementById('wheelLayout').style.opacity='.3';
