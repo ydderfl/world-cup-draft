@@ -1843,11 +1843,12 @@ function buildLiveScores(){
     liveCards.innerHTML=liveNow.map(m=>_buildScoreCard(m,true)).join('');
   }
 
-  // ── Today ──
+  // ── Today — exclude matches already shown in Live Now ──
+  const liveNowNums=new Set(liveNow.map(m=>m.num));
   const todayCards=document.getElementById('todayCards');
   if(todayCards){
     if(todayMatches.length){
-      todayCards.innerHTML=todayMatches.map(m=>_buildScoreCard(m,false)).join('');
+      todayCards.innerHTML=todayMatches.filter(m=>!liveNowNums.has(m.num)).map(m=>_buildScoreCard(m,false)).join('')||'<div style="font-family:\'Barlow Condensed\',sans-serif;color:var(--muted);font-size:.85rem;padding:16px 0">All matches in progress above.</div>';
     } else {
       todayCards.innerHTML='<div style="font-family:\'Barlow Condensed\',sans-serif;color:var(--muted);font-size:.85rem;padding:16px 0">No matches today.</div>';
     }
@@ -1887,10 +1888,11 @@ function _buildScoreCard(m,isLiveSection){
 
   const scoreStr=hasScore?`${kr.homeScore} – ${kr.awayScore}`:'vs';
   const scorers=kr?.scorers??[];
+  const redCards=kr?.cards??[];
 
   const ownerPill=(owner)=>owner?`<span style="font-family:'Barlow Condensed',sans-serif;font-size:.65rem;background:rgba(245,200,66,.15);color:var(--gold);border:1px solid rgba(245,200,66,.3);border-radius:3px;padding:1px 5px;margin-left:4px">${owner.split(' ')[0]}</span>`:'';
 
-  const scorerRows=scorers.length?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:3px">
+  const scorerRows=(scorers.length||redCards.length)?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:3px">
     ${scorers.map(s=>{
       const isOwn=s.type==='Own Goal',isPen=s.type==='Penalty';
       const icon=isOwn?'⚽ OG':isPen?'⚽ P':'⚽';
@@ -1899,6 +1901,13 @@ function _buildScoreCard(m,isLiveSection){
       return `<div style="font-family:'Barlow Condensed',sans-serif;font-size:.78rem;display:flex;justify-content:space-between">
         <span>${icon} <b style="color:var(--text)">${s.player}</b> <span style="color:var(--muted);font-size:.7rem">${s.team}</span></span>
         <span style="color:${teamColor};font-family:'Bebas Neue',sans-serif;font-size:.85rem">${s.minute}${extra}'</span>
+      </div>`;
+    }).join('')}
+    ${redCards.map(rc=>{
+      const extra=rc.extra?`+${rc.extra}`:'';
+      return `<div style="font-family:'Barlow Condensed',sans-serif;font-size:.78rem;display:flex;justify-content:space-between">
+        <span>🟥 <b style="color:var(--text)">${rc.player}</b> <span style="color:var(--muted);font-size:.7rem">${rc.team}</span></span>
+        <span style="color:var(--fifa-red);font-family:'Bebas Neue',sans-serif;font-size:.85rem">${rc.minute}${extra}'</span>
       </div>`;
     }).join('')}
   </div>`:'';
@@ -2093,14 +2102,18 @@ function renderCalendar(){
         ?`<span class="cal-score-disp">${liveBlip}${kr.homeScore}–${kr.awayScore}${minuteDisp}${statusBadge}</span>`
         :'';
 
-      // ── Goal scorers ──
+      // ── Goal scorers + red cards ──
       const scorers=kr?.scorers??[];
-      const scorerHtml=scorers.length?`<div style="margin-top:5px;display:flex;flex-direction:column;gap:2px">${scorers.map(s=>{
+      const calRedCards=kr?.cards??[];
+      const scorerHtml=(scorers.length||calRedCards.length)?`<div style="margin-top:5px;display:flex;flex-direction:column;gap:2px">${scorers.map(s=>{
         const isOwn=s.type==='Own Goal';
         const isPen=s.type==='Penalty';
         const icon=isOwn?'⚽ OG':isPen?'⚽ P':'⚽';
         const extraMin=s.extra?`+${s.extra}`:'';
         return `<div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--muted);padding:1px 0">${icon} ${s.player} <span style="color:var(--wc-teal)">${s.minute}${extraMin}'</span></div>`;
+      }).join('')}${calRedCards.map(rc=>{
+        const extraMin=rc.extra?`+${rc.extra}`:'';
+        return `<div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--muted);padding:1px 0">🟥 ${rc.player} <span style="color:var(--fifa-red)">${rc.minute}${extraMin}'</span></div>`;
       }).join('')}</div>`:'';
 
       const shortH=hName.length>14?hName.substring(0,13)+'…':hName;
