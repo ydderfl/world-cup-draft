@@ -557,64 +557,75 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
 
 <!-- ══ MATCH SCORES ══════════════════════════════════════════════════════ -->
 <div class="panel" id="panel-scores">
-  <div class="section-title">Group Stage Scores</div>
-  <div class="section-sub">Group stage only · opponent auto-populated from schedule · knockout rounds via Calendar or Bracket tabs</div>
+  <div class="section-title">Live Scores</div>
+  <div class="section-sub">Auto-updates every 90 seconds during live matches · powered by API-Football</div>
 
-  <div class="info-box" style="margin-bottom:18px">
-    📅 <b>Group Stage:</b> Select your team — opponents are pulled from the schedule automatically. Pick the match, enter the score.
-    <br>🏆 <b>Knockout rounds:</b> Log scores by clicking any match in the <button onclick="switchTab('calendar')" style="background:none;border:none;color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:inherit;cursor:pointer;padding:0;text-decoration:underline">Calendar</button> or <button onclick="switchTab('knockout')" style="background:none;border:none;color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:inherit;cursor:pointer;padding:0;text-decoration:underline">Bracket</button> tabs — both teams and the match context are already known.
+  <!-- Live now section -->
+  <div id="liveNowSection" style="margin-bottom:24px;display:none">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--wc-coral);margin-bottom:10px;display:flex;align-items:center;gap:8px">
+      <span style="display:inline-block;width:8px;height:8px;background:var(--wc-coral);border-radius:50%;animation:pulse-live 1.2s infinite"></span>
+      Live Now
+    </div>
+    <div id="liveNowCards" style="display:flex;flex-direction:column;gap:8px"></div>
   </div>
 
-  <div class="score-form">
-    <div class="form-title">Log a Group Stage Result</div>
-    <div class="scores-row">
-      <div class="ff">
-        <label>Your Team</label>
-        <select id="fTeam" class="fi" onchange="onTeamSelect()"><option value="">— select team —</option></select>
-      </div>
-      <div class="ff">
-        <label>Match</label>
-        <select id="fMatch" class="fi" onchange="onMatchSelect()"><option value="">— pick team first —</option></select>
-      </div>
-      <div class="ff">
-        <label>Opponent</label>
-        <div id="fOpponentDisplay" class="fi" style="display:flex;align-items:center;gap:6px;background:var(--dark3);color:var(--muted);font-style:italic">Select a match above</div>
-      </div>
-      <div class="ff">
-        <label>Your Goals</label>
-        <input type="number" id="fScoreFor" class="fi" min="0" value="0"/>
-      </div>
-      <div class="ff">
-        <label>Opp Goals</label>
-        <input type="number" id="fScoreAgainst" class="fi" min="0" value="0"/>
-      </div>
-      <div class="ff">
-        <label>Date</label>
-        <input type="text" id="fDateDisplay" class="fi" readonly style="color:var(--muted)" placeholder="—"/>
-        <input type="hidden" id="fDate"/>
-      </div>
-    </div>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
-      <button class="btn btn-gold" onclick="requirePin(addMatch)">+ Log Result</button>
-      <span id="matchFormMsg" style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem"></span>
+  <!-- Today's matches -->
+  <div id="todaySection" style="margin-bottom:24px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Today's Matches</div>
+    <div id="todayCards" style="display:flex;flex-direction:column;gap:8px">
+      <div style="font-family:'Barlow Condensed',sans-serif;color:var(--muted);font-size:.85rem;padding:16px 0">No matches today.</div>
     </div>
   </div>
 
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px">
-    <div class="section-title" style="font-size:1.1rem;margin:0">Match Log</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <select id="filterPlayer" class="fi" onchange="renderMatchLog()" style="min-width:120px"><option value="">All Players</option></select>
-      <select id="filterRound" class="fi" onchange="renderMatchLog()" style="min-width:120px">
-        <option value="">All Rounds</option><option>Group Stage</option><option>Round of 32</option>
-        <option>Round of 16</option><option>Quarter-Final</option><option>Semi-Final</option><option>Third Place</option><option>Final</option>
-      </select>
-      <button class="btn btn-dark" onclick="clearFilters()">Clear</button>
+  <!-- Recent results -->
+  <div id="recentSection" style="margin-bottom:24px">
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Recent Results</div>
+    <div id="recentCards" style="display:flex;flex-direction:column;gap:8px">
+      <div style="font-family:'Barlow Condensed',sans-serif;color:var(--muted);font-size:.85rem;padding:16px 0">No results yet.</div>
     </div>
   </div>
-  <div class="tracker-table-wrap">
-    <table><thead><tr><th>Date</th><th>Player</th><th>Team</th><th>Opponent</th>
-      <th class="sc">Score</th><th class="sc">Result</th><th>Round</th><th style="width:28px"></th></tr></thead>
-    <tbody id="matchLogBody"><tr><td colspan="8" class="empty-msg">No matches logged yet.</td></tr></tbody></table>
+
+  <!-- Admin manual log — PIN protected, hidden from public -->
+  <div id="adminScoreForm" style="display:none">
+    <div style="border-top:1px solid var(--border);padding-top:20px;margin-top:8px">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">⚙ Admin — Manual Score Entry</div>
+      <div class="info-box" style="margin-bottom:14px;font-size:.8rem;border-left-color:var(--wc-coral)">
+        Use this if the live API stops working. Log any match result manually — it will override the API data for that match.
+      </div>
+      <div class="score-form">
+        <div class="scores-row">
+          <div class="ff">
+            <label>Your Team</label>
+            <select id="fTeam" class="fi" onchange="onTeamSelect()"><option value="">— select team —</option></select>
+          </div>
+          <div class="ff">
+            <label>Match</label>
+            <select id="fMatch" class="fi" onchange="onMatchSelect()"><option value="">— pick team first —</option></select>
+          </div>
+          <div class="ff">
+            <label>Opponent</label>
+            <div id="fOpponentDisplay" class="fi" style="display:flex;align-items:center;gap:6px;background:var(--dark3);color:var(--muted);font-style:italic">Select a match above</div>
+          </div>
+          <div class="ff">
+            <label>Your Goals</label>
+            <input type="number" id="fScoreFor" class="fi" min="0" value="0"/>
+          </div>
+          <div class="ff">
+            <label>Opp Goals</label>
+            <input type="number" id="fScoreAgainst" class="fi" min="0" value="0"/>
+          </div>
+          <div class="ff">
+            <label>Date</label>
+            <input type="text" id="fDateDisplay" class="fi" readonly style="color:var(--muted)" placeholder="—"/>
+            <input type="hidden" id="fDate"/>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
+          <button class="btn btn-gold" onclick="requirePin(addMatch)">+ Log Result</button>
+          <span id="matchFormMsg" style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem"></span>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1376,7 +1387,8 @@ function ownerOfCode(c){return ownerOf(cn(c));}
 // ═══════════════════════════════════════════════════════════════════
 function init(){
   buildPlayerInputs();buildTierPreviews();buildTeamsGrid();
-  document.getElementById('fDate').value=new Date().toISOString().split('T')[0];
+  const fDate=document.getElementById('fDate');
+  if(fDate) fDate.value=new Date().toISOString().split('T')[0];
 }
 // Player count selector
 function setPlayerCount(n){
@@ -1697,8 +1709,108 @@ function deleteMatch(id){
 
 
 // ═══════════════════════════════════════════════════════════════════
+function buildLiveScores(){
+  const today=new Date().toISOString().split('T')[0];
+  const todayMatches=SCHEDULE.filter(m=>m.date===today);
+  const recentMatches=SCHEDULE.filter(m=>m.date<today&&knockoutResults[m.num]!==undefined)
+    .sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
+
+  // ── Live now ──
+  const liveNow=todayMatches.filter(m=>{
+    const kr=knockoutResults[m.num];
+    return kr?.status&&['1H','HT','2H','ET','BT','P','INT','LIVE'].includes(kr.status);
+  });
+  const liveSection=document.getElementById('liveNowSection');
+  const liveCards=document.getElementById('liveNowCards');
+  if(liveSection&&liveCards){
+    liveSection.style.display=liveNow.length?'block':'none';
+    liveCards.innerHTML=liveNow.map(m=>_buildScoreCard(m,true)).join('');
+  }
+
+  // ── Today ──
+  const todayCards=document.getElementById('todayCards');
+  if(todayCards){
+    if(todayMatches.length){
+      todayCards.innerHTML=todayMatches.map(m=>_buildScoreCard(m,false)).join('');
+    } else {
+      todayCards.innerHTML='<div style="font-family:\'Barlow Condensed\',sans-serif;color:var(--muted);font-size:.85rem;padding:16px 0">No matches today.</div>';
+    }
+  }
+
+  // ── Recent results ──
+  const recentCards=document.getElementById('recentCards');
+  if(recentCards){
+    if(recentMatches.length){
+      recentCards.innerHTML=recentMatches.map(m=>_buildScoreCard(m,false)).join('');
+    } else {
+      recentCards.innerHTML='<div style="font-family:\'Barlow Condensed\',sans-serif;color:var(--muted);font-size:.85rem;padding:16px 0">No results yet.</div>';
+    }
+  }
+
+  // ── Show admin form if unlocked ──
+  const adminForm=document.getElementById('adminScoreForm');
+  if(adminForm){
+    const isAdmin=_pinUnlocked||isAdminUrl();
+    adminForm.style.display=isAdmin?'block':'none';
+    if(isAdmin) populateMatchFormTeams();
+  }
+}
+
+function _buildScoreCard(m,isLiveSection){
+  const kr=knockoutResults[m.num];
+  const hName=cn(m.home),aName=cn(m.away);
+  const hFlag=tf(hName),aFlag=tf(aName);
+  const hOwner=ownerOf(hName),aOwner=ownerOf(aName);
+  const isLive=kr?.status&&['1H','HT','2H','ET','BT','P','INT','LIVE'].includes(kr.status);
+  const isFinished=kr?.status&&['FT','AET','PEN'].includes(kr.status);
+  const hasScore=kr!==undefined;
+
+  const statusLabel=kr?.status==='HT'?'HT':kr?.status==='FT'?'FT':kr?.status==='AET'?'AET':kr?.status==='PEN'?'PEN':'';
+  const minuteStr=isLive&&kr.elapsed?`${kr.elapsed}'`:'';
+  const liveBlip=isLive?`<span style="display:inline-block;width:8px;height:8px;background:var(--wc-coral);border-radius:50%;animation:pulse-live 1.2s infinite;margin-right:6px"></span>`:'';
+
+  const scoreStr=hasScore?`${kr.homeScore} – ${kr.awayScore}`:'vs';
+  const scorers=kr?.scorers??[];
+
+  const ownerPill=(owner)=>owner?`<span style="font-family:'Barlow Condensed',sans-serif;font-size:.65rem;background:rgba(245,200,66,.15);color:var(--gold);border:1px solid rgba(245,200,66,.3);border-radius:3px;padding:1px 5px;margin-left:4px">${owner.split(' ')[0]}</span>`:'';
+
+  const scorerRows=scorers.length?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:3px">
+    ${scorers.map(s=>{
+      const isOwn=s.type==='Own Goal',isPen=s.type==='Penalty';
+      const icon=isOwn?'⚽ OG':isPen?'⚽ P':'⚽';
+      const extra=s.extra?`+${s.extra}`:'';
+      const teamColor=s.team===hName?'var(--wc-teal)':'var(--wc-coral)';
+      return `<div style="font-family:'Barlow Condensed',sans-serif;font-size:.78rem;display:flex;justify-content:space-between">
+        <span>${icon} <b style="color:var(--text)">${s.player}</b> <span style="color:var(--muted);font-size:.7rem">${s.team}</span></span>
+        <span style="color:${teamColor};font-family:'Bebas Neue',sans-serif;font-size:.85rem">${s.minute}${extra}'</span>
+      </div>`;
+    }).join('')}
+  </div>`:'';
+
+  const borderColor=isLive?'var(--wc-coral)':isFinished?'var(--green)':'var(--border)';
+  const bgColor=isLive?'rgba(255,107,107,.04)':isFinished?'rgba(26,122,60,.04)':'var(--card)';
+
+  return `<div style="background:${bgColor};border:1px solid ${borderColor};border-radius:8px;padding:14px 16px${isLive?';box-shadow:0 0 14px rgba(255,107,107,.15)':''}">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;color:var(--muted);letter-spacing:1px">#${m.num} · ${m.time} PT · ${m.venue}</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;color:${isLive?'var(--wc-coral)':isFinished?'var(--green)':'var(--muted)'}">${liveBlip}${minuteStr||statusLabel}</div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:8px">
+      <div style="flex:1;text-align:right">
+        <span style="font-family:'Barlow Condensed',sans-serif;font-size:1rem;font-weight:700;color:var(--text)">${hFlag} ${hName}</span>${ownerPill(hOwner)}
+      </div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:${hasScore?'var(--white)':'var(--muted)'};min-width:70px;text-align:center;letter-spacing:2px">${scoreStr}</div>
+      <div style="flex:1;text-align:left">
+        ${ownerPill(aOwner)}<span style="font-family:'Barlow Condensed',sans-serif;font-size:1rem;font-weight:700;color:var(--text)">${aFlag} ${aName}</span>
+      </div>
+    </div>
+    ${scorerRows}
+  </div>`;
+}
+
 function renderMatchLog(){
   const tbody=document.getElementById('matchLogBody');
+  if(!tbody) return;
   const pf=document.getElementById('filterPlayer')?.value||'';
   const rf=document.getElementById('filterRound')?.value||'';
   let rows=[...matchLog];
@@ -3210,7 +3322,7 @@ async function _pollLiveScores(){
         qualifierOverrides=fresh.qualifierOverrides||{};
         try{localStorage.setItem('wc2026_scores',JSON.stringify(fresh));}catch(e){}
         buildTracker();buildTeamsGrid();buildSleeperTracker();
-        renderCalendar();buildKnockoutBracket();buildDashboard();
+        renderCalendar();buildKnockoutBracket();buildDashboard();buildLiveScores();
         showToast(`⚽ Score updated: ${data.matches.map(m=>`M${m.matchNum} ${m.homeScore}-${m.awayScore}`).join(', ')}`);
       }
     }
@@ -3862,7 +3974,7 @@ function switchTab(id){
   if(id==='dashboard'){initDashboard();}
   if(id==='tracker') buildTracker();
   if(id==='setup') buildSavedDraftsList();
-  if(id==='scores'){renderMatchLog();populateMatchFormTeams();}
+  if(id==='scores'){buildLiveScores();}
   if(id==='calendar'){populateFilterPlayers();renderCalendar();}
   if(id==='knockout'){buildKnockoutBracket();}
   if(id==='sleeper') buildSleeperTracker();
