@@ -994,6 +994,8 @@ option{background:var(--dark3)}
 .cal-card:hover{border-color:rgba(245,200,66,.5);background:rgba(245,200,66,.03)}
 .cal-card.drafted{border-color:rgba(245,200,66,.6);background:rgba(245,200,66,.04)}
 .cal-card.has-result{border-color:var(--green)}
+.cal-card.is-live{border-color:var(--wc-coral);box-shadow:0 0 14px rgba(255,107,107,0.25);background:rgba(255,107,107,.03)}
+@keyframes pulse-live{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(1.4)}}
 .cal-top{display:flex;align-items:center;gap:8px;margin-bottom:4px}
 .cal-num{font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:var(--muted);min-width:26px}
 .cal-matchup{flex:1;font-family:'Barlow Condensed',sans-serif;font-size:.88rem;font-weight:700;line-height:1.3}
@@ -1824,13 +1826,34 @@ function renderCalendar(){
       const hFlag=tf(hName),aFlag=tf(aName);
       const hoPill=hOwner?`<span class="owner-pill">${hOwner.split(' ')[0]}</span>`:'';
       const aoPill=aOwner?`<span class="owner-pill">${aOwner.split(' ')[0]}</span>`:'';
-      const scoreDisp=hasResult?`<span class="cal-score-disp">${kr.homeScore}–${kr.awayScore}</span>`:'';
+
+      // ── Score display with live status, minute, and scorers ──
+      const isLive=kr&&kr.status&&['1H','HT','2H','ET','BT','P','INT','LIVE'].includes(kr.status);
+      const isFinished=kr&&kr.status&&['FT','AET','PEN'].includes(kr.status);
+      const statusLabel=kr?.status==='HT'?'HT':kr?.status==='FT'?'FT':kr?.status==='AET'?'AET':kr?.status==='PEN'?'PEN':null;
+      const minuteDisp=isLive&&kr.elapsed?`<span style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;color:var(--wc-coral);margin-left:4px">${kr.elapsed}'</span>`:'';
+      const liveBlip=isLive?`<span style="display:inline-block;width:7px;height:7px;background:var(--wc-coral);border-radius:50%;margin-right:5px;animation:pulse-live 1.2s infinite"></span>`:'';
+      const statusBadge=statusLabel?`<span style="font-family:'Barlow Condensed',sans-serif;font-size:.68rem;font-weight:700;color:${isLive?'var(--wc-coral)':isFinished?'var(--muted)':'var(--gold)'};margin-left:5px;letter-spacing:1px">${statusLabel}</span>`:'';
+      const scoreDisp=hasResult
+        ?`<span class="cal-score-disp">${liveBlip}${kr.homeScore}–${kr.awayScore}${minuteDisp}${statusBadge}</span>`
+        :'';
+
+      // ── Goal scorers ──
+      const scorers=kr?.scorers??[];
+      const scorerHtml=scorers.length?`<div style="margin-top:5px;display:flex;flex-direction:column;gap:2px">${scorers.map(s=>{
+        const isOwn=s.type==='Own Goal';
+        const isPen=s.type==='Penalty';
+        const icon=isOwn?'⚽ OG':isPen?'⚽ P':'⚽';
+        const extraMin=s.extra?`+${s.extra}`:'';
+        return `<div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--muted);padding:1px 0">${icon} ${s.player} <span style="color:var(--wc-teal)">${s.minute}${extraMin}'</span></div>`;
+      }).join('')}</div>`:'';
+
       const shortH=hName.length>14?hName.substring(0,13)+'…':hName;
       const shortA=aName.length>14?aName.substring(0,13)+'…':aName;
       const hCls=tierChipCls(hName),aCls=tierChipCls(aName);
       const contextLines=getMatchContext(m);
       const contextHtml=contextLines.length?`<details style="margin-top:6px"><summary style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;color:var(--muted);cursor:pointer;list-style:none">▶ Match context</summary><div style="margin-top:5px;display:flex;flex-direction:column;gap:3px">${contextLines.map(l=>`<div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--text);padding:2px 0;border-top:1px solid var(--border)">${l}</div>`).join('')}</div></details>`:'';
-      return `<div class="cal-card${isDrafted?' drafted':''}${hasResult?' has-result':''}" onclick="openMatchModal(${m.num})">
+      return `<div class="cal-card${isDrafted?' drafted':''}${hasResult?' has-result':''}${isLive?' is-live':''}" onclick="openMatchModal(${m.num})">
         <div class="cal-top">
           <span class="cal-num">#${m.num}</span>
           <div class="cal-matchup">
@@ -1840,6 +1863,7 @@ function renderCalendar(){
           </div>
           ${scoreDisp}
         </div>
+        ${scorerHtml}
         <div class="cal-meta">${m.time} PT · ${m.venue} · ${STAGE_LABEL[m.stage]||m.stage}${m.group?' · Grp '+m.group:''}</div>
         ${contextHtml}
       </div>`;
