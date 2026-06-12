@@ -3470,18 +3470,22 @@ async function _pollLiveScores(){
   const todayMatches=SCHEDULE.filter(m=>m.date===today);
   if(!todayMatches.length) return;
   const now=new Date();
-  // Poll if any match kicked off in the last 200 minutes (covers 90+ET+buffer)
-  // OR if any match finished recently (status not yet FT in our data)
-  const anyRelevant=todayMatches.some(m=>{
-    const ko=new Date(m.date+'T'+m.time+':00-07:00');
-    const diff=(now-ko)/60000;
-    if(diff>=0&&diff<=200) return true; // within match window
-    // Also keep polling if we have a result that isn't marked finished yet
-    const kr=knockoutResults[m.num];
-    if(diff>0&&diff<=300&&kr&&!['FT','AET','PEN'].includes(kr.status)) return true;
-    return false;
+  // Check if any match today could be live or recently finished
+  // Use simple hour check: if it's between 10am-midnight PT, just poll
+  // This avoids timezone offset calculation bugs across venues
+  const nowPT=new Date(now.toLocaleString('en-US',{timeZone:'America/Los_Angeles'}));
+  const hourPT=nowPT.getHours();
+  const anyCouldBeLive=todayMatches.some(m=>{
+    const [h,min]=m.time.split(':').map(Number);
+    const minsFromKickoff=(hourPT*60+nowPT.getMinutes())-(h*60+min);
+    return minsFromKickoff>=-5&&minsFromKickoff<=200;
   });
-  if(!anyRelevant) return;
+  // Also keep polling if any match has a non-FT status
+  const anyStillActive=todayMatches.some(m=>{
+    const kr=knockoutResults[m.num];
+    return kr&&!['FT','AET','PEN'].includes(kr.status);
+  });
+  if(!anyCouldBeLive&&!anyStillActive) return;
   try{
     // Always tell the Edge Function to fetch latest scores
     const res=await fetch(EDGE_FN,{
