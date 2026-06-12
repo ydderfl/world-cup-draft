@@ -690,15 +690,20 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
   <div class="section-sub">Goals scored across the tournament · auto-updated from live API · own goals excluded</div>
 
   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
-    <select id="scorerFilter" class="fi" onchange="buildTopScorers()" style="min-width:160px">
-      <option value="draft">My Draft Players</option>
-      <option value="all">All Teams</option>
+    <!-- View mode -->
+    <select id="scorerView" class="fi" onchange="buildTopScorers()" style="min-width:180px">
+      <option value="all">🌍 Overall Golden Boot</option>
+      <option value="owner">👤 By Draft Player</option>
+    </select>
+    <!-- Owner filter — only shown in "By Draft Player" mode -->
+    <select id="scorerOwner" class="fi" onchange="buildTopScorers()" style="min-width:140px;display:none">
+      <option value="">All Players</option>
     </select>
     <div id="scorerCount" style="font-family:'Barlow Condensed',sans-serif;font-size:.82rem;color:var(--muted)"></div>
   </div>
 
   <div id="topScorersBody">
-    <div class="empty-msg">No goals logged yet.</div>
+    <div class="empty-msg">No goals logged yet — check back once matches are played.</div>
   </div>
 </div>
 
@@ -1737,12 +1742,28 @@ function deleteMatch(id){
 function buildTopScorers(){
   const body=document.getElementById('topScorersBody');
   const countEl=document.getElementById('scorerCount');
+  const viewSel=document.getElementById('scorerView');
+  const ownerSel=document.getElementById('scorerOwner');
   if(!body) return;
 
-  const filterMode=document.getElementById('scorerFilter')?.value||'draft';
-  const draftTeams=new Set(Object.values(draftResults).flat().map(t=>t.name));
+  const viewMode=viewSel?.value||'all';
 
-  // Aggregate all goal scorers from knockoutResults
+  // Show/hide owner dropdown
+  if(ownerSel){
+    ownerSel.style.display=viewMode==='owner'?'':'none';
+    // Populate owner dropdown if needed
+    if(viewMode==='owner'&&ownerSel.options.length<=1){
+      players.forEach(p=>{
+        const o=document.createElement('option');
+        o.value=p; o.textContent=p;
+        ownerSel.appendChild(o);
+      });
+    }
+  }
+
+  const selectedOwner=viewMode==='owner'?(ownerSel?.value||''):'';
+
+  // Aggregate all scorers from knockoutResults
   const scorerMap={};
   for(const[matchNumStr,kr] of Object.entries(knockoutResults)){
     const matchNum=parseInt(matchNumStr);
@@ -1750,38 +1771,87 @@ function buildTopScorers(){
     if(!m) continue;
     const scorers=kr.scorers||[];
     for(const s of scorers){
-      if(s.type==='Own Goal') continue; // exclude own goals
+      if(s.type==='Own Goal') continue;
       const teamName=normScorerTeam(s.team,m);
-      if(filterMode==='draft'&&!draftTeams.has(teamName)) continue;
-      const key=`${s.player}|${teamName}`;
+      const owner=ownerOf(teamName);
+
+      // Filter: if by-owner mode and specific owner selected, only show their teams
+      if(viewMode==='owner'&&selectedOwner&&owner!==selectedOwner) continue;
+
+      const key=`${s.player}||${teamName}`;
       if(!scorerMap[key]){
         scorerMap[key]={
           player:s.player,
           team:teamName,
           flag:tf(teamName)||'🏳',
-          owner:ownerOf(teamName),
+          owner:owner||null,
           goals:0,
           pens:0,
-          matches:[],
         };
       }
       scorerMap[key].goals++;
       if(s.type==='Penalty') scorerMap[key].pens++;
-      if(!scorerMap[key].matches.includes(matchNum)) scorerMap[key].matches.push(matchNum);
     }
   }
 
   const scorers=Object.values(scorerMap).sort((a,b)=>b.goals-a.goals||a.player.localeCompare(b.player));
+  const totalGoals=scorers.reduce((s,x)=>s+x.goals,0);
 
-  if(countEl) countEl.textContent=`${scorers.length} scorer${scorers.length!==1?'s':''} · ${scorers.reduce((s,x)=>s+x.goals,0)} goals`;
+  if(countEl){
+    const label=viewMode==='owner'&&selectedOwner?`${selectedOwner}'s scorers`:'All teams';
+    countEl.textContent=`${label} · ${scorers.length} scorer${scorers.length!==1?'s':''} · ${totalGoals} goal${totalGoals!==1?'s':''}`;
+  }
 
   if(!scorers.length){
-    body.innerHTML='<div class="empty-msg">No goals logged yet — check back once matches are played.</div>';
+    body.innerHTML='<div class="empty-msg" style="padding:32px 0">No goals yet'+(viewMode==='owner'&&selectedOwner?` for ${selectedOwner}`:'')+'.</div>';
     return;
   }
 
-  const tierColors=['var(--gold)','var(--wc-coral)','var(--wc-teal)','var(--wc-blue)','var(--wc-green)','var(--wc-purple)','var(--wc-salmon)','var(--wc-yellow)'];
+  // Group by owner when in "by owner" mode without a specific owner selected
+  // This shows each player's scorers as a section
+  if(viewMode==='owner'&&!selectedOwner){
+    const byOwner={};
+    scorers.forEach(s=>{
+      const o=s.owner||'Unowned';
+      if(!byOwner[o]) byOwner[o]=[];
+      byOwner[o].push(s);
+    });
+    // Sort owners by their best scorer's goal count
+    const sortedOwners=Object.keys(byOwner).sort((a,b)=>byOwner[b][0].goals-byOwner[a][0].goals);
 
+    body.innerHTML=sortedOwners.map(owner=>{
+      const ownerScorers=byOwner[owner];
+      const ownerTotal=ownerScorers.reduce((s,x)=>s+x.goals,0);
+      const rows=ownerScorers.map((s,i)=>`
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:8px 12px;font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--muted)">${i+1}</td>
+          <td style="padding:8px 12px;font-weight:700;font-size:.92rem;color:var(--text)">${s.player}</td>
+          <td style="padding:8px 12px;color:var(--muted);font-size:.85rem">${s.flag} ${s.team}</td>
+          <td style="padding:8px 12px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--gold)">${s.goals}</td>
+          <td style="padding:8px 12px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:var(--muted)">${s.pens||'—'}</td>
+        </tr>`).join('');
+      return `
+        <div style="margin-bottom:20px">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:var(--gold);padding:8px 12px;background:var(--dark3);border-radius:6px 6px 0 0;display:flex;justify-content:space-between;align-items:center">
+            <span>${owner}</span>
+            <span style="font-size:.9rem;color:var(--muted)">${ownerTotal} goal${ownerTotal!==1?'s':''}</span>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-family:'Barlow Condensed',sans-serif">
+            <thead><tr style="background:var(--dark3);border-bottom:1px solid var(--border)">
+              <th style="padding:6px 12px;text-align:left;font-size:.65rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);width:32px">#</th>
+              <th style="padding:6px 12px;text-align:left;font-size:.65rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted)">Player</th>
+              <th style="padding:6px 12px;text-align:left;font-size:.65rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted)">Team</th>
+              <th style="padding:6px 12px;text-align:center;font-size:.65rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted)">G</th>
+              <th style="padding:6px 12px;text-align:center;font-size:.65rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted)">P</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    }).join('');
+    return;
+  }
+
+  // Default: flat ranked table (Overall Golden Boot or filtered by one owner)
   body.innerHTML=`
   <div style="overflow-x:auto">
     <table style="width:100%;border-collapse:collapse;font-family:'Barlow Condensed',sans-serif">
@@ -1799,7 +1869,9 @@ function buildTopScorers(){
         ${scorers.map((s,i)=>{
           const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
           const rankColor=i===0?'var(--gold)':i===1?'var(--wc-coral)':i===2?'var(--wc-teal)':'var(--muted)';
-          const ownerPill=s.owner?`<span style="background:rgba(245,200,66,.12);color:var(--gold);border:1px solid rgba(245,200,66,.3);border-radius:3px;padding:1px 6px;font-size:.7rem">${s.owner.split(' ')[0]}</span>`:'<span style="color:var(--muted);font-size:.75rem">—</span>';
+          const ownerPill=s.owner
+            ?`<span style="background:rgba(245,200,66,.12);color:var(--gold);border:1px solid rgba(245,200,66,.3);border-radius:3px;padding:1px 6px;font-size:.7rem">${s.owner.split(' ')[0]}</span>`
+            :`<span style="color:var(--muted);font-size:.75rem">—</span>`;
           return `<tr style="border-bottom:1px solid var(--border)">
             <td style="padding:10px 12px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${rankColor}">${medal||i+1}</td>
             <td style="padding:10px 12px;font-weight:700;font-size:.95rem;color:var(--text)">${s.player}</td>
