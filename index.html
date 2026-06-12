@@ -1817,7 +1817,7 @@ function buildTopScorers(){
 // Normalise scorer team name to match our team names
 function normScorerTeam(apiTeamName, match){
   // Try to match against the two teams in this match
-  const hName=cn(match.home), aName=cn(match.away);
+  const hName=resolveTeam(match.home), aName=resolveTeam(match.away);
   const norm=apiTeamName?.toLowerCase()||'';
   if(hName.toLowerCase()===norm||hName.toLowerCase().includes(norm)||norm.includes(hName.toLowerCase())) return hName;
   if(aName.toLowerCase()===norm||aName.toLowerCase().includes(norm)||norm.includes(aName.toLowerCase())) return aName;
@@ -1875,7 +1875,7 @@ function buildLiveScores(){
 
 function _buildScoreCard(m,isLiveSection){
   const kr=knockoutResults[m.num];
-  const hName=cn(m.home),aName=cn(m.away);
+  const hName=resolveTeam(m.home),aName=resolveTeam(m.away);
   const hFlag=tf(hName),aFlag=tf(aName);
   const hOwner=ownerOf(hName),aOwner=ownerOf(aName);
   const isLive=kr?.status&&['1H','HT','2H','ET','BT','P','INT','LIVE'].includes(kr.status);
