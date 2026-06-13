@@ -1080,8 +1080,8 @@ option{background:var(--dark3)}
 .overperf-neg{background:linear-gradient(90deg,var(--red),#e74c3c)}
 
 /* TEAMS GRID */
-.gs-hdr{font-family:'Barlow Condensed',sans-serif;font-size:.63rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);display:grid;grid-template-columns:1fr 18px 18px 18px 18px 24px;gap:2px;padding:2px 0 4px;border-bottom:1px solid var(--border);margin-bottom:2px}
-.gs-row{display:grid;grid-template-columns:1fr 18px 18px 18px 18px 24px;gap:2px;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.03);align-items:center}
+.gs-hdr{font-family:'Barlow Condensed',sans-serif;font-size:.63rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);display:grid;grid-template-columns:1fr 18px 18px 18px 18px 28px 24px;gap:2px;padding:2px 0 4px;border-bottom:1px solid var(--border);margin-bottom:2px}
+.gs-row{display:grid;grid-template-columns:1fr 18px 18px 18px 18px 28px 24px;gap:2px;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.03);align-items:center}
 .gs-row:last-child{border-bottom:none}
 .gs-pts{font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:var(--gold);text-align:right}
 .gs-owner{font-size:.62rem;color:var(--gold);opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1888,14 +1888,76 @@ function buildTopScorers(){
 
 // Normalise scorer team name to match our team names
 function normScorerTeam(apiTeamName, match){
-  // Try to match against the two teams in this match
+  // Try to match against the two teams in this match first
   const hName=cn(match.home), aName=cn(match.away);
-  const norm=apiTeamName?.toLowerCase()||'';
-  if(hName.toLowerCase()===norm||hName.toLowerCase().includes(norm)||norm.includes(hName.toLowerCase())) return hName;
-  if(aName.toLowerCase()===norm||aName.toLowerCase().includes(norm)||norm.includes(aName.toLowerCase())) return aName;
-  // Fallback to our standard normalisation
-  const map={'korea republic':'South Korea','czech republic':'Czechia','curaçao':'Curacao',"côte d'ivoire":'Ivory Coast','united states':'USA','ir iran':'Iran','congo dr':'DR Congo'};
-  return map[norm]||apiTeamName;
+  const norm=apiTeamName?.toLowerCase().trim()||'';
+  if(hName.toLowerCase()===norm) return hName;
+  if(aName.toLowerCase()===norm) return aName;
+  // Direct API-Football name → our name map
+  const map = {
+    'usa': 'United States',
+    'united states': 'United States',
+    'korea republic': 'South Korea',
+    'south korea': 'South Korea',
+    'czech republic': 'Czechia',
+    'czechia': 'Czechia',
+    'curacao': 'Curaçao',
+    'curaçao': 'Curaçao',
+    "cote d'ivoire": 'Ivory Coast',
+    "côte d'ivoire": 'Ivory Coast',
+    'ivory coast': 'Ivory Coast',
+    'ir iran': 'Iran',
+    'iran': 'Iran',
+    'congo dr': 'DR Congo',
+    'dr congo': 'DR Congo',
+    'turkey': 'Türkiye',
+    'turkiye': 'Türkiye',
+    'türkiye': 'Türkiye',
+    'cape verde': 'Cape Verde',
+    'cabo verde': 'Cape Verde',
+    'bosnia and herzegovina': 'Bosnia & Herzegovina',
+    'bosnia & herzegovina': 'Bosnia & Herzegovina',
+    'bosnia-herzegovina': 'Bosnia & Herzegovina',
+    'mexico': 'Mexico',
+    'south africa': 'South Africa',
+    'canada': 'Canada',
+    'qatar': 'Qatar',
+    'switzerland': 'Switzerland',
+    'brazil': 'Brazil',
+    'morocco': 'Morocco',
+    'haiti': 'Haiti',
+    'scotland': 'Scotland',
+    'paraguay': 'Paraguay',
+    'australia': 'Australia',
+    'germany': 'Germany',
+    'ecuador': 'Ecuador',
+    'netherlands': 'Netherlands',
+    'japan': 'Japan',
+    'sweden': 'Sweden',
+    'tunisia': 'Tunisia',
+    'belgium': 'Belgium',
+    'egypt': 'Egypt',
+    'new zealand': 'New Zealand',
+    'spain': 'Spain',
+    'saudi arabia': 'Saudi Arabia',
+    'uruguay': 'Uruguay',
+    'france': 'France',
+    'senegal': 'Senegal',
+    'iraq': 'Iraq',
+    'norway': 'Norway',
+    'argentina': 'Argentina',
+    'algeria': 'Algeria',
+    'austria': 'Austria',
+    'jordan': 'Jordan',
+    'portugal': 'Portugal',
+    'uzbekistan': 'Uzbekistan',
+    'colombia': 'Colombia',
+    'england': 'England',
+    'croatia': 'Croatia',
+    'ghana': 'Ghana',
+    'panama': 'Panama',
+  };
+  return map[norm] || apiTeamName;
 }
 function buildLiveScores(){
   const today=new Date().toISOString().split('T')[0];
@@ -2614,9 +2676,11 @@ function buildTeamsGrid(){
       const owner=ownerOf(name);
       return {name,td,s,pts,gd,played,owner};
     }).sort((a,b)=>b.pts-a.pts||(b.gd-a.gd)||(b.s.GF-a.s.GF));
-    const trows=rows.map(({name,td,s,pts,played,owner})=>{
+    const trows=rows.map(({name,td,s,pts,played,owner,gd})=>{
       if(!td) return '';
       const dotCls=tierDotCls(name);
+      const gdColor=gd>0?'#2ecc71':gd<0?'var(--red)':'var(--muted)';
+      const gdStr=gd>0?`+${gd}`:String(gd);
       return `<div class="gs-row">
         <span style="display:flex;align-items:center;gap:4px;overflow:hidden">
           <span class="tier-dot ${dotCls}" style="flex-shrink:0"></span>
@@ -2627,13 +2691,14 @@ function buildTeamsGrid(){
         <span class="sc" style="color:#2ecc71;font-size:.75rem">${s.W}</span>
         <span class="sc" style="color:var(--gold);font-size:.75rem">${s.D}</span>
         <span class="sc" style="color:var(--red);font-size:.75rem">${s.L}</span>
+        <span class="sc" style="color:${gdColor};font-size:.75rem;font-weight:600">${gdStr}</span>
         <span class="gs-pts">${pts}</span>
       </div>`;
     }).join('');
     return `<div class="group-card">
       <div class="group-card-header">Group ${grp}</div>
       <div class="group-card-body">
-        <div class="gs-hdr"><span>Team</span><span class="sc">P</span><span class="sc">W</span><span class="sc">D</span><span class="sc">L</span><span style="text-align:right">Pts</span></div>
+        <div class="gs-hdr"><span>Team</span><span class="sc">P</span><span class="sc">W</span><span class="sc">D</span><span class="sc">L</span><span class="sc">GD</span><span style="text-align:right">Pts</span></div>
         ${trows}
       </div>
     </div>`;
