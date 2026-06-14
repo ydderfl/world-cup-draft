@@ -2306,7 +2306,10 @@ function renderCalendar(){
       const hCls=tierChipCls(hName),aCls=tierChipCls(aName);
       const contextLines=getMatchContext(m);
       const contextHtml=contextLines.length?`<details style="margin-top:6px"><summary style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;color:var(--muted);cursor:pointer;list-style:none">▶ Match context</summary><div style="margin-top:5px;display:flex;flex-direction:column;gap:3px">${contextLines.map(l=>`<div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--text);padding:2px 0;border-top:1px solid var(--border)">${l}</div>`).join('')}</div></details>`:'';
-      return `<div class="cal-card${isDrafted?' drafted':''}${hasResult?' has-result':''}${isLive?' is-live':''}" onclick="openMatchModal(${m.num})">
+      const isAdmin=_pinUnlocked||isAdminUrl();
+      const cardClickAttr=isAdmin?` onclick="openMatchModal(${m.num})"`:'';
+      const cardCursorStyle=isAdmin?'':'style="cursor:default"';
+      return `<div class="cal-card${isDrafted?' drafted':''}${hasResult?' has-result':''}${isLive?' is-live':''}"${cardClickAttr} ${cardCursorStyle}>
         <div class="cal-top">
           <span class="cal-num">#${m.num}</span>
           <div class="cal-matchup">
@@ -2516,6 +2519,10 @@ function clearQualifierOverrides(){
 // MODAL
 // ═══════════════════════════════════════════════════════════════════
 function openMatchModal(num){
+  if(!_pinUnlocked&&!isAdminUrl()){
+    showToast('Admin access required to update scores.');
+    return;
+  }
   const m=SCHEDULE.find(x=>x.num===num);if(!m) return;
   const hName=resolveTeam(m.home),aName=resolveTeam(m.away);
   modalContext={num,home:hName,away:aName,date:m.date,stage:m.stage};
@@ -4336,6 +4343,9 @@ function buildDashboard(){
 function getMatchContext(m){
   const hName=resolveTeam(m.home),aName=resolveTeam(m.away);
   const lines=[];
+  const hTd=ALL_TEAMS.find(t=>t.name===hName);
+  const aTd=ALL_TEAMS.find(t=>t.name===aName);
+
   if(m.stage==='group'){
     const tiers=getTierDefs();
     const hT=tiers.findIndex(t=>t.teams.some(x=>x.name===hName));
@@ -4343,27 +4353,66 @@ function getMatchContext(m){
     const td=Math.abs(hT-aT);
     if(td>=2) lines.push(`⚡⚡⚡ Giant Killer Alert — ${td} tier gap`);
     else if(td===1) lines.push(`⚡ Upset Potential — ${hT>aT?hName:aName} is the underdog`);
+
+    // World ranking comparison
+    if(hTd?.rank&&aTd?.rank){
+      const better=hTd.rank<aTd.rank?hName:aName;
+      const gap=Math.abs(hTd.rank-aTd.rank);
+      if(gap>=15) lines.push(`📊 Ranking gap: ${better} (#${Math.min(hTd.rank,aTd.rank)}) is heavily favored over #${Math.max(hTd.rank,aTd.rank)} (${gap}-spot gap)`);
+      else if(gap>=5) lines.push(`📊 World Ranking: #${hTd.rank} ${hName} vs #${aTd.rank} ${aName}`);
+    }
+
+    // Group standings context with current pts/GD for both teams
     if(m.group){
-      if(groupComplete(m.group)) lines.push(`✅ Group ${m.group} standings confirmed`);
-      else {
-        const st=getGroupStandings(m.group);
-        const hS=st.find(s=>s.name===hName),aS=st.find(s=>s.name===aName);
-        if(hS&&aS){
-          const top2=st[1]?.pts||0;
-          if(hS.pts<top2-3||aS.pts<top2-3) lines.push(`🚨 Elimination risk — ${hS.pts<aS.pts?hName:aName} needs a result`);
-          else lines.push(`⚖️ Group ${m.group} wide open — standings could change`);
-        }
+      const st=getGroupStandings(m.group);
+      const hS=st.find(s=>s.name===hName),aS=st.find(s=>s.name===aName);
+      if(groupComplete(m.group)){
+        lines.push(`✅ Group ${m.group} standings confirmed`);
+      } else if(hS&&aS){
+        const hRecord=`${hS.w}-${hS.d}-${hS.l}`,aRecord=`${aS.w}-${aS.d}-${aS.l}`;
+        lines.push(`📋 Current form: ${hName} ${hRecord} (${hS.pts}pts, ${hS.gd>=0?'+':''}${hS.gd} GD) · ${aName} ${aRecord} (${aS.pts}pts, ${aS.gd>=0?'+':''}${aS.gd} GD)`);
+        const top2=st[1]?.pts||0;
+        if(hS.pts<top2-3||aS.pts<top2-3) lines.push(`🚨 Elimination risk — ${hS.pts<aS.pts?hName:aName} needs a result to stay alive`);
+        else lines.push(`⚖️ Group ${m.group} wide open — standings could change`);
       }
     }
+
+    // Head-to-head history at this World Cup (other group matches already played)
+    const otherMatches=SCHEDULE.filter(mm=>mm.stage==='group'&&mm.num!==m.num&&knockoutResults[mm.num]!==undefined&&(resolveTeam(mm.home)===hName||resolveTeam(mm.away)===hName||resolveTeam(mm.home)===aName||resolveTeam(mm.away)===aName));
+    if(otherMatches.length){
+      const hPlayed=otherMatches.filter(mm=>resolveTeam(mm.home)===hName||resolveTeam(mm.away)===hName).length;
+      const aPlayed=otherMatches.filter(mm=>resolveTeam(mm.home)===aName||resolveTeam(mm.away)===aName).length;
+      if(hPlayed>0||aPlayed>0) lines.push(`🔁 ${hName} has played ${hPlayed} match${hPlayed!==1?'es':''}, ${aName} has played ${aPlayed} match${aPlayed!==1?'es':''} so far this tournament`);
+    }
   } else if(['r32','r16','qf','sf','final','bronze'].includes(m.stage)){
-    const stageNames={r32:'Round of 32',r16:'Round of 16',qf:'Quarter-Final',sf:'Semi-Final',final:'Final',bronze:'3rd Place'};
-    lines.push(`🏆 ${stageNames[m.stage]} — win or go home`);
-    if(m.stage==='final') lines.push('🌍 FIFA World Cup 2026 Final · New York/New Jersey');
-    if(m.stage==='sf') lines.push('Winner goes to the Final · Loser plays for Bronze');
+    const stageNames={r32:'Round of 32',r16:'Round of 16',qf:'Quarter-Final',sf:'Semi-Final',final:'Final',bronze:'3rd Place Playoff'};
+    lines.push(`🏆 ${stageNames[m.stage]} — single elimination, win or go home`);
+    if(m.stage==='final') lines.push('🌍 FIFA World Cup 2026 Final · MetLife Stadium, New York/New Jersey');
+    if(m.stage==='sf') lines.push('Winner advances to the Final · Loser plays for 3rd Place');
+    if(m.stage==='qf') lines.push('Winner advances to the Semi-Finals');
+    if(['r32','r16'].includes(m.stage)) lines.push('Extra time and penalties apply if scores are level after 90 minutes');
+
+    // Ranking comparison for knockout matches too
+    if(hTd?.rank&&aTd?.rank){
+      lines.push(`📊 World Ranking: #${hTd.rank} ${hName} vs #${aTd.rank} ${aName}`);
+    }
   }
+
+  // Venue + kickoff time always shown for context
+  lines.push(`🏟️ ${m.venue} · ${m.time} PT`);
+
+  // Live status detail
+  const kr=knockoutResults[m.num];
+  if(kr?.status&&['1H','HT','2H','ET','BT','P','INT','LIVE'].includes(kr.status)){
+    const statusNames={'1H':'1st Half','HT':'Half Time','2H':'2nd Half','ET':'Extra Time','BT':'Break','P':'Penalties','INT':'Interrupted','LIVE':'Live'};
+    lines.push(`🔴 ${statusNames[kr.status]||kr.status}${kr.elapsed?` — ${kr.elapsed}'`:''}`);
+  }
+
+  // Draft ownership stakes
   const hO=ownerOf(hName),aO=ownerOf(aName);
   const stake=[hO&&`${hO} owns ${hName}`,aO&&`${aO} owns ${aName}`].filter(Boolean);
   if(stake.length) lines.push(`👤 ${stake.join(' · ')}`);
+
   return lines;
 }
 
