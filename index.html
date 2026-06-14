@@ -2216,7 +2216,10 @@ function renderCalendar(){
     :null;
   const myTeams=new Set(Object.values(draftResults).flat().map(t=>t.name));
   const showPast=document.getElementById('calShowPast')?.checked||false;
-  const todayStr=new Date().toISOString().split('T')[0];
+  // Use PT date — UTC date rolls over ~5pm PT during summer, which would
+  // incorrectly mark today's live/evening matches as "past"
+  const nowPT=new Date(new Date().toLocaleString('en-US',{timeZone:'America/Los_Angeles'}));
+  const todayStr=`${nowPT.getFullYear()}-${String(nowPT.getMonth()+1).padStart(2,'0')}-${String(nowPT.getDate()).padStart(2,'0')}`;
   let ms=[...SCHEDULE];
   if(stageF) ms=ms.filter(m=>m.stage===stageF);
   if(groupF) ms=ms.filter(m=>m.group===groupF);
