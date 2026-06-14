@@ -1213,6 +1213,14 @@ const CODE2NAME={
   ENG:"England",CRO:"Croatia",GHA:"Ghana",PAN:"Panama",
 };
 function cn(c){return CODE2NAME[c]||c;}
+// Returns today's date in PT as YYYY-MM-DD — matches SCHEDULE's date field.
+// Using UTC (toISOString) is WRONG here: UTC rolls over to the next calendar
+// day around 5pm PT (summer), which would misclassify today's evening
+// matches as "tomorrow" or "yesterday" depending on the comparison direction.
+function getPTDateStr(){
+  const nowPT=new Date(new Date().toLocaleString('en-US',{timeZone:'America/Los_Angeles'}));
+  return `${nowPT.getFullYear()}-${String(nowPT.getMonth()+1).padStart(2,'0')}-${String(nowPT.getDate()).padStart(2,'0')}`;
+}
 function tf(n){const t=ALL_TEAMS.find(x=>x.name===n);return t?t.flag:'🏳';}
 function teamObj(n){return ALL_TEAMS.find(x=>x.name===n)||null;}
 
@@ -1422,7 +1430,7 @@ function ownerOfCode(c){return ownerOf(cn(c));}
 function init(){
   buildPlayerInputs();buildTierPreviews();buildTeamsGrid();
   const fDate=document.getElementById('fDate');
-  if(fDate) fDate.value=new Date().toISOString().split('T')[0];
+  if(fDate) fDate.value=getPTDateStr();
 }
 // Player count selector
 function setPlayerCount(n){
@@ -1970,7 +1978,7 @@ function normScorerTeam(apiTeamName, match){
   return map[norm] || apiTeamName;
 }
 function buildLiveScores(){
-  const today=new Date().toISOString().split('T')[0];
+  const today=getPTDateStr();
   const todayMatches=SCHEDULE.filter(m=>m.date===today);
   const recentMatches=SCHEDULE.filter(m=>m.date<today&&knockoutResults[m.num]!==undefined)
     .sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
@@ -2216,10 +2224,7 @@ function renderCalendar(){
     :null;
   const myTeams=new Set(Object.values(draftResults).flat().map(t=>t.name));
   const showPast=document.getElementById('calShowPast')?.checked||false;
-  // Use PT date — UTC date rolls over ~5pm PT during summer, which would
-  // incorrectly mark today's live/evening matches as "past"
-  const nowPT=new Date(new Date().toLocaleString('en-US',{timeZone:'America/Los_Angeles'}));
-  const todayStr=`${nowPT.getFullYear()}-${String(nowPT.getMonth()+1).padStart(2,'0')}-${String(nowPT.getDate()).padStart(2,'0')}`;
+  const todayStr=getPTDateStr();
   let ms=[...SCHEDULE];
   if(stageF) ms=ms.filter(m=>m.stage===stageF);
   if(groupF) ms=ms.filter(m=>m.group===groupF);
@@ -3651,7 +3656,7 @@ function stopLiveScorePolling(){
   if(_liveScoreInterval){clearInterval(_liveScoreInterval);_liveScoreInterval=null;}
 }
 async function _pollLiveScores(){
-  const today=new Date().toISOString().split('T')[0];
+  const today=getPTDateStr();
   const todayMatches=SCHEDULE.filter(m=>m.date===today);
   if(!todayMatches.length) return;
   const now=new Date();
@@ -4287,7 +4292,7 @@ function buildDashboard(){
     const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
     return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:${i===0?'rgba(245,200,66,.08)':'var(--dark3)'};border:1px solid ${i===0?'var(--gold)':'var(--border)'};border-radius:5px;margin-bottom:5px"><div style="display:flex;align-items:center;gap:8px"><span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--muted);min-width:20px">${medal||i+1}</span><div><div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.88rem">${p}</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;color:var(--muted)">${flags}</div></div></div><div style="text-align:right"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--gold)">${pts}</div><div style="font-family:'Barlow Condensed',sans-serif;font-size:.65rem;color:var(--muted)">${st.W}W ${st.D}D ${st.L}L</div></div></div>`;
   }).join('');
-  const today=new Date().toISOString().split('T')[0];
+  const today=getPTDateStr();
   const drafted=new Set(Object.values(draftResults).flat().map(t=>t.name));
   const todayM=SCHEDULE.filter(m=>m.date===today);
   const todayHtml=todayM.length?todayM.map(m=>{const h=resolveTeam(m.home),a=resolveTeam(m.away);const hasStake=drafted.has(h)||drafted.has(a);const res=knockoutResults[m.num];return `<div onclick="switchTab('calendar')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:${hasStake?'rgba(245,200,66,.05)':'var(--dark3)'};border:1px solid ${hasStake?'rgba(245,200,66,.3)':'var(--border)'};border-radius:5px;margin-bottom:5px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.82rem"><span>${tf(h)} ${h} <span style="color:var(--muted)">vs</span> ${tf(a)} ${a}</span>${res!==undefined?`<b style="color:var(--gold)">${res.homeScore}–${res.awayScore}</b>`:`<span style="color:var(--muted)">${m.time} PT</span>`}</div>`;}).join(''):`<div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;color:var(--muted);padding:10px 0">No matches today</div>`;
