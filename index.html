@@ -648,7 +648,11 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
     <select id="calPlayer" class="fi" onchange="renderCalendar()" style="min-width:160px">
       <option value="">👥 All Players</option>
     </select>
-    <button class="btn btn-dark" onclick="document.getElementById('calPlayer').value='';document.getElementById('calStage').value='';document.getElementById('calGroup').value='';renderCalendar()" style="padding:6px 12px;font-size:.8rem">Clear</button>
+    <label style="display:flex;align-items:center;gap:6px;font-family:'Barlow Condensed',sans-serif;font-size:.85rem;color:var(--muted);cursor:pointer;padding:6px 10px;background:var(--dark3);border-radius:6px;border:1px solid var(--border)">
+      <input type="checkbox" id="calShowPast" onchange="renderCalendar()" style="cursor:pointer">
+      Show earlier days
+    </label>
+    <button class="btn btn-dark" onclick="document.getElementById('calPlayer').value='';document.getElementById('calStage').value='';document.getElementById('calGroup').value='';document.getElementById('calShowPast').checked=false;renderCalendar()" style="padding:6px 12px;font-size:.8rem">Clear</button>
   </div>
   <div id="calendarBody"></div>
 </div>
@@ -1141,6 +1145,12 @@ option{background:var(--dark3)}
   .tracker-table-wrap table td:nth-child(7),
   .tracker-table-wrap table th:nth-child(8),
   .tracker-table-wrap table td:nth-child(8){display:none}
+  /* Leaderboard: shrink team chips to flag-only on mobile to prevent horizontal scroll */
+  .tracker-table-wrap .t-tag .t-tag-name{display:none}
+  .tracker-table-wrap .t-tag{padding:3px 5px}
+  .tracker-table-wrap table{font-size:.78rem}
+  .player-name-cell{max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .teams-cell{gap:2px}
   /* Scores row stack */
   .scores-row{grid-template-columns:1fr 1fr!important}
   /* Dashboard grid stack */
@@ -2026,24 +2036,30 @@ function _buildScoreCard(m,isLiveSection){
 
   const ownerPill=(owner)=>owner?`<span style="font-family:'Barlow Condensed',sans-serif;font-size:.65rem;background:rgba(245,200,66,.15);color:var(--gold);border:1px solid rgba(245,200,66,.3);border-radius:3px;padding:1px 5px;margin-left:4px">${owner.split(' ')[0]}</span>`:'';
 
-  const scorerRows=(scorers.length||redCards.length)?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:3px">
-    ${scorers.map(s=>{
-      const isOwn=s.type==='Own Goal',isPen=s.type==='Penalty';
-      const icon=isOwn?'⚽ OG':isPen?'⚽ P':'⚽';
-      const extra=s.extra?`+${s.extra}`:'';
-      const teamColor=s.team===hName?'var(--wc-teal)':'var(--wc-coral)';
-      return `<div style="font-family:'Barlow Condensed',sans-serif;font-size:.78rem;display:flex;justify-content:space-between">
-        <span>${icon} <b style="color:var(--text)">${s.player}</b> <span style="color:var(--muted);font-size:.7rem">${s.team}</span></span>
-        <span style="color:${teamColor};font-family:'Bebas Neue',sans-serif;font-size:.85rem">${s.minute}${extra}'</span>
-      </div>`;
-    }).join('')}
-    ${redCards.map(rc=>{
-      const extra=rc.extra?`+${rc.extra}`:'';
-      return `<div style="font-family:'Barlow Condensed',sans-serif;font-size:.78rem;display:flex;justify-content:space-between">
-        <span>🟥 <b style="color:var(--text)">${rc.player}</b> <span style="color:var(--muted);font-size:.7rem">${rc.team}</span></span>
-        <span style="color:var(--fifa-red);font-family:'Bebas Neue',sans-serif;font-size:.85rem">${rc.minute}${extra}'</span>
-      </div>`;
-    }).join('')}
+  const hRows=[], aRows=[];
+  scorers.forEach(s=>{
+    const isOwn=s.type==='Own Goal',isPen=s.type==='Penalty';
+    const icon=isOwn?'⚽ OG':isPen?'⚽ P':'⚽';
+    const extra=s.extra?`+${s.extra}`:'';
+    const row=`<div style="font-family:'Barlow Condensed',sans-serif;font-size:.78rem;display:flex;align-items:center;gap:4px">
+      <span>${icon} <b style="color:var(--text)">${s.player}</b></span>
+      <span style="color:var(--wc-teal);font-family:'Bebas Neue',sans-serif;font-size:.85rem">${s.minute}${extra}'</span>
+    </div>`;
+    // s.team is now the team that BENEFITS from the goal (Edge Function resolves this)
+    (s.team===hName?hRows:aRows).push(row);
+  });
+  redCards.forEach(rc=>{
+    const extra=rc.extra?`+${rc.extra}`:'';
+    const row=`<div style="font-family:'Barlow Condensed',sans-serif;font-size:.78rem;display:flex;align-items:center;gap:4px">
+      <span>🟥 <b style="color:var(--text)">${rc.player}</b></span>
+      <span style="color:var(--fifa-red);font-family:'Bebas Neue',sans-serif;font-size:.85rem">${rc.minute}${extra}'</span>
+    </div>`;
+    (rc.team===hName?hRows:aRows).push(row);
+  });
+
+  const scorerRows=(hRows.length||aRows.length)?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr;gap:4px 12px">
+    <div style="display:flex;flex-direction:column;gap:4px">${hRows.join('')}</div>
+    <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;text-align:right">${aRows.join('')}</div>
   </div>`:'';
 
   const borderColor=isLive?'var(--wc-coral)':isFinished?'var(--green)':'var(--border)';
@@ -2144,7 +2160,7 @@ function buildTracker(){
       const tiers=getTierDefs();
       const ti=tiers.findIndex(tier=>tier.teams.some(x=>x.name===t.name));
       const cls=ti>=0?TIER_CHIP_CLASSES[ti]:'ta';
-      return `<div class="t-tag ${cls}">${t.flag} ${t.name}</div>`;
+      return `<div class="t-tag ${cls}">${t.flag}<span class="t-tag-name"> ${t.name}</span></div>`;
     }).join('');
     return `<tr>
       <td class="sc"><span class="rank-badge ${rb}">${rank+1}</span></td>
@@ -2199,14 +2215,32 @@ function renderCalendar(){
     ?new Set(draftResults[selectedPlayer].map(t=>t.name))
     :null;
   const myTeams=new Set(Object.values(draftResults).flat().map(t=>t.name));
+  const showPast=document.getElementById('calShowPast')?.checked||false;
+  const todayStr=new Date().toISOString().split('T')[0];
   let ms=[...SCHEDULE];
   if(stageF) ms=ms.filter(m=>m.stage===stageF);
   if(groupF) ms=ms.filter(m=>m.group===groupF);
   if(playerTeams) ms=ms.filter(m=>playerTeams.has(cn(m.home))||playerTeams.has(resolveTeam(m.home))||playerTeams.has(cn(m.away))||playerTeams.has(resolveTeam(m.away)));
+  if(!showPast){
+    ms=ms.filter(m=>{
+      const kr=knockoutResults[m.num];
+      const isFinished=kr?.status&&['FT','AET','PEN'].includes(kr.status);
+      const isPastDate=m.date<todayStr;
+      const isToday=m.date===todayStr;
+      // Hide if it's from a previous day, OR finished from a previous day.
+      // Today's matches stay visible even after FT — useful for daily recaps.
+      if(isPastDate) return false;
+      if(isToday) return true;
+      return true; // future matches always shown
+    });
+  }
   ms.sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time));
   const byDate={};ms.forEach(m=>{(byDate[m.date]=byDate[m.date]||[]).push(m);});
   const body=document.getElementById('calendarBody');
-  if(!Object.keys(byDate).length){body.innerHTML=`<div style="color:var(--muted);font-family:'Barlow Condensed',sans-serif;padding:36px;text-align:center">No matches for this filter.</div>`;return;}
+  if(!Object.keys(byDate).length){
+    const msg=showPast?'No matches for this filter.':'No matches for today or upcoming — check "Show earlier days" to see past results.';
+    body.innerHTML=`<div style="color:var(--muted);font-family:'Barlow Condensed',sans-serif;padding:36px;text-align:center">${msg}</div>`;return;
+  }
   const tiers=getTierDefs();
   function tierChipCls(name){
     const ti=tiers.findIndex(tier=>tier.teams.some(t=>t.name===name));
@@ -2236,19 +2270,28 @@ function renderCalendar(){
         ?`<span class="cal-score-disp">${liveBlip}${kr.homeScore}–${kr.awayScore}${minuteDisp}${statusBadge}</span>`
         :'';
 
-      // ── Goal scorers + red cards ──
+      // ── Goal scorers + red cards, split by team ──
       const scorers=kr?.scorers??[];
       const calRedCards=kr?.cards??[];
-      const scorerHtml=(scorers.length||calRedCards.length)?`<div style="margin-top:5px;display:flex;flex-direction:column;gap:2px">${scorers.map(s=>{
+      const hEvents=[], aEvents=[];
+      scorers.forEach(s=>{
         const isOwn=s.type==='Own Goal';
         const isPen=s.type==='Penalty';
         const icon=isOwn?'⚽ OG':isPen?'⚽ P':'⚽';
         const extraMin=s.extra?`+${s.extra}`:'';
-        return `<div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--muted);padding:1px 0">${icon} ${s.player} <span style="color:var(--wc-teal)">${s.minute}${extraMin}'</span></div>`;
-      }).join('')}${calRedCards.map(rc=>{
+        const row=`<div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--muted);padding:1px 0">${icon} ${s.player} <span style="color:var(--wc-teal)">${s.minute}${extraMin}'</span></div>`;
+        // s.team is the team that BENEFITS from the goal (resolved by Edge Function)
+        (s.team===hName?hEvents:aEvents).push(row);
+      });
+      calRedCards.forEach(rc=>{
         const extraMin=rc.extra?`+${rc.extra}`:'';
-        return `<div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--muted);padding:1px 0">🟥 ${rc.player} <span style="color:var(--fifa-red)">${rc.minute}${extraMin}'</span></div>`;
-      }).join('')}</div>`:'';
+        const row=`<div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--muted);padding:1px 0">🟥 ${rc.player} <span style="color:var(--fifa-red)">${rc.minute}${extraMin}'</span></div>`;
+        (rc.team===hName?hEvents:aEvents).push(row);
+      });
+      const scorerHtml=(hEvents.length||aEvents.length)?`<div style="margin-top:5px;display:grid;grid-template-columns:1fr 1fr;gap:0 10px">
+        <div style="display:flex;flex-direction:column;gap:2px">${hEvents.join('')}</div>
+        <div style="display:flex;flex-direction:column;gap:2px;text-align:right">${aEvents.join('')}</div>
+      </div>`:'';
 
       const shortH=hName.length>14?hName.substring(0,13)+'…':hName;
       const shortA=aName.length>14?aName.substring(0,13)+'…':aName;
@@ -2667,8 +2710,10 @@ function buildTeamsGrid(){
     const ti=tiers.findIndex(t=>t.teams.some(x=>x.name===name));
     return ti>=0?TIER_DOT_CLASSES[ti]:'dot-a';
   }
+  // WC2026 poster palette — cycles across the 12 groups so each looks distinct
+  const GROUP_PALETTE=['#F5C842','#FF6B6B','#4ECDC4','#45B7D1','#96CEB4','#DDA0DD','#F7A072','#FFD93D','#FF8B94','#A8E6CF','#6BCB77','#4D96FF'];
   const grid=document.getElementById('teamsGrid');
-  grid.innerHTML=Object.entries(GROUPS).map(([grp,names])=>{
+  grid.innerHTML=Object.entries(GROUPS).map(([grp,names],grpIdx)=>{
     const rows=names.map(name=>{
       const td=ALL_TEAMS.find(t=>t.name===name);
       const s=teamStats[name]||{W:0,D:0,L:0,GF:0,GA:0};
@@ -2696,7 +2741,7 @@ function buildTeamsGrid(){
       </div>`;
     }).join('');
     return `<div class="group-card">
-      <div class="group-card-header">Group ${grp}</div>
+      <div class="group-card-header" style="color:${GROUP_PALETTE[grpIdx%GROUP_PALETTE.length]}">Group ${grp}</div>
       <div class="group-card-body">
         <div class="gs-hdr"><span>Team</span><span class="sc">P</span><span class="sc">W</span><span class="sc">D</span><span class="sc">L</span><span class="sc">GD</span><span style="text-align:right">Pts</span></div>
         ${trows}
@@ -4244,7 +4289,36 @@ function buildDashboard(){
   const todayM=SCHEDULE.filter(m=>m.date===today);
   const todayHtml=todayM.length?todayM.map(m=>{const h=resolveTeam(m.home),a=resolveTeam(m.away);const hasStake=drafted.has(h)||drafted.has(a);const res=knockoutResults[m.num];return `<div onclick="switchTab('calendar')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:${hasStake?'rgba(245,200,66,.05)':'var(--dark3)'};border:1px solid ${hasStake?'rgba(245,200,66,.3)':'var(--border)'};border-radius:5px;margin-bottom:5px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:.82rem"><span>${tf(h)} ${h} <span style="color:var(--muted)">vs</span> ${tf(a)} ${a}</span>${res!==undefined?`<b style="color:var(--gold)">${res.homeScore}–${res.awayScore}</b>`:`<span style="color:var(--muted)">${m.time} PT</span>`}</div>`;}).join(''):`<div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;color:var(--muted);padding:10px 0">No matches today</div>`;
   const unlogged=(_pinUnlocked||isAdminUrl())?(()=>{const p=SCHEDULE.filter(m=>new Date(m.date+'T'+m.time+':00-07:00')<new Date()&&knockoutResults[m.num]===undefined);return p.length?`<div style="background:rgba(231,76,60,.1);border:1px solid var(--red);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-family:'Barlow Condensed',sans-serif;font-size:.85rem">⚠ <b>${p.length} match${p.length>1?'es':''}</b> need${p.length===1?'s':''} scores · <button onclick="switchTab('calendar')" style="background:none;border:none;color:var(--gold);cursor:pointer;font-family:inherit;font-size:inherit;text-decoration:underline">Calendar →</button></div>`:''})():'';
-  content.innerHTML=`${unlogged}<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px"><div><div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">🏅 Standings</div>${topRows}<button class="btn btn-dark" onclick="switchTab('tracker')" style="margin-top:6px;width:100%;font-size:.8rem">Full Leaderboard →</button></div><div><div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">📅 Today</div>${todayHtml}</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-dark" onclick="switchTab('calendar')">📅 Calendar</button><button class="btn btn-dark" onclick="switchTab('knockout')">🏆 Bracket</button><button class="btn btn-dark" onclick="switchTab('sleeper')">🌟 Sleeper</button><button class="btn btn-dark" onclick="switchTab('teams')">🌍 Groups</button></div>`;
+  // ── Live Now / Latest Result module ──
+  const liveNowMatches=todayM.filter(m=>{
+    const kr=knockoutResults[m.num];
+    return kr?.status&&['1H','HT','2H','ET','BT','P','INT','LIVE'].includes(kr.status);
+  });
+  let liveModuleHtml='';
+  if(liveNowMatches.length){
+    liveModuleHtml=`<div style="margin-bottom:16px">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--wc-coral);margin-bottom:8px;display:flex;align-items:center;gap:8px">
+        <span style="display:inline-block;width:8px;height:8px;background:var(--wc-coral);border-radius:50%;animation:pulse-live 1.2s infinite"></span>
+        Live Now
+      </div>
+      ${liveNowMatches.map(m=>_buildScoreCard(m,true)).join('')}
+    </div>`;
+  } else {
+    // No live match — show the most recent result if available
+    const pastResults=SCHEDULE.filter(m=>{
+      const kr=knockoutResults[m.num];
+      return kr?.status&&['FT','AET','PEN'].includes(kr.status);
+    }).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
+    if(pastResults.length){
+      const latest=pastResults[0];
+      liveModuleHtml=`<div style="margin-bottom:16px">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Latest Result</div>
+        ${_buildScoreCard(latest,false)}
+      </div>`;
+    }
+  }
+
+  content.innerHTML=`${liveModuleHtml}${unlogged}<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px"><div><div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">🏅 Standings</div>${topRows}<button class="btn btn-dark" onclick="switchTab('tracker')" style="margin-top:6px;width:100%;font-size:.8rem">Full Leaderboard →</button></div><div><div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">📅 Today</div>${todayHtml}</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-dark" onclick="switchTab('calendar')">📅 Calendar</button><button class="btn btn-dark" onclick="switchTab('knockout')">🏆 Bracket</button><button class="btn btn-dark" onclick="switchTab('sleeper')">🌟 Sleeper</button><button class="btn btn-dark" onclick="switchTab('teams')">🌍 Groups</button></div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════════
