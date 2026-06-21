@@ -692,6 +692,7 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
     </div>
   </details>
 
+  <div id="bracketCountdown"></div>
   <div id="bracketBody" style="overflow-x:auto;padding-bottom:16px"></div>
 </div>
 
@@ -737,6 +738,8 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
     <span><span class="tier-dot dot-b" style="display:inline-block;vertical-align:middle;margin-right:4px"></span>Tier B (Ranks 18–42)</span>
     <span><span class="tier-dot dot-c" style="display:inline-block;vertical-align:middle;margin-right:4px"></span>Tier C (Ranks 44–88)</span>
   </div>
+  <div id="qualifiedStrip" style="display:none;margin-bottom:16px"></div>
+  <div id="eliminatedStrip" style="display:none;margin-bottom:16px"></div>
   <div class="teams-grid" id="teamsGrid"></div>
 </div>
 
@@ -1054,16 +1057,20 @@ option{background:var(--dark3)}
 .b-col{display:flex;flex-direction:column;min-width:168px;padding:0 5px}
 .b-col-title{font-family:'Bebas Neue',sans-serif;font-size:.8rem;letter-spacing:2px;color:var(--gold);text-align:center;padding:5px 0 8px;border-bottom:1px solid var(--border);margin-bottom:6px}
 .b-spacer{flex:1}
-.b-match{background:var(--card);border:1px solid var(--border);border-radius:6px;margin:3px 0;cursor:pointer;transition:border-color .15s,box-shadow .15s;overflow:hidden;box-shadow:var(--lift-1)}
-.b-match:hover{border-color:rgba(245,200,66,.5);box-shadow:var(--lift-2)}
-.b-match.my{border-color:rgba(245,200,66,.55);background:rgba(245,200,66,.03)}
-.b-match.done{border-color:var(--green)}
-.b-slot{display:flex;justify-content:space-between;align-items:center;padding:4px 7px;border-bottom:1px solid rgba(255,255,255,.05);font-family:'Barlow Condensed',sans-serif;font-size:.78rem;gap:4px}
+.b-match{background:var(--card);border:1px solid var(--border);border-radius:8px;margin:5px 0;cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .15s;overflow:hidden;box-shadow:var(--lift-1)}
+.b-match:hover{border-color:rgba(245,200,66,.5);box-shadow:var(--lift-2);transform:translateY(-1px)}
+.b-match.my{border-color:rgba(245,200,66,.55);background:linear-gradient(160deg,rgba(245,200,66,.07) 0%,var(--card) 60%)}
+.b-match.done{border-color:rgba(255,255,255,.1)}
+.b-match.is-live{border-color:var(--wc-coral);box-shadow:var(--lift-live);background:linear-gradient(160deg,rgba(255,107,107,.09) 0%,var(--card) 65%)}
+.b-match.not-started{opacity:.55}
+.b-slot{display:flex;justify-content:space-between;align-items:center;padding:6px 9px;border-bottom:1px solid rgba(255,255,255,.05);font-family:'Barlow Condensed',sans-serif;font-size:.82rem;gap:4px}
 .b-slot:last-child{border-bottom:none}
 .b-slot.winner{color:#2ecc71;font-weight:700}
 .b-slot.loser{opacity:.38}
 .b-name{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:108px}
-.b-score{font-family:'Bebas Neue',sans-serif;font-size:.9rem;min-width:12px;text-align:right}
+.b-score{font-family:'Bebas Neue',sans-serif;font-size:1.15rem;min-width:14px;text-align:right}
+.b-live-tag{font-size:.55rem;letter-spacing:1px;color:var(--wc-coral);background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.3);border-radius:3px;padding:1px 5px;display:inline-flex;align-items:center;gap:3px;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase}
+.b-live-dot{width:5px;height:5px;background:var(--wc-coral);border-radius:50%;animation:pulse-live 1.2s infinite}
 .b-sep{width:1px;background:var(--border);align-self:stretch;margin:0 2px}
 
 /* SLEEPER */
@@ -2430,7 +2437,8 @@ function getGroupStandings(grp){
   const stats={};
   teamNames.forEach(n=>{stats[n]={name:n,pts:0,w:0,d:0,l:0,gf:0,ga:0,gd:0};});
   // Read from knockoutResults for group stage matches
-  SCHEDULE.filter(m=>m.stage==='group'&&m.group===grp).forEach(m=>{
+  const groupMatches=SCHEDULE.filter(m=>m.stage==='group'&&m.group===grp);
+  groupMatches.forEach(m=>{
     const kr=knockoutResults[m.num];if(!kr) return;
     // Only count finished matches
     if(kr.status&&!['FT','AET','PEN'].includes(kr.status)) return;
@@ -2449,15 +2457,136 @@ function getGroupStandings(grp){
       else stats[aName].l++;
     }
   });
-  return Object.values(stats).sort((a,b)=>
-    b.pts-a.pts || b.gd-a.gd || b.gf-a.gf || a.name.localeCompare(b.name)
-  );
+
+  // ── Head-to-head sub-table, computed only among a given set of team names ──
+  // Returns {name: {pts, gd, gf}} based solely on matches between those teams.
+  function headToHead(names){
+    const nameSet=new Set(names);
+    const h2h={};
+    names.forEach(n=>{h2h[n]={pts:0,gd:0,gf:0};});
+    groupMatches.forEach(m=>{
+      const kr=knockoutResults[m.num];if(!kr) return;
+      if(kr.status&&!['FT','AET','PEN'].includes(kr.status)) return;
+      const hName=cn(m.home),aName=cn(m.away);
+      if(!nameSet.has(hName)||!nameSet.has(aName)) return; // only matches between tied teams
+      const hs=kr.homeScore,as=kr.awayScore;
+      h2h[hName].gf+=hs; h2h[hName].gd+=hs-as;
+      h2h[aName].gf+=as; h2h[aName].gd+=as-hs;
+      if(hs>as) h2h[hName].pts+=3;
+      else if(hs===as){h2h[hName].pts+=1;h2h[aName].pts+=1;}
+      else h2h[aName].pts+=3;
+    });
+    return h2h;
+  }
+
+  // FIFA tiebreaker order: pts → H2H pts → H2H GD → H2H GF → overall GD → overall GF → fair play → lots
+  // Drawing of lots can't be meaningfully automated, so ties that survive every
+  // other criterion fall back to alphabetical (clearly flagged as unresolved
+  // in the UI rather than silently pretending to be official).
+  const all=Object.values(stats);
+
+  // Step 1: sort by points to find groups of tied teams
+  all.sort((a,b)=>b.pts-a.pts);
+
+  // Step 2: walk through and resolve each tied cluster using head-to-head + fallbacks
+  const result=[];
+  let i=0;
+  while(i<all.length){
+    let j=i+1;
+    while(j<all.length&&all[j].pts===all[i].pts) j++;
+    const tiedGroup=all.slice(i,j);
+    if(tiedGroup.length===1){
+      result.push(tiedGroup[0]);
+    } else {
+      const names=tiedGroup.map(t=>t.name);
+      const h2h=headToHead(names);
+      const sortedTied=[...tiedGroup].sort((a,b)=>{
+        const ah=h2h[a.name],bh=h2h[b.name];
+        return (bh.pts-ah.pts)
+          || (bh.gd-ah.gd)
+          || (bh.gf-ah.gf)
+          || (b.gd-a.gd)
+          || (b.gf-a.gf)
+          // Fair play points not tracked (no disciplinary data source) —
+          // falls through to alphabetical as a stable, visible placeholder
+          || a.name.localeCompare(b.name);
+      });
+      result.push(...sortedTied);
+    }
+    i=j;
+  }
+
+  return result;
 }
 
 // Returns true if all 6 group stage matches for a group are logged
 function groupComplete(grp){
   const matches=SCHEDULE.filter(m=>m.stage==='group'&&m.group===grp);
   return matches.length===6 && matches.every(m=>knockoutResults[m.num]!==undefined);
+}
+
+// Returns true if a team is mathematically unable to finish in the top 3 of
+// its group (and therefore cannot qualify, since the best 8 third-place teams
+// advance — being 4th is the only impossible-to-recover position).
+// We check against 3rd place rather than top-2 since 3rd-place teams can still
+// advance via the wildcard spots.
+function isTeamEliminated(name){
+  const grp=Object.keys(GROUPS).find(g=>GROUPS[g].includes(name));
+  if(!grp) return false;
+  if(groupComplete(grp)){
+    // Group finished — eliminated if finished 4th (bottom of standings)
+    const st=getGroupStandings(grp);
+    return st[3]?.name===name;
+  }
+  const st=getGroupStandings(grp);
+  const teamRow=st.find(s=>s.name===name);
+  if(!teamRow) return false;
+  const groupMatches=SCHEDULE.filter(mm=>mm.stage==='group'&&mm.group===grp);
+  const played=groupMatches.filter(mm=>{
+    const kr=knockoutResults[mm.num];
+    return kr?.status&&['FT','AET','PEN'].includes(kr.status)&&(resolveTeam(mm.home)===name||resolveTeam(mm.away)===name);
+  }).length;
+  const maxPossible=teamRow.pts+(3-played)*3;
+  const thirdPts=st[2]?.pts??0;
+  return maxPossible<thirdPts;
+}
+
+// Returns true if a team has mathematically clinched a TOP-2 finish in its
+// group — i.e. automatic Round of 32 qualification, regardless of how its
+// remaining group matches go. This compares the team's worst-case final
+// points (0 from all remaining matches) against the best-case final points
+// of every team currently below 2nd place (3 from all of their remaining
+// matches). If the team's floor still beats every rival's ceiling, the spot
+// is locked. Note: this only certifies TOP-2 (the safe, automatic spot) —
+// a team sitting 3rd can still go through via the 8 best-third-place
+// wildcards, but that depends on other groups too, so it's intentionally
+// not labeled "clinched" here (too uncertain to claim confidently).
+function isTeamQualified(name){
+  const grp=Object.keys(GROUPS).find(g=>GROUPS[g].includes(name));
+  if(!grp) return false;
+  const st=getGroupStandings(grp);
+  const teamIdx=st.findIndex(s=>s.name===name);
+  if(teamIdx<0) return false;
+
+  if(groupComplete(grp)){
+    return teamIdx<2; // group finished — top 2 are simply qualified
+  }
+
+  const groupMatches=SCHEDULE.filter(mm=>mm.stage==='group'&&mm.group===grp);
+  const playedOf=(n)=>groupMatches.filter(mm=>{
+    const kr=knockoutResults[mm.num];
+    return kr?.status&&['FT','AET','PEN'].includes(kr.status)&&(resolveTeam(mm.home)===n||resolveTeam(mm.away)===n);
+  }).length;
+
+  const team=st[teamIdx];
+  const teamFloor=team.pts; // worst case: team gets 0 more points
+  const others=st.filter((_,i)=>i!==teamIdx);
+  // Every other team's best-case ceiling (3 pts per remaining match)
+  const ceilings=others.map(o=>o.pts+(3-playedOf(o.name))*3);
+  // Count how many rivals could still finish ABOVE the team's floor
+  const rivalsCouldBeat=ceilings.filter(c=>c>teamFloor).length;
+  // Team is safely top-2 only if at most 1 rival could still overtake its floor
+  return rivalsCouldBeat<=1;
 }
 
 // Main qualifier resolver — handles 1A, 2B, 3ABCDF, W##, L## and CODE2NAME codes
@@ -2669,14 +2798,37 @@ function buildKnockoutBracket(){
   // Rebuild the override grid every time bracket renders so statuses stay current
   buildQualifierOverrideGrid();
 
+  const KNOCKOUT_START='2026-06-28';
+  const today=getPTDateStr();
+  const countdownEl=document.getElementById('bracketCountdown');
+
+  if(countdownEl){
+    if(today<KNOCKOUT_START){
+      // Days remaining until Round of 32 kicks off
+      const [y,mo,d]=KNOCKOUT_START.split('-').map(Number);
+      const [ty,tmo,td]=today.split('-').map(Number);
+      const target=Date.UTC(y,mo-1,d), now=Date.UTC(ty,tmo-1,td);
+      const daysLeft=Math.round((target-now)/86400000);
+      const completedGroups=Object.keys(GROUPS).filter(g=>groupComplete(g)).length;
+      countdownEl.innerHTML=`<div style="background:linear-gradient(135deg,rgba(245,200,66,.1),rgba(245,200,66,.02));border:1px solid rgba(245,200,66,.3);border-radius:10px;padding:18px 20px;margin-bottom:20px;box-shadow:var(--lift-1);text-align:center">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:.78rem;letter-spacing:3px;color:var(--muted);margin-bottom:4px">KNOCKOUT STAGE BEGINS</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:2.6rem;letter-spacing:2px;color:var(--gold);line-height:1">${daysLeft>0?`${daysLeft} DAY${daysLeft!==1?'S':''}`:'TODAY'}</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;color:var(--muted);margin-top:6px">Round of 32 starts Sunday, June 28 · ${completedGroups}/12 groups finalized so far</div>
+      </div>`;
+    } else {
+      countdownEl.innerHTML='';
+    }
+  }
+
   const rounds=[
     {label:'Round of 32',nums:[73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88]},
     {label:'Round of 16',nums:[89,90,91,92,93,94,95,96]},
-    {label:'QF',nums:[97,98,99,100]},
-    {label:'SF',nums:[101,102]},
-    {label:'Final / 3rd',nums:[103,104]},
+    {label:'Quarter-Finals',nums:[97,98,99,100]},
+    {label:'Semi-Finals',nums:[101,102]},
+    {label:'Final / 3rd Place',nums:[103,104]},
   ];
   const myTeams=new Set(Object.values(draftResults).flat().map(t=>t.name));
+  const LIVE_STATUSES=['1H','HT','2H','ET','BT','P','INT','LIVE'];
   const wrap=document.createElement('div');wrap.className='bracket-wrap';
   rounds.forEach((round,ri)=>{
     const col=document.createElement('div');col.className='b-col';
@@ -2685,20 +2837,25 @@ function buildKnockoutBracket(){
       const m=SCHEDULE.find(x=>x.num===num);if(!m) return;
       const hName=resolveTeam(m.home),aName=resolveTeam(m.away);
       const kr=knockoutResults[num];
-      const done=kr&&(kr.homeScore!==kr.awayScore);
+      const isLive=kr?.status&&LIVE_STATUSES.includes(kr.status);
+      const isFinished=kr?.status&&['FT','AET','PEN'].includes(kr.status);
+      const notStarted=!kr||(!isLive&&!isFinished&&kr.homeScore===undefined);
+      const done=kr&&isFinished&&(kr.homeScore!==kr.awayScore);
       const hWins=kr&&kr.homeScore>kr.awayScore;
       const hMy=myTeams.has(hName),aMy=myTeams.has(aName);
       const hOwner=ownerOf(hName),aOwner=ownerOf(aName);
       const hShort=hName.length>16?hName.substring(0,15)+'…':hName;
       const aShort=aName.length>16?aName.substring(0,15)+'…':aName;
-      const hScore=kr!==undefined?kr.homeScore:'';
-      const aScore=kr!==undefined?kr.awayScore:'';
+      const hScore=kr!==undefined&&kr.homeScore!==undefined?kr.homeScore:'';
+      const aScore=kr!==undefined&&kr.awayScore!==undefined?kr.awayScore:'';
       const hOwnerStr=hOwner?`<span class="owner-pill" style="font-size:.58rem">${hOwner.split(' ')[0]}</span>`:'';
       const aOwnerStr=aOwner?`<span class="owner-pill" style="font-size:.58rem">${aOwner.split(' ')[0]}</span>`:'';
       const div=document.createElement('div');
-      div.className=`b-match${(hMy||aMy)?' my':''}${done?' done':''}`;
+      div.className=`b-match${(hMy||aMy)?' my':''}${done?' done':''}${isLive?' is-live':''}${notStarted?' not-started':''}`;
       div.onclick=()=>openMatchModal(num);
+      const liveTag=isLive?`<div style="padding:4px 9px;background:rgba(255,107,107,.08);border-bottom:1px solid rgba(255,107,107,.2)"><span class="b-live-tag"><span class="b-live-dot"></span>${kr.elapsed?kr.elapsed+"'":'LIVE'}</span></div>`:'';
       div.innerHTML=`
+        ${liveTag}
         <div class="b-slot${done&&hWins?' winner':done?' loser':''}">
           <span class="b-name">${tf(hName)} ${hShort}${hOwnerStr}</span>
           <span class="b-score">${hScore}</span>
@@ -2830,10 +2987,17 @@ function buildTeamsGrid(){
       const dotCls=tierDotCls(name);
       const gdColor=gd>0?'#2ecc71':gd<0?'var(--red)':'var(--muted)';
       const gdStr=gd>0?`+${gd}`:String(gd);
-      return `<div class="gs-row">
+      const eliminated=isTeamEliminated(name);
+      const qualified=!eliminated&&isTeamQualified(name);
+      const rowStyle=eliminated?'opacity:.45':'';
+      const nameStyle=eliminated?'text-decoration:line-through;text-decoration-color:var(--red);text-decoration-thickness:2px':'';
+      const elimBadge=eliminated?'<span style="font-size:.62rem;background:rgba(200,16,46,.18);color:var(--red);border:1px solid rgba(200,16,46,.4);border-radius:3px;padding:1px 5px;margin-left:4px;font-weight:700;letter-spacing:.5px;flex-shrink:0">OUT</span>':'';
+      const qualBadge=qualified?'<span style="font-size:.62rem;background:rgba(46,204,113,.18);color:#2ecc71;border:1px solid rgba(46,204,113,.4);border-radius:3px;padding:1px 5px;margin-left:4px;font-weight:700;letter-spacing:.5px;flex-shrink:0">Q</span>':'';
+      return `<div class="gs-row" style="${rowStyle}">
         <span style="display:flex;align-items:center;gap:4px;overflow:hidden">
           <span class="tier-dot ${dotCls}" style="flex-shrink:0"></span>
-          <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${td.flag} ${name}</span>
+          <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${nameStyle}">${td.flag} ${name}</span>
+          ${elimBadge}${qualBadge}
           ${owner?`<span class="gs-owner">${owner.split(' ')[0]}</span>`:''}
         </span>
         <span class="sc" style="color:var(--muted);font-size:.75rem">${played}</span>
@@ -2852,6 +3016,60 @@ function buildTeamsGrid(){
       </div>
     </div>`;
   }).join('');
+
+  // ── Qualified teams summary strip ──
+  const qualStrip=document.getElementById('qualifiedStrip');
+  if(qualStrip){
+    const qualified=ALL_TEAMS.filter(t=>!isTeamEliminated(t.name)&&isTeamQualified(t.name));
+    if(qualified.length){
+      qualStrip.style.display='block';
+      qualStrip.innerHTML=`<div style="background:linear-gradient(135deg,rgba(46,204,113,.08),rgba(46,204,113,.02));border:1px solid rgba(46,204,113,.25);border-radius:10px;padding:12px 16px;box-shadow:var(--lift-1)">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:#2ecc71;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+          <span>✅</span><span>CLINCHED ROUND OF 32</span><span style="color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:0">(${qualified.length} team${qualified.length!==1?'s':''} — top-2 locked, regardless of remaining results)</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${qualified.map(t=>{
+            const owner=ownerOf(t.name);
+            return `<div style="display:flex;align-items:center;gap:5px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-family:'Barlow Condensed',sans-serif;font-size:.78rem">
+              <span>${t.flag}</span>
+              <span>${t.name}</span>
+              ${owner?`<span class="gs-owner" style="margin-left:2px">${owner.split(' ')[0]}</span>`:''}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    } else {
+      qualStrip.style.display='none';
+      qualStrip.innerHTML='';
+    }
+  }
+
+  // ── Eliminated teams summary strip ──
+  const elimStrip=document.getElementById('eliminatedStrip');
+  if(elimStrip){
+    const eliminated=ALL_TEAMS.filter(t=>isTeamEliminated(t.name));
+    if(eliminated.length){
+      elimStrip.style.display='block';
+      elimStrip.innerHTML=`<div style="background:linear-gradient(135deg,rgba(200,16,46,.08),rgba(200,16,46,.02));border:1px solid rgba(200,16,46,.25);border-radius:10px;padding:12px 16px;box-shadow:var(--lift-1)">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:var(--red);margin-bottom:8px;display:flex;align-items:center;gap:6px">
+          <span>☠️</span><span>ELIMINATED</span><span style="color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-size:.7rem;letter-spacing:0">(${eliminated.length} team${eliminated.length!==1?'s':''})</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${eliminated.map(t=>{
+            const owner=ownerOf(t.name);
+            return `<div style="display:flex;align-items:center;gap:5px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-family:'Barlow Condensed',sans-serif;font-size:.78rem;opacity:.8">
+              <span>${t.flag}</span>
+              <span style="text-decoration:line-through;text-decoration-color:var(--red)">${t.name}</span>
+              ${owner?`<span class="gs-owner" style="margin-left:2px">${owner.split(' ')[0]}</span>`:''}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    } else {
+      elimStrip.style.display='none';
+      elimStrip.innerHTML='';
+    }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -4453,20 +4671,61 @@ function getMatchContext(m){
       else if(gap>=5) lines.push(`📊 World Ranking: #${hTd.rank} ${hName} vs #${aTd.rank} ${aName}`);
     }
 
-    // Group standings context with current pts/GD for both teams
+    // Group standings context — matchday-aware qualification stakes
     if(m.group){
       const st=getGroupStandings(m.group);
       const hS=st.find(s=>s.name===hName),aS=st.find(s=>s.name===aName);
+      const groupMatches=SCHEDULE.filter(mm=>mm.stage==='group'&&mm.group===m.group);
+      const playedCount=(name)=>groupMatches.filter(mm=>{
+        const kr2=knockoutResults[mm.num];
+        return kr2?.status&&['FT','AET','PEN'].includes(kr2.status)&&(resolveTeam(mm.home)===name||resolveTeam(mm.away)===name);
+      }).length;
+      const hPlayed=playedCount(hName), aPlayed=playedCount(aName);
+      // This match's position in each team's group schedule (1st, 2nd, or 3rd/final match)
+      const hMatchNum=hPlayed+1, aMatchNum=aPlayed+1;
+      const isFinalMatchday=hMatchNum===3&&aMatchNum===3;
+
       if(groupComplete(m.group)){
         lines.push(`✅ Group ${m.group} standings confirmed`);
       } else if(hS&&aS){
         const hRecord=`${hS.w}-${hS.d}-${hS.l}`,aRecord=`${aS.w}-${aS.d}-${aS.l}`;
         lines.push(`📋 Current form: ${hName} ${hRecord} (${hS.pts}pts, ${hS.gd>=0?'+':''}${hS.gd} GD) · ${aName} ${aRecord} (${aS.pts}pts, ${aS.gd>=0?'+':''}${aS.gd} GD)`);
-        const top2=st[1]?.pts||0;
-        if(hS.pts<top2-3||aS.pts<top2-3) lines.push(`🚨 Elimination risk — ${hS.pts<aS.pts?hName:aName} needs a result to stay alive`);
-        else lines.push(`⚖️ Group ${m.group} wide open — standings could change`);
+        lines.push(`🗓️ Matchday ${Math.max(hMatchNum,aMatchNum)} of 3 for this group`);
+
+        // Max points each team can still reach (3 pts per remaining match, including this one)
+        const remainingFor=(name,played)=>(3-played)*3;
+        const hMax=hS.pts+remainingFor(hName,hPlayed);
+        const aMax=aS.pts+remainingFor(aName,aPlayed);
+        // 3rd place in current table is the cutline reference point
+        const thirdPts=st[2]?.pts??0;
+        const hClinched=isTeamQualified(hName), aClinched=isTeamQualified(aName);
+
+        if(isFinalMatchday){
+          // On the final matchday, this IS effectively a knockout-stakes match for these two
+          lines.push(`🔚 Final group match — winner-take-all implications likely`);
+          if(hMax<thirdPts) lines.push(`☠️ ${hName} is mathematically eliminated regardless of result`);
+          if(aMax<thirdPts) lines.push(`☠️ ${aName} is mathematically eliminated regardless of result`);
+          if(hClinched) lines.push(`✅ ${hName} has already clinched top-2 qualification`);
+          if(aClinched) lines.push(`✅ ${aName} has already clinched top-2 qualification`);
+        } else {
+          if(hMax<thirdPts) lines.push(`☠️ ${hName} is mathematically eliminated regardless of result`);
+          else if(hS.pts<=1&&hMatchNum>=2) lines.push(`🚨 Must-win territory for ${hName} to stay alive`);
+          if(aMax<thirdPts) lines.push(`☠️ ${aName} is mathematically eliminated regardless of result`);
+          else if(aS.pts<=1&&aMatchNum>=2) lines.push(`🚨 Must-win territory for ${aName} to stay alive`);
+          if(hClinched) lines.push(`✅ ${hName} has already clinched top-2 qualification`);
+          if(aClinched) lines.push(`✅ ${aName} has already clinched top-2 qualification`);
+        }
+        if(!lines.some(l=>l.includes('eliminated')||l.includes('Must-win')||l.includes('clinched'))){
+          lines.push(`⚖️ Group ${m.group} wide open — standings could change`);
+        }
       }
     }
+
+    // Elimination status (works even before this specific match resolves it)
+    const hOut=isTeamEliminated(hName), aOut=isTeamEliminated(aName);
+    if(hOut&&aOut) lines.push(`☠️☠️ Both teams already eliminated — playing for pride`);
+    else if(hOut) lines.push(`☠️ ${hName} is already eliminated from advancing`);
+    else if(aOut) lines.push(`☠️ ${aName} is already eliminated from advancing`);
 
     // Head-to-head history at this World Cup (other group matches already played)
     const otherMatches=SCHEDULE.filter(mm=>mm.stage==='group'&&mm.num!==m.num&&knockoutResults[mm.num]!==undefined&&(resolveTeam(mm.home)===hName||resolveTeam(mm.away)===hName||resolveTeam(mm.home)===aName||resolveTeam(mm.away)===aName));
