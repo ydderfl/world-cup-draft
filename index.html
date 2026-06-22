@@ -348,6 +348,7 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
   <button class="tab-btn" onclick="switchTab('scores')">⚽ Scores</button>
   <button class="tab-btn" onclick="switchTab('calendar')">📅 Calendar</button>
   <button class="tab-btn" onclick="switchTab('knockout')">🏆 Bracket</button>
+  <button class="tab-btn" onclick="switchTab('projection')">🔭 Projection</button>
   <button class="tab-btn" onclick="switchTab('scorers')">🥇 Top Scorers</button>
   <button class="tab-btn" onclick="switchTab('sleeper')">🌟 Sleeper</button>
   <button class="tab-btn" onclick="switchTab('teams')">🌍 Groups</button>
@@ -697,6 +698,35 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
 </div>
 
 <!-- ══ TOP SCORERS ══════════════════════════════════════════════════════════ -->
+<div class="panel" id="panel-projection">
+  <div class="section-title">🔭 Knockout Projection</div>
+  <div class="section-sub">Live projection of the Round of 32 bracket based on current standings · updates after every match</div>
+
+  <!-- Mode toggle -->
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:20px;flex-wrap:wrap">
+    <div style="display:flex;gap:0;border:1px solid var(--border);border-radius:6px;overflow:hidden">
+      <button id="projModeFull" onclick="setProjectionMode('full')" class="btn" style="border-radius:0;border:none;font-size:.8rem;padding:7px 14px;background:var(--fifa-red);color:#fff">📽 Project All</button>
+      <button id="projModeConf" onclick="setProjectionMode('confirmed')" class="btn" style="border-radius:0;border:none;font-size:.8rem;padding:7px 14px">✅ Confirmed Only</button>
+    </div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.78rem;color:var(--muted)" id="projModeDesc">Showing all 32 slots — unresolved slots project current standings forward</div>
+    <button class="btn btn-dark" onclick="buildProjection()" style="margin-left:auto;font-size:.8rem;padding:7px 12px">↻ Refresh</button>
+  </div>
+
+  <!-- Third-place table -->
+  <div style="margin-bottom:24px">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;color:var(--text);margin-bottom:4px">Third-Place Standings</div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;color:var(--muted);margin-bottom:10px">All 12 third-placed teams ranked · top 8 advance to the Round of 32 · <span style="color:var(--gold)">gold line = current cutoff</span></div>
+    <div id="thirdPlaceTable"></div>
+  </div>
+
+  <!-- Projected R32 bracket -->
+  <div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;color:var(--text);margin-bottom:4px">Round of 32 — as it stands</div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:.75rem;color:var(--muted);margin-bottom:10px">Click any match to jump to Calendar · 🟡 = your draft team · 🔴 = live now</div>
+    <div id="projectionBracket"></div>
+  </div>
+</div>
+
 <div class="panel" id="panel-scorers">
   <div class="section-title">🥇 Top Scorers</div>
   <div class="section-sub">Goals scored across the tournament · auto-updated from live API · own goals excluded</div>
@@ -1789,6 +1819,471 @@ function deleteMatch(id){
 
 
 // ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+// ANNEX C — FIFA's official 3rd-place slot assignment table
+// 201 of 495 combinations covering all realistic current scenarios.
+// Key = sorted 8-letter string of groups that qualify as 3rd place.
+// Value = which group's 3rd team faces which group winner in R32.
+// Source: 2026 FIFA World Cup knockout stage Wikipedia / official regulations.
+// ═══════════════════════════════════════════════════════════════════
+
+
+const ANNEX_C={
+  "ADEFGHIJ":{"1A":"3H","1B":"3G","1D":"3J","1E":"3D","1G":"3A","1I":"3F","1K":"3E","1L":"3I"},
+  "ADEFGHIK":{"1A":"3H","1B":"3G","1D":"3E","1E":"3D","1G":"3A","1I":"3F","1K":"3I","1L":"3K"},
+  "ADEFGHIL":{"1A":"3H","1B":"3G","1D":"3E","1E":"3D","1G":"3A","1I":"3F","1K":"3L","1L":"3I"},
+  "ADEFGHJK":{"1A":"3H","1B":"3G","1D":"3J","1E":"3D","1G":"3A","1I":"3F","1K":"3E","1L":"3K"},
+  "ADEFGHJL":{"1A":"3H","1B":"3G","1D":"3J","1E":"3D","1G":"3A","1I":"3F","1K":"3L","1L":"3E"},
+  "ADEFGHKL":{"1A":"3H","1B":"3G","1D":"3E","1E":"3D","1G":"3A","1I":"3F","1K":"3L","1L":"3K"},
+  "ADEFGIJK":{"1A":"3E","1B":"3G","1D":"3J","1E":"3D","1G":"3A","1I":"3F","1K":"3I","1L":"3K"},
+  "ADEFGIJL":{"1A":"3E","1B":"3G","1D":"3J","1E":"3D","1G":"3A","1I":"3F","1K":"3L","1L":"3I"},
+  "ADEFGIKL":{"1A":"3E","1B":"3G","1D":"3I","1E":"3D","1G":"3A","1I":"3F","1K":"3L","1L":"3K"},
+  "ADEFGJKL":{"1A":"3E","1B":"3G","1D":"3J","1E":"3D","1G":"3A","1I":"3F","1K":"3L","1L":"3K"},
+  "ADEFHIJK":{"1A":"3H","1B":"3J","1D":"3E","1E":"3D","1G":"3A","1I":"3F","1K":"3I","1L":"3K"},
+  "ADEFHIJL":{"1A":"3H","1B":"3J","1D":"3E","1E":"3D","1G":"3A","1I":"3F","1K":"3L","1L":"3I"},
+  "ADEFHIKL":{"1A":"3H","1B":"3E","1D":"3I","1E":"3D","1G":"3A","1I":"3F","1K":"3L","1L":"3K"},
+  "ADEFHJKL":{"1A":"3H","1B":"3J","1D":"3E","1E":"3D","1G":"3A","1I":"3F","1K":"3L","1L":"3K"},
+  "ADEFIJKL":{"1A":"3E","1B":"3J","1D":"3I","1E":"3D","1G":"3A","1I":"3F","1K":"3L","1L":"3K"},
+  "ADEGHIJK":{"1A":"3E","1B":"3G","1D":"3J","1E":"3D","1G":"3A","1I":"3H","1K":"3I","1L":"3K"},
+  "ADEGHIJL":{"1A":"3E","1B":"3G","1D":"3J","1E":"3D","1G":"3A","1I":"3H","1K":"3L","1L":"3I"},
+  "ADEGHIKL":{"1A":"3E","1B":"3G","1D":"3I","1E":"3D","1G":"3A","1I":"3H","1K":"3L","1L":"3K"},
+  "ADEGHJKL":{"1A":"3E","1B":"3G","1D":"3J","1E":"3D","1G":"3A","1I":"3H","1K":"3L","1L":"3K"},
+  "ADEGIJKL":{"1A":"3E","1B":"3J","1D":"3I","1E":"3D","1G":"3A","1I":"3G","1K":"3L","1L":"3K"},
+  "ADEHIJKL":{"1A":"3E","1B":"3J","1D":"3I","1E":"3D","1G":"3A","1I":"3H","1K":"3L","1L":"3K"},
+  "ADFGHIJK":{"1A":"3H","1B":"3G","1D":"3J","1E":"3D","1G":"3A","1I":"3F","1K":"3I","1L":"3K"},
+  "ADFGHIJL":{"1A":"3H","1B":"3G","1D":"3J","1E":"3D","1G":"3A","1I":"3F","1K":"3L","1L":"3I"},
+  "ADFGHIKL":{"1A":"3H","1B":"3G","1D":"3I","1E":"3D","1G":"3A","1I":"3F","1K":"3L","1L":"3K"},
+  "ADFGHJKL":{"1A":"3H","1B":"3G","1D":"3J","1E":"3D","1G":"3A","1I":"3F","1K":"3L","1L":"3K"},
+  "ADFGIJKL":{"1A":"3I","1B":"3G","1D":"3J","1E":"3D","1G":"3A","1I":"3F","1K":"3L","1L":"3K"},
+  "ADFHIJKL":{"1A":"3H","1B":"3J","1D":"3I","1E":"3D","1G":"3A","1I":"3F","1K":"3L","1L":"3K"},
+  "ADGHIJKL":{"1A":"3H","1B":"3J","1D":"3I","1E":"3D","1G":"3A","1I":"3G","1K":"3L","1L":"3K"},
+  "AEFGHIJK":{"1A":"3E","1B":"3G","1D":"3J","1E":"3F","1G":"3A","1I":"3H","1K":"3I","1L":"3K"},
+  "AEFGHIJL":{"1A":"3E","1B":"3G","1D":"3J","1E":"3F","1G":"3A","1I":"3H","1K":"3L","1L":"3I"},
+  "AEFGHIKL":{"1A":"3E","1B":"3G","1D":"3I","1E":"3F","1G":"3A","1I":"3H","1K":"3L","1L":"3K"},
+  "AEFGHJKL":{"1A":"3E","1B":"3G","1D":"3J","1E":"3F","1G":"3A","1I":"3H","1K":"3L","1L":"3K"},
+  "AEFGIJKL":{"1A":"3E","1B":"3J","1D":"3I","1E":"3F","1G":"3A","1I":"3G","1K":"3L","1L":"3K"},
+  "AEFHIJKL":{"1A":"3E","1B":"3J","1D":"3I","1E":"3F","1G":"3A","1I":"3H","1K":"3L","1L":"3K"},
+  "AEGHIJKL":{"1A":"3E","1B":"3J","1D":"3I","1E":"3A","1G":"3H","1I":"3G","1K":"3L","1L":"3K"},
+  "AFGHIJKL":{"1A":"3H","1B":"3J","1D":"3I","1E":"3F","1G":"3A","1I":"3G","1K":"3L","1L":"3K"},
+  "BCDEFGHI":{"1A":"3C","1B":"3G","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3E","1L":"3I"},
+  "BCDEFGHJ":{"1A":"3H","1B":"3G","1D":"3B","1E":"3C","1G":"3J","1I":"3F","1K":"3D","1L":"3E"},
+  "BCDEFGHK":{"1A":"3C","1B":"3G","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3E","1L":"3K"},
+  "BCDEFGHL":{"1A":"3C","1B":"3G","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3E"},
+  "BCDEFGIJ":{"1A":"3C","1B":"3G","1D":"3B","1E":"3D","1G":"3J","1I":"3F","1K":"3E","1L":"3I"},
+  "BCDEFGIK":{"1A":"3C","1B":"3G","1D":"3B","1E":"3D","1G":"3E","1I":"3F","1K":"3I","1L":"3K"},
+  "BCDEFGIL":{"1A":"3C","1B":"3G","1D":"3B","1E":"3D","1G":"3E","1I":"3F","1K":"3L","1L":"3I"},
+  "BCDEFGJK":{"1A":"3C","1B":"3G","1D":"3B","1E":"3D","1G":"3J","1I":"3F","1K":"3E","1L":"3K"},
+  "BCDEFGJL":{"1A":"3C","1B":"3G","1D":"3B","1E":"3D","1G":"3J","1I":"3F","1K":"3L","1L":"3E"},
+  "BCDEFGKL":{"1A":"3C","1B":"3G","1D":"3B","1E":"3D","1G":"3E","1I":"3F","1K":"3L","1L":"3K"},
+  "BCDEFHIJ":{"1A":"3C","1B":"3J","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3E","1L":"3I"},
+  "BCDEFHIK":{"1A":"3C","1B":"3E","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3I","1L":"3K"},
+  "BCDEFHIL":{"1A":"3C","1B":"3E","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3I"},
+  "BCDEFHJK":{"1A":"3C","1B":"3J","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3E","1L":"3K"},
+  "BCDEFHJL":{"1A":"3C","1B":"3J","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3E"},
+  "BCDEFHKL":{"1A":"3C","1B":"3E","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3K"},
+  "BCDEFIJK":{"1A":"3C","1B":"3J","1D":"3B","1E":"3D","1G":"3E","1I":"3F","1K":"3I","1L":"3K"},
+  "BCDEFIJL":{"1A":"3C","1B":"3J","1D":"3B","1E":"3D","1G":"3E","1I":"3F","1K":"3L","1L":"3I"},
+  "BCDEFIKL":{"1A":"3C","1B":"3E","1D":"3B","1E":"3D","1G":"3I","1I":"3F","1K":"3L","1L":"3K"},
+  "BCDEFJKL":{"1A":"3C","1B":"3J","1D":"3B","1E":"3D","1G":"3E","1I":"3F","1K":"3L","1L":"3K"},
+  "BCDEGHIJ":{"1A":"3H","1B":"3G","1D":"3B","1E":"3C","1G":"3J","1I":"3D","1K":"3E","1L":"3I"},
+  "BCDEGHIK":{"1A":"3E","1B":"3G","1D":"3B","1E":"3C","1G":"3H","1I":"3D","1K":"3I","1L":"3K"},
+  "BCDEGHIL":{"1A":"3E","1B":"3G","1D":"3B","1E":"3C","1G":"3H","1I":"3D","1K":"3L","1L":"3I"},
+  "BCDEGHJK":{"1A":"3H","1B":"3G","1D":"3B","1E":"3C","1G":"3J","1I":"3D","1K":"3E","1L":"3K"},
+  "BCDEGHJL":{"1A":"3H","1B":"3G","1D":"3B","1E":"3C","1G":"3J","1I":"3D","1K":"3L","1L":"3E"},
+  "BCDEGHKL":{"1A":"3E","1B":"3G","1D":"3B","1E":"3C","1G":"3H","1I":"3D","1K":"3L","1L":"3K"},
+  "BCDEGIJK":{"1A":"3E","1B":"3G","1D":"3B","1E":"3C","1G":"3J","1I":"3D","1K":"3I","1L":"3K"},
+  "BCDEGIJL":{"1A":"3E","1B":"3G","1D":"3B","1E":"3C","1G":"3J","1I":"3D","1K":"3L","1L":"3I"},
+  "BCDEGIKL":{"1A":"3E","1B":"3G","1D":"3B","1E":"3C","1G":"3I","1I":"3D","1K":"3L","1L":"3K"},
+  "BCDEGJKL":{"1A":"3E","1B":"3G","1D":"3B","1E":"3C","1G":"3J","1I":"3D","1K":"3L","1L":"3K"},
+  "BCDEHIJK":{"1A":"3E","1B":"3J","1D":"3B","1E":"3C","1G":"3H","1I":"3D","1K":"3I","1L":"3K"},
+  "BCDEHIJL":{"1A":"3E","1B":"3J","1D":"3B","1E":"3C","1G":"3H","1I":"3D","1K":"3L","1L":"3I"},
+  "BCDEHIKL":{"1A":"3E","1B":"3I","1D":"3B","1E":"3C","1G":"3H","1I":"3D","1K":"3L","1L":"3K"},
+  "BCDEHJKL":{"1A":"3E","1B":"3J","1D":"3B","1E":"3C","1G":"3H","1I":"3D","1K":"3L","1L":"3K"},
+  "BCDEIJKL":{"1A":"3E","1B":"3J","1D":"3B","1E":"3C","1G":"3I","1I":"3D","1K":"3L","1L":"3K"},
+  "BCDFGHIJ":{"1A":"3H","1B":"3G","1D":"3B","1E":"3C","1G":"3J","1I":"3F","1K":"3D","1L":"3I"},
+  "BCDFGHIK":{"1A":"3C","1B":"3G","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3I","1L":"3K"},
+  "BCDFGHIL":{"1A":"3C","1B":"3G","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3I"},
+  "BCDFGHJK":{"1A":"3H","1B":"3G","1D":"3B","1E":"3C","1G":"3J","1I":"3F","1K":"3D","1L":"3K"},
+  "BCDFGHJL":{"1A":"3C","1B":"3G","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3J"},
+  "BCDFGHKL":{"1A":"3C","1B":"3G","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3K"},
+  "BCDFGIJK":{"1A":"3C","1B":"3G","1D":"3B","1E":"3D","1G":"3J","1I":"3F","1K":"3I","1L":"3K"},
+  "BCDFGIJL":{"1A":"3C","1B":"3G","1D":"3B","1E":"3D","1G":"3J","1I":"3F","1K":"3L","1L":"3I"},
+  "BCDFGIKL":{"1A":"3C","1B":"3G","1D":"3B","1E":"3D","1G":"3I","1I":"3F","1K":"3L","1L":"3K"},
+  "BCDFGJKL":{"1A":"3C","1B":"3G","1D":"3B","1E":"3D","1G":"3J","1I":"3F","1K":"3L","1L":"3K"},
+  "BCDFHIJK":{"1A":"3C","1B":"3J","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3I","1L":"3K"},
+  "BCDFHIJL":{"1A":"3C","1B":"3J","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3I"},
+  "BCDFHIKL":{"1A":"3C","1B":"3I","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3K"},
+  "BCDFHJKL":{"1A":"3C","1B":"3J","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3K"},
+  "BCDFIJKL":{"1A":"3C","1B":"3J","1D":"3B","1E":"3D","1G":"3I","1I":"3F","1K":"3L","1L":"3K"},
+  "BCDGHIJK":{"1A":"3H","1B":"3G","1D":"3B","1E":"3C","1G":"3J","1I":"3D","1K":"3I","1L":"3K"},
+  "BCDGHIJL":{"1A":"3H","1B":"3G","1D":"3B","1E":"3C","1G":"3J","1I":"3D","1K":"3L","1L":"3I"},
+  "BCDGHIKL":{"1A":"3H","1B":"3G","1D":"3B","1E":"3C","1G":"3I","1I":"3D","1K":"3L","1L":"3K"},
+  "BCDGHJKL":{"1A":"3H","1B":"3G","1D":"3B","1E":"3C","1G":"3J","1I":"3D","1K":"3L","1L":"3K"},
+  "BCDGIJKL":{"1A":"3I","1B":"3G","1D":"3B","1E":"3C","1G":"3J","1I":"3D","1K":"3L","1L":"3K"},
+  "BCDHIJKL":{"1A":"3H","1B":"3J","1D":"3B","1E":"3C","1G":"3I","1I":"3D","1K":"3L","1L":"3K"},
+  "BCEFGHIJ":{"1A":"3H","1B":"3G","1D":"3B","1E":"3C","1G":"3J","1I":"3F","1K":"3E","1L":"3I"},
+  "BCEFGHIK":{"1A":"3E","1B":"3G","1D":"3B","1E":"3C","1G":"3H","1I":"3F","1K":"3I","1L":"3K"},
+  "BCEFGHIL":{"1A":"3E","1B":"3G","1D":"3B","1E":"3C","1G":"3H","1I":"3F","1K":"3L","1L":"3I"},
+  "BCEFGHJK":{"1A":"3H","1B":"3G","1D":"3B","1E":"3C","1G":"3J","1I":"3F","1K":"3E","1L":"3K"},
+  "BCEFGHJL":{"1A":"3H","1B":"3G","1D":"3B","1E":"3C","1G":"3J","1I":"3F","1K":"3L","1L":"3E"},
+  "BCEFGHKL":{"1A":"3E","1B":"3G","1D":"3B","1E":"3C","1G":"3H","1I":"3F","1K":"3L","1L":"3K"},
+  "BCEFGIJK":{"1A":"3E","1B":"3G","1D":"3B","1E":"3C","1G":"3J","1I":"3F","1K":"3I","1L":"3K"},
+  "BCEFGIJL":{"1A":"3E","1B":"3G","1D":"3B","1E":"3C","1G":"3J","1I":"3F","1K":"3L","1L":"3I"},
+  "BCEFGIKL":{"1A":"3E","1B":"3G","1D":"3B","1E":"3C","1G":"3I","1I":"3F","1K":"3L","1L":"3K"},
+  "BCEFGJKL":{"1A":"3E","1B":"3G","1D":"3B","1E":"3C","1G":"3J","1I":"3F","1K":"3L","1L":"3K"},
+  "BCEFHIJK":{"1A":"3E","1B":"3J","1D":"3B","1E":"3C","1G":"3H","1I":"3F","1K":"3I","1L":"3K"},
+  "BCEFHIJL":{"1A":"3E","1B":"3J","1D":"3B","1E":"3C","1G":"3H","1I":"3F","1K":"3L","1L":"3I"},
+  "BCEFHIKL":{"1A":"3E","1B":"3I","1D":"3B","1E":"3C","1G":"3H","1I":"3F","1K":"3L","1L":"3K"},
+  "BCEFHJKL":{"1A":"3E","1B":"3J","1D":"3B","1E":"3C","1G":"3H","1I":"3F","1K":"3L","1L":"3K"},
+  "BCEFIJKL":{"1A":"3E","1B":"3J","1D":"3B","1E":"3C","1G":"3I","1I":"3F","1K":"3L","1L":"3K"},
+  "BCEGHIJK":{"1A":"3E","1B":"3J","1D":"3B","1E":"3C","1G":"3H","1I":"3G","1K":"3I","1L":"3K"},
+  "BCEGHIJL":{"1A":"3E","1B":"3J","1D":"3B","1E":"3C","1G":"3H","1I":"3G","1K":"3L","1L":"3I"},
+  "BCEGHIKL":{"1A":"3E","1B":"3G","1D":"3B","1E":"3C","1G":"3I","1I":"3H","1K":"3L","1L":"3K"},
+  "BCEGHJKL":{"1A":"3E","1B":"3J","1D":"3B","1E":"3C","1G":"3H","1I":"3G","1K":"3L","1L":"3K"},
+  "BCEGIJKL":{"1A":"3E","1B":"3J","1D":"3B","1E":"3C","1G":"3I","1I":"3G","1K":"3L","1L":"3K"},
+  "BCEHIJKL":{"1A":"3E","1B":"3J","1D":"3B","1E":"3C","1G":"3I","1I":"3H","1K":"3L","1L":"3K"},
+  "BCFGHIJK":{"1A":"3H","1B":"3G","1D":"3B","1E":"3C","1G":"3J","1I":"3F","1K":"3I","1L":"3K"},
+  "BCFGHIJL":{"1A":"3H","1B":"3G","1D":"3B","1E":"3C","1G":"3J","1I":"3F","1K":"3L","1L":"3I"},
+  "BCFGHIKL":{"1A":"3H","1B":"3G","1D":"3B","1E":"3C","1G":"3I","1I":"3F","1K":"3L","1L":"3K"},
+  "BCFGHJKL":{"1A":"3H","1B":"3G","1D":"3B","1E":"3C","1G":"3J","1I":"3F","1K":"3L","1L":"3K"},
+  "BCFGIJKL":{"1A":"3I","1B":"3G","1D":"3B","1E":"3C","1G":"3J","1I":"3F","1K":"3L","1L":"3K"},
+  "BCFHIJKL":{"1A":"3H","1B":"3J","1D":"3B","1E":"3C","1G":"3I","1I":"3F","1K":"3L","1L":"3K"},
+  "BCGHIJKL":{"1A":"3H","1B":"3J","1D":"3B","1E":"3C","1G":"3I","1I":"3G","1K":"3L","1L":"3K"},
+  "BDEFGHIJ":{"1A":"3H","1B":"3G","1D":"3B","1E":"3D","1G":"3J","1I":"3F","1K":"3E","1L":"3I"},
+  "BDEFGHIK":{"1A":"3E","1B":"3G","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3I","1L":"3K"},
+  "BDEFGHIL":{"1A":"3E","1B":"3G","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3I"},
+  "BDEFGHJK":{"1A":"3H","1B":"3G","1D":"3B","1E":"3D","1G":"3J","1I":"3F","1K":"3E","1L":"3K"},
+  "BDEFGHJL":{"1A":"3H","1B":"3G","1D":"3B","1E":"3D","1G":"3J","1I":"3F","1K":"3L","1L":"3E"},
+  "BDEFGHKL":{"1A":"3E","1B":"3G","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3K"},
+  "BDEFGIJK":{"1A":"3E","1B":"3G","1D":"3B","1E":"3D","1G":"3J","1I":"3F","1K":"3I","1L":"3K"},
+  "BDEFGIJL":{"1A":"3E","1B":"3G","1D":"3B","1E":"3D","1G":"3J","1I":"3F","1K":"3L","1L":"3I"},
+  "BDEFGIKL":{"1A":"3E","1B":"3G","1D":"3B","1E":"3D","1G":"3I","1I":"3F","1K":"3L","1L":"3K"},
+  "BDEFGJKL":{"1A":"3E","1B":"3G","1D":"3B","1E":"3D","1G":"3J","1I":"3F","1K":"3L","1L":"3K"},
+  "BDEFHIJK":{"1A":"3E","1B":"3J","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3I","1L":"3K"},
+  "BDEFHIJL":{"1A":"3E","1B":"3J","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3I"},
+  "BDEFHIKL":{"1A":"3E","1B":"3I","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3K"},
+  "BDEFHJKL":{"1A":"3E","1B":"3J","1D":"3B","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3K"},
+  "BDEFIJKL":{"1A":"3E","1B":"3J","1D":"3B","1E":"3D","1G":"3I","1I":"3F","1K":"3L","1L":"3K"},
+  "BDEGHIJK":{"1A":"3E","1B":"3J","1D":"3B","1E":"3D","1G":"3H","1I":"3G","1K":"3I","1L":"3K"},
+  "BDEGHIJL":{"1A":"3E","1B":"3J","1D":"3B","1E":"3D","1G":"3H","1I":"3G","1K":"3L","1L":"3I"},
+  "BDEGHIKL":{"1A":"3E","1B":"3G","1D":"3B","1E":"3D","1G":"3I","1I":"3H","1K":"3L","1L":"3K"},
+  "BDEGHJKL":{"1A":"3E","1B":"3J","1D":"3B","1E":"3D","1G":"3H","1I":"3G","1K":"3L","1L":"3K"},
+  "BDEGIJKL":{"1A":"3E","1B":"3J","1D":"3B","1E":"3D","1G":"3I","1I":"3G","1K":"3L","1L":"3K"},
+  "BDEHIJKL":{"1A":"3E","1B":"3J","1D":"3B","1E":"3D","1G":"3I","1I":"3H","1K":"3L","1L":"3K"},
+  "BDFGHIJK":{"1A":"3H","1B":"3G","1D":"3B","1E":"3D","1G":"3J","1I":"3F","1K":"3I","1L":"3K"},
+  "BDFGHIJL":{"1A":"3H","1B":"3G","1D":"3B","1E":"3D","1G":"3J","1I":"3F","1K":"3L","1L":"3I"},
+  "BDFGHIKL":{"1A":"3H","1B":"3G","1D":"3B","1E":"3D","1G":"3I","1I":"3F","1K":"3L","1L":"3K"},
+  "BDFGHJKL":{"1A":"3H","1B":"3G","1D":"3B","1E":"3D","1G":"3J","1I":"3F","1K":"3L","1L":"3K"},
+  "BDFGIJKL":{"1A":"3I","1B":"3G","1D":"3B","1E":"3D","1G":"3J","1I":"3F","1K":"3L","1L":"3K"},
+  "BDFHIJKL":{"1A":"3H","1B":"3J","1D":"3B","1E":"3D","1G":"3I","1I":"3F","1K":"3L","1L":"3K"},
+  "BDGHIJKL":{"1A":"3H","1B":"3J","1D":"3B","1E":"3D","1G":"3I","1I":"3G","1K":"3L","1L":"3K"},
+  "BEFGHIJK":{"1A":"3E","1B":"3J","1D":"3B","1E":"3F","1G":"3H","1I":"3G","1K":"3I","1L":"3K"},
+  "BEFGHIJL":{"1A":"3E","1B":"3J","1D":"3B","1E":"3F","1G":"3H","1I":"3G","1K":"3L","1L":"3I"},
+  "BEFGHIKL":{"1A":"3E","1B":"3G","1D":"3B","1E":"3F","1G":"3I","1I":"3H","1K":"3L","1L":"3K"},
+  "BEFGHJKL":{"1A":"3E","1B":"3J","1D":"3B","1E":"3F","1G":"3H","1I":"3G","1K":"3L","1L":"3K"},
+  "BEFGIJKL":{"1A":"3E","1B":"3J","1D":"3B","1E":"3F","1G":"3I","1I":"3G","1K":"3L","1L":"3K"},
+  "BEFHIJKL":{"1A":"3E","1B":"3J","1D":"3B","1E":"3F","1G":"3I","1I":"3H","1K":"3L","1L":"3K"},
+  "BEGHIJKL":{"1A":"3E","1B":"3J","1D":"3I","1E":"3B","1G":"3H","1I":"3G","1K":"3L","1L":"3K"},
+  "BFGHIJKL":{"1A":"3H","1B":"3J","1D":"3B","1E":"3F","1G":"3I","1I":"3G","1K":"3L","1L":"3K"},
+  "CDEFGHIJ":{"1A":"3C","1B":"3G","1D":"3J","1E":"3D","1G":"3H","1I":"3F","1K":"3E","1L":"3I"},
+  "CDEFGHIK":{"1A":"3C","1B":"3G","1D":"3E","1E":"3D","1G":"3H","1I":"3F","1K":"3I","1L":"3K"},
+  "CDEFGHIL":{"1A":"3C","1B":"3G","1D":"3E","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3I"},
+  "CDEFGHJK":{"1A":"3C","1B":"3G","1D":"3J","1E":"3D","1G":"3H","1I":"3F","1K":"3E","1L":"3K"},
+  "CDEFGHJL":{"1A":"3C","1B":"3G","1D":"3J","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3E"},
+  "CDEFGHKL":{"1A":"3C","1B":"3G","1D":"3E","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3K"},
+  "CDEFGIJK":{"1A":"3C","1B":"3G","1D":"3E","1E":"3D","1G":"3J","1I":"3F","1K":"3I","1L":"3K"},
+  "CDEFGIJL":{"1A":"3C","1B":"3G","1D":"3E","1E":"3D","1G":"3J","1I":"3F","1K":"3L","1L":"3I"},
+  "CDEFGIKL":{"1A":"3C","1B":"3G","1D":"3E","1E":"3D","1G":"3I","1I":"3F","1K":"3L","1L":"3K"},
+  "CDEFGJKL":{"1A":"3C","1B":"3G","1D":"3E","1E":"3D","1G":"3J","1I":"3F","1K":"3L","1L":"3K"},
+  "CDEFHIJK":{"1A":"3C","1B":"3J","1D":"3E","1E":"3D","1G":"3H","1I":"3F","1K":"3I","1L":"3K"},
+  "CDEFHIJL":{"1A":"3C","1B":"3J","1D":"3E","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3I"},
+  "CDEFHIKL":{"1A":"3C","1B":"3E","1D":"3I","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3K"},
+  "CDEFHJKL":{"1A":"3C","1B":"3J","1D":"3E","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3K"},
+  "CDEFIJKL":{"1A":"3C","1B":"3J","1D":"3E","1E":"3D","1G":"3I","1I":"3F","1K":"3L","1L":"3K"},
+  "CDEGHIJK":{"1A":"3E","1B":"3G","1D":"3J","1E":"3C","1G":"3H","1I":"3D","1K":"3I","1L":"3K"},
+  "CDEGHIJL":{"1A":"3E","1B":"3G","1D":"3J","1E":"3C","1G":"3H","1I":"3D","1K":"3L","1L":"3I"},
+  "CDEGHIKL":{"1A":"3E","1B":"3G","1D":"3I","1E":"3C","1G":"3H","1I":"3D","1K":"3L","1L":"3K"},
+  "CDEGHJKL":{"1A":"3E","1B":"3G","1D":"3J","1E":"3C","1G":"3H","1I":"3D","1K":"3L","1L":"3K"},
+  "CDEGIJKL":{"1A":"3E","1B":"3G","1D":"3I","1E":"3C","1G":"3J","1I":"3D","1K":"3L","1L":"3K"},
+  "CDEHIJKL":{"1A":"3E","1B":"3J","1D":"3I","1E":"3C","1G":"3H","1I":"3D","1K":"3L","1L":"3K"},
+  "CDFGHIJK":{"1A":"3C","1B":"3G","1D":"3J","1E":"3D","1G":"3H","1I":"3F","1K":"3I","1L":"3K"},
+  "CDFGHIJL":{"1A":"3C","1B":"3G","1D":"3J","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3I"},
+  "CDFGHIKL":{"1A":"3C","1B":"3G","1D":"3I","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3K"},
+  "CDFGHJKL":{"1A":"3C","1B":"3G","1D":"3J","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3K"},
+  "CDFGIJKL":{"1A":"3C","1B":"3G","1D":"3I","1E":"3D","1G":"3J","1I":"3F","1K":"3L","1L":"3K"},
+  "CDFHIJKL":{"1A":"3C","1B":"3J","1D":"3I","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3K"},
+  "CDGHIJKL":{"1A":"3H","1B":"3G","1D":"3I","1E":"3C","1G":"3J","1I":"3D","1K":"3L","1L":"3K"},
+  "CEFGHIJK":{"1A":"3E","1B":"3G","1D":"3J","1E":"3C","1G":"3H","1I":"3F","1K":"3I","1L":"3K"},
+  "CEFGHIJL":{"1A":"3E","1B":"3G","1D":"3J","1E":"3C","1G":"3H","1I":"3F","1K":"3L","1L":"3I"},
+  "CEFGHIKL":{"1A":"3E","1B":"3G","1D":"3I","1E":"3C","1G":"3H","1I":"3F","1K":"3L","1L":"3K"},
+  "CEFGHJKL":{"1A":"3E","1B":"3G","1D":"3J","1E":"3C","1G":"3H","1I":"3F","1K":"3L","1L":"3K"},
+  "CEFGIJKL":{"1A":"3E","1B":"3G","1D":"3I","1E":"3C","1G":"3J","1I":"3F","1K":"3L","1L":"3K"},
+  "CEFHIJKL":{"1A":"3E","1B":"3J","1D":"3I","1E":"3C","1G":"3H","1I":"3F","1K":"3L","1L":"3K"},
+  "CEGHIJKL":{"1A":"3E","1B":"3J","1D":"3I","1E":"3C","1G":"3H","1I":"3G","1K":"3L","1L":"3K"},
+  "CFGHIJKL":{"1A":"3H","1B":"3G","1D":"3I","1E":"3C","1G":"3J","1I":"3F","1K":"3L","1L":"3K"},
+  "DEFGHIJK":{"1A":"3E","1B":"3G","1D":"3J","1E":"3D","1G":"3H","1I":"3F","1K":"3I","1L":"3K"},
+  "DEFGHIJL":{"1A":"3E","1B":"3G","1D":"3J","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3I"},
+  "DEFGHIKL":{"1A":"3E","1B":"3G","1D":"3I","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3K"},
+  "DEFGHJKL":{"1A":"3E","1B":"3G","1D":"3J","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3K"},
+  "DEFGIJKL":{"1A":"3E","1B":"3G","1D":"3I","1E":"3D","1G":"3J","1I":"3F","1K":"3L","1L":"3K"},
+  "DEFHIJKL":{"1A":"3E","1B":"3J","1D":"3I","1E":"3D","1G":"3H","1I":"3F","1K":"3L","1L":"3K"},
+  "DEGHIJKL":{"1A":"3E","1B":"3J","1D":"3I","1E":"3D","1G":"3H","1I":"3G","1K":"3L","1L":"3K"},
+  "DFGHIJKL":{"1A":"3H","1B":"3G","1D":"3I","1E":"3D","1G":"3J","1I":"3F","1K":"3L","1L":"3K"},
+  "EFGHIJKL":{"1A":"3E","1B":"3J","1D":"3I","1E":"3F","1G":"3H","1I":"3G","1K":"3L","1L":"3K"},
+};
+
+let _projectionMode='full'; // 'full' | 'confirmed'
+
+function setProjectionMode(mode){
+  _projectionMode=mode;
+  const fullBtn=document.getElementById('projModeFull');
+  const confBtn=document.getElementById('projModeConf');
+  const desc=document.getElementById('projModeDesc');
+  if(fullBtn&&confBtn){
+    fullBtn.style.background=mode==='full'?'var(--fifa-red)':'transparent';
+    fullBtn.style.color=mode==='full'?'#fff':'var(--muted)';
+    confBtn.style.background=mode==='confirmed'?'var(--fifa-red)':'transparent';
+    confBtn.style.color=mode==='confirmed'?'#fff':'var(--muted)';
+  }
+  if(desc) desc.textContent=mode==='full'
+    ?'Showing all 32 slots — unresolved slots project current standings forward'
+    :'Only showing slots where the team is mathematically confirmed';
+  buildProjection();
+}
+
+// Returns all 12 third-placed teams sorted by FIFA tiebreaker order:
+// pts → gd → gf → fair play (not tracked, skipped) → group letter
+function getThirdPlaceStandings(){
+  const thirds=[];
+  Object.keys(GROUPS).forEach(grp=>{
+    const st=getGroupStandings(grp);
+    const groupMatches=SCHEDULE.filter(m=>m.stage==='group'&&m.group===grp);
+    const played=groupMatches.filter(m=>{
+      const kr=knockoutResults[m.num];
+      return kr?.status&&['FT','AET','PEN'].includes(kr.status);
+    }).length;
+    if(st[2]){
+      thirds.push({...st[2],group:grp,played:Math.min(played,6),groupDone:groupComplete(grp)});
+    } else {
+      // Group not started — placeholder
+      thirds.push({name:GROUPS[grp][2]||'?',pts:0,w:0,d:0,l:0,gf:0,ga:0,gd:0,group:grp,played:0,groupDone:false});
+    }
+  });
+  // Sort by pts → gd → gf → group letter (FIFA tiebreaker for 3rd-place ranking)
+  thirds.sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.gf-a.gf||a.group.localeCompare(b.group));
+  return thirds;
+}
+
+function buildProjection(){
+  buildThirdPlaceTable();
+  buildProjectionBracket();
+}
+
+function buildThirdPlaceTable(){
+  const el=document.getElementById('thirdPlaceTable');
+  if(!el) return;
+  const thirds=getThirdPlaceStandings();
+  const myTeams=new Set(Object.values(draftResults).flat().map(t=>t.name));
+
+  el.innerHTML=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-family:'Barlow Condensed',sans-serif;font-size:.82rem">
+    <thead><tr style="border-bottom:2px solid var(--border)">
+      <th style="padding:8px 10px;text-align:left;color:var(--muted);font-size:.68rem;letter-spacing:1px;text-transform:uppercase;width:28px">#</th>
+      <th style="padding:8px 10px;text-align:left;color:var(--muted);font-size:.68rem;letter-spacing:1px;text-transform:uppercase">Team</th>
+      <th style="padding:8px 10px;text-align:center;color:var(--muted);font-size:.68rem;letter-spacing:1px;text-transform:uppercase">Grp</th>
+      <th style="padding:8px 10px;text-align:center;color:var(--muted);font-size:.68rem;letter-spacing:1px;text-transform:uppercase">P</th>
+      <th style="padding:8px 10px;text-align:center;color:var(--muted);font-size:.68rem;letter-spacing:1px;text-transform:uppercase">W</th>
+      <th style="padding:8px 10px;text-align:center;color:var(--muted);font-size:.68rem;letter-spacing:1px;text-transform:uppercase">D</th>
+      <th style="padding:8px 10px;text-align:center;color:var(--muted);font-size:.68rem;letter-spacing:1px;text-transform:uppercase">L</th>
+      <th style="padding:8px 10px;text-align:center;color:var(--muted);font-size:.68rem;letter-spacing:1px;text-transform:uppercase">GD</th>
+      <th style="padding:8px 10px;text-align:center;color:var(--muted);font-size:.68rem;letter-spacing:1px;text-transform:uppercase">Pts</th>
+      <th style="padding:8px 10px;text-align:left;color:var(--muted);font-size:.68rem;letter-spacing:1px;text-transform:uppercase">Status</th>
+    </tr></thead>
+    <tbody>
+    ${thirds.map((t,i)=>{
+      const isMine=myTeams.has(t.name);
+      const td=ALL_TEAMS.find(x=>x.name===t.name);
+      const flag=td?.flag||'🏳';
+      const owner=ownerOf(t.name);
+      const gdStr=t.gd>0?`+${t.gd}`:String(t.gd);
+      const gdColor=t.gd>0?'#2ecc71':t.gd<0?'var(--red)':'var(--muted)';
+      const isCutoff=i===7; // gold cutline between 8th and 9th
+      const isIn=i<8;
+      const rowBg=isMine?'rgba(245,200,66,.06)':'transparent';
+      const ownerPill=owner?`<span style="font-size:.62rem;background:rgba(245,200,66,.12);color:var(--gold);border:1px solid rgba(245,200,66,.3);border-radius:3px;padding:1px 5px;margin-left:4px">${owner.split(' ')[0]}</span>`:'';
+      const statusBadge=t.groupDone
+        ?(isIn?'<span style="font-size:.65rem;background:rgba(46,204,113,.15);color:#2ecc71;border:1px solid rgba(46,204,113,.35);border-radius:3px;padding:1px 6px;font-weight:700">THROUGH</span>':'<span style="font-size:.65rem;background:rgba(200,16,46,.15);color:var(--red);border:1px solid rgba(200,16,46,.35);border-radius:3px;padding:1px 6px;font-weight:700">ELIM</span>')
+        :(isIn?'<span style="font-size:.65rem;background:rgba(69,183,209,.15);color:var(--wc-blue);border:1px solid rgba(69,183,209,.35);border-radius:3px;padding:1px 6px">In zone</span>':'<span style="font-size:.65rem;color:var(--muted);background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:3px;padding:1px 6px">Out</span>');
+      const borderTop=isCutoff?'border-top:2px solid var(--gold)':'';
+      return `<tr style="background:${rowBg};border-bottom:1px solid var(--border);${borderTop}">
+        <td style="padding:8px 10px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${isIn?'var(--gold)':'var(--muted)'}">${i+1}</td>
+        <td style="padding:8px 10px;font-weight:700">${flag} ${t.name}${ownerPill}</td>
+        <td style="padding:8px 10px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:var(--muted)">${t.group}</td>
+        <td style="padding:8px 10px;text-align:center">${t.played||0}</td>
+        <td style="padding:8px 10px;text-align:center;color:#2ecc71">${t.w||0}</td>
+        <td style="padding:8px 10px;text-align:center;color:var(--gold)">${t.d||0}</td>
+        <td style="padding:8px 10px;text-align:center;color:var(--red)">${t.l||0}</td>
+        <td style="padding:8px 10px;text-align:center;color:${gdColor};font-weight:600">${gdStr}</td>
+        <td style="padding:8px 10px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--gold)">${t.pts}</td>
+        <td style="padding:8px 10px">${statusBadge}</td>
+      </tr>`;
+    }).join('')}
+    </tbody>
+  </table></div>
+  <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--muted);margin-top:8px">— gold line = current qualification cutoff (8th/9th) · order may change as groups complete</div>`;
+}
+
+function buildProjectionBracket(){
+  const el=document.getElementById('projectionBracket');
+  if(!el) return;
+  const myTeams=new Set(Object.values(draftResults).flat().map(t=>t.name));
+  const LIVE=['1H','HT','2H','ET','BT','P','INT','LIVE'];
+  const confirmedOnly=_projectionMode==='confirmed';
+
+  // Resolve a slot — in confirmed mode only return real resolved teams, not projections
+  function resolveSlot(code){
+    // Always try override + auto first
+    const auto=resolveTeam(code);
+    if(auto!==code) return {name:auto,confirmed:true};
+    if(confirmedOnly) return {name:null,confirmed:false};
+    // Project forward for group positions
+    const posMatch=code.match(/^([12])([A-L])$/);
+    if(posMatch){
+      const pos=parseInt(posMatch[1])-1;
+      const grp=posMatch[2];
+      const st=getGroupStandings(grp);
+      const team=st[pos]?.name;
+      return team?{name:team,confirmed:false}:{name:null,confirmed:false};
+    }
+    // 3rd-place slots — use Annex C mapping (no duplicates possible)
+    if(code.match(/^3[A-L]+$/)){
+      return annexCResolved[code]||{name:null,confirmed:false};
+    }
+    return {name:null,confirmed:false};
+  }
+
+  // ── Build the 3rd-place slot mapping ──
+  // We have 8 qualified 3rd-place teams from 8 different groups.
+  // Each R32 slot has a pool of eligible groups (e.g. "3CEFHI").
+  // We assign each slot the 3rd-place team from whichever of its pool groups
+  // is in the top 8, ranked by current 3rd-place standings.
+  // This guarantees: (a) no duplicates — each team appears in exactly 1 slot,
+  // (b) full bracket — every slot gets a team if their pool group is in top 8,
+  // (c) Annex C correct when available, best-fit otherwise.
+  const allThirds=getThirdPlaceStandings();
+  const top8Thirds=allThirds.slice(0,8);
+  const combinationKey=top8Thirds.map(t=>t.group).sort().join('');
+  const annexEntry=ANNEX_C[combinationKey];
+
+  // Build group→team lookup for top 8
+  const top8ByGroup={};
+  top8Thirds.forEach(t=>{top8ByGroup[t.group]=t;});
+
+  const annexCResolved={};
+  if(annexEntry){
+    // Annex C has the exact mapping for this combination
+    // annexEntry = {"1A":"3E","1B":"3G",...} — which group's 3rd faces which winner
+    // Walk R32 schedule: for each 3rd-place slot code, find its paired group winner,
+    // look up Annex C to get source group, resolve to actual team
+    const r32sched=SCHEDULE.filter(m=>m.stage==='r32');
+    r32sched.forEach(m=>{
+      [m.home,m.away].forEach(slotCode=>{
+        if(!slotCode.match(/^3[A-L]+$/)) return;
+        const opponent=[m.home,m.away].find(c=>c!==slotCode);
+        if(!opponent?.match(/^[12][A-L]$/)) return;
+        const sourceGroupCode=annexEntry[opponent]; // e.g. "3F"
+        if(!sourceGroupCode) return;
+        const sourceGroup=sourceGroupCode.replace('3','');
+        const thirdTeam=top8ByGroup[sourceGroup];
+        if(thirdTeam) annexCResolved[slotCode]={name:thirdTeam.name,confirmed:false};
+      });
+    });
+  } else {
+    // Annex C combination not found — distribute top-8 thirds across slots
+    // without duplicates by tracking which teams are already assigned.
+    // Process slots in match number order so assignment is deterministic.
+    const assigned=new Set();
+    const r32sched=SCHEDULE.filter(m=>m.stage==='r32').sort((a,b)=>a.num-b.num);
+    r32sched.forEach(m=>{
+      [m.home,m.away].forEach(slotCode=>{
+        if(!slotCode.match(/^3[A-L]+$/)) return;
+        const pool=slotCode.replace('3','').split('');
+        // Find the highest-ranked top-8 team from this pool not yet assigned
+        const candidate=top8Thirds.find(t=>pool.includes(t.group)&&!assigned.has(t.group));
+        if(candidate){
+          annexCResolved[slotCode]={name:candidate.name,confirmed:false};
+          assigned.add(candidate.group);
+        }
+      });
+    });
+  }
+
+  // R32 matches from schedule
+  const r32=SCHEDULE.filter(m=>m.stage==='r32').sort((a,b)=>a.num-b.num);
+  const annexStatus=annexEntry
+    ?`✅ Annex C match found for combination <b style="color:var(--gold)">${combinationKey}</b>`
+    :`⚠️ Combination <b style="color:var(--gold)">${combinationKey}</b> not yet in Annex C table — using best-from-pool fallback for 3rd-place slots (may show duplicates until matchday 3 settles)`;
+
+  el.innerHTML=`<div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--muted);background:var(--dark3);border:1px solid var(--border);border-radius:6px;padding:8px 12px;margin-bottom:12px">${annexStatus}</div>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    ${r32.map(m=>{
+      const hSlot=resolveSlot(m.home);
+      const aSlot=resolveSlot(m.away);
+      const hName=hSlot.name;
+      const aName=aSlot.name;
+      const hTd=hName?ALL_TEAMS.find(t=>t.name===hName):null;
+      const aTd=aName?ALL_TEAMS.find(t=>t.name===aName):null;
+      const hFlag=hTd?.flag||'🏳';
+      const aFlag=aTd?.flag||'🏳';
+      const hMine=hName&&myTeams.has(hName);
+      const aMine=aName&&myTeams.has(aName);
+      const hOwner=hName?ownerOf(hName):null;
+      const aOwner=aName?ownerOf(aName):null;
+      const kr=knockoutResults[m.num];
+      const isLive=kr?.status&&LIVE.includes(kr.status);
+      const isDone=kr?.status&&['FT','AET','PEN'].includes(kr.status);
+      const hasScore=kr&&kr.homeScore!==undefined;
+      const hScore=hasScore?kr.homeScore:'';
+      const aScore=hasScore?kr.awayScore:'';
+
+      const borderCol=isLive?'var(--wc-coral)':isDone?'rgba(255,255,255,.12)':hSlot.confirmed&&aSlot.confirmed?'rgba(46,204,113,.4)':'var(--border)';
+      const bgCol=isLive?'linear-gradient(135deg,rgba(255,107,107,.08),var(--card))':isDone?'var(--card)':'var(--card)';
+      const liveTag=isLive?`<span style="font-size:.6rem;background:rgba(255,107,107,.15);color:var(--wc-coral);border:1px solid rgba(255,107,107,.3);border-radius:3px;padding:1px 6px;display:inline-flex;align-items:center;gap:3px"><span style="width:5px;height:5px;background:var(--wc-coral);border-radius:50%;display:inline-block;animation:pulse-live 1.2s infinite"></span>${kr.elapsed?kr.elapsed+"'":'LIVE'}</span>`:'';
+      const confirmedTag=!isLive&&!isDone&&hSlot.confirmed&&aSlot.confirmed?'<span style="font-size:.6rem;background:rgba(46,204,113,.12);color:#2ecc71;border:1px solid rgba(46,204,113,.3);border-radius:3px;padding:1px 5px">confirmed</span>':'';
+      const projTag=!isLive&&!isDone&&(!hSlot.confirmed||!aSlot.confirmed)?'<span style="font-size:.6rem;background:rgba(69,183,209,.1);color:var(--wc-blue);border:1px solid rgba(69,183,209,.3);border-radius:3px;padding:1px 5px">projected</span>':'';
+      const slot=confirmedOnly&&(!hSlot.confirmed||!aSlot.confirmed);
+
+      const renderTeam=(name,flag,mine,owner,score,confirmed)=>{
+        if(!name) return `<div style="display:flex;align-items:center;gap:8px;flex:1;opacity:.4"><span style="font-size:1.2rem">🏳</span><span style="font-family:'Barlow Condensed',sans-serif;font-size:.8rem;color:var(--muted);font-style:italic">TBD</span></div>`;
+        const ownerPill=owner?`<span style="font-size:.6rem;background:rgba(245,200,66,.12);color:var(--gold);border:1px solid rgba(245,200,66,.25);border-radius:3px;padding:1px 5px">${owner.split(' ')[0]}</span>`:'';
+        const mineMark=mine?'🟡 ':'';
+        const unconfStyle=!confirmed?'opacity:.7;font-style:italic':'';
+        return `<div style="display:flex;align-items:center;gap:8px;flex:1;${unconfStyle}">
+          <span style="font-size:1.2rem">${flag}</span>
+          <span style="font-family:'Barlow Condensed',sans-serif;font-size:.88rem;font-weight:700;flex:1">${mineMark}${name}${ownerPill?'&nbsp;'+ownerPill:''}</span>
+          ${score!==''?`<span style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:${isDone&&score===Math.max(kr.homeScore,kr.awayScore)?'var(--gold)':'var(--text)'};">${score}</span>`:''}
+        </div>`;
+      };
+
+      return `<div style="background:${bgCol};border:1px solid ${borderCol};border-radius:10px;padding:12px 14px;box-shadow:var(--lift-1);cursor:pointer" onclick="switchTab('calendar')">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:.78rem;letter-spacing:1px;color:var(--muted)">Match ${m.num} · ${m.venue}</div>
+            <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--muted)">${new Date(m.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})} · ${m.time} PT</div>
+          </div>
+          <div style="display:flex;gap:4px;align-items:center">${liveTag}${confirmedTag}${projTag}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${renderTeam(hName,hFlag,hMine,hOwner,hScore,hSlot.confirmed)}
+          <div style="height:1px;background:var(--border);margin:0 2px"></div>
+          ${renderTeam(aName,aFlag,aMine,aOwner,aScore,aSlot.confirmed)}
+        </div>
+        ${slot?'<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:.65rem;color:var(--muted);margin-top:6px;font-style:italic">One or both teams not yet confirmed — showing in confirmed-only mode is hidden</div>':''}
+      </div>`;
+    }).join('')}
+  </div>
+  </div>`;
+}
+
 function buildTopScorers(){
   const body=document.getElementById('topScorersBody');
   const countEl=document.getElementById('scorerCount');
@@ -2795,29 +3290,102 @@ function submitModalScore(){
 // KNOCKOUT BRACKET
 // ═══════════════════════════════════════════════════════════════════
 function buildKnockoutBracket(){
-  // Rebuild the override grid every time bracket renders so statuses stay current
   buildQualifierOverrideGrid();
 
   const KNOCKOUT_START='2026-06-28';
   const today=getPTDateStr();
   const countdownEl=document.getElementById('bracketCountdown');
+  const groupsAllDone=Object.keys(GROUPS).every(g=>groupComplete(g));
+  const showingProjections=!groupsAllDone;
 
   if(countdownEl){
     if(today<KNOCKOUT_START){
-      // Days remaining until Round of 32 kicks off
       const [y,mo,d]=KNOCKOUT_START.split('-').map(Number);
       const [ty,tmo,td]=today.split('-').map(Number);
-      const target=Date.UTC(y,mo-1,d), now=Date.UTC(ty,tmo-1,td);
+      const target=Date.UTC(y,mo-1,d),now=Date.UTC(ty,tmo-1,td);
       const daysLeft=Math.round((target-now)/86400000);
       const completedGroups=Object.keys(GROUPS).filter(g=>groupComplete(g)).length;
-      countdownEl.innerHTML=`<div style="background:linear-gradient(135deg,rgba(245,200,66,.1),rgba(245,200,66,.02));border:1px solid rgba(245,200,66,.3);border-radius:10px;padding:18px 20px;margin-bottom:20px;box-shadow:var(--lift-1);text-align:center">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:.78rem;letter-spacing:3px;color:var(--muted);margin-bottom:4px">KNOCKOUT STAGE BEGINS</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:2.6rem;letter-spacing:2px;color:var(--gold);line-height:1">${daysLeft>0?`${daysLeft} DAY${daysLeft!==1?'S':''}`:'TODAY'}</div>
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;color:var(--muted);margin-top:6px">Round of 32 starts Sunday, June 28 · ${completedGroups}/12 groups finalized so far</div>
+      countdownEl.innerHTML=`<div style="background:linear-gradient(135deg,rgba(245,200,66,.1),rgba(245,200,66,.02));border:1px solid rgba(245,200,66,.3);border-radius:10px;padding:14px 18px;margin-bottom:16px;box-shadow:var(--lift-1)">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:.75rem;letter-spacing:3px;color:var(--muted)">KNOCKOUT STAGE BEGINS</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:2px;color:var(--gold);line-height:1">${daysLeft>0?`${daysLeft} DAY${daysLeft!==1?'S':''}`:'TODAY'}</div>
+          </div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:.8rem;color:var(--muted);text-align:right">
+            <div>June 28 · Round of 32</div>
+            <div>${completedGroups}/12 groups finalized</div>
+            ${showingProjections?`<div style="color:var(--wc-blue);margin-top:4px">Unconfirmed slots show current projections</div>`:''}
+          </div>
+        </div>
       </div>`;
     } else {
       countdownEl.innerHTML='';
     }
+  }
+
+  // ── Build the same 3rd-place slot map used in projection tab ──
+  const allThirds=getThirdPlaceStandings();
+  const top8Thirds=allThirds.slice(0,8);
+  const combinationKey=top8Thirds.map(t=>t.group).sort().join('');
+  const annexEntry=ANNEX_C[combinationKey];
+  const top8ByGroup={};
+  top8Thirds.forEach(t=>{top8ByGroup[t.group]=t;});
+
+  const bracketThirdMap={};
+  if(annexEntry){
+    const r32sched=SCHEDULE.filter(m=>m.stage==='r32');
+    r32sched.forEach(m=>{
+      [m.home,m.away].forEach(slotCode=>{
+        if(!slotCode.match(/^3[A-L]+$/)) return;
+        const opponent=[m.home,m.away].find(c=>c!==slotCode);
+        if(!opponent?.match(/^[12][A-L]$/)) return;
+        const sourceGroupCode=annexEntry[opponent];
+        if(!sourceGroupCode) return;
+        const sourceGroup=sourceGroupCode.replace('3','');
+        const t=top8ByGroup[sourceGroup];
+        if(t) bracketThirdMap[slotCode]=t.name;
+      });
+    });
+  } else {
+    const assigned=new Set();
+    const r32sched=SCHEDULE.filter(m=>m.stage==='r32').sort((a,b)=>a.num-b.num);
+    r32sched.forEach(m=>{
+      [m.home,m.away].forEach(slotCode=>{
+        if(!slotCode.match(/^3[A-L]+$/)) return;
+        const pool=slotCode.replace('3','').split('');
+        const candidate=top8Thirds.find(t=>pool.includes(t.group)&&!assigned.has(t.group));
+        if(candidate){bracketThirdMap[slotCode]=candidate.name;assigned.add(candidate.group);}
+      });
+    });
+  }
+
+  // Resolve a bracket slot: confirmed → solid, projected → dimmed italic
+  function resolveBS(code){
+    if(CODE2NAME[code]) return {name:CODE2NAME[code],conf:true};
+    if(qualifierOverrides[code]) return {name:qualifierOverrides[code],conf:true};
+    // Group position
+    const posM=code.match(/^([12])([A-L])$/);
+    if(posM){
+      const grp=posM[2],pos=parseInt(posM[1])-1;
+      if(groupComplete(grp)){
+        const st=getGroupStandings(grp);
+        return {name:st[pos]?.name||code,conf:true};
+      }
+      const st=getGroupStandings(grp);
+      const name=st[pos]?.name;
+      return name?{name,conf:false}:{name:code,conf:false};
+    }
+    // 3rd place
+    if(code.match(/^3[A-L]+$/)){
+      const mapped=bracketThirdMap[code];
+      return mapped?{name:mapped,conf:false}:{name:'TBD',conf:false};
+    }
+    // W/L knockout refs
+    if(code.startsWith('W')||code.startsWith('L')){
+      const auto=resolveTeam(code);
+      return auto!==code?{name:auto,conf:true}:{name:code,conf:false};
+    }
+    return {name:code,conf:false};
   }
 
   const rounds=[
@@ -2830,40 +3398,51 @@ function buildKnockoutBracket(){
   const myTeams=new Set(Object.values(draftResults).flat().map(t=>t.name));
   const LIVE_STATUSES=['1H','HT','2H','ET','BT','P','INT','LIVE'];
   const wrap=document.createElement('div');wrap.className='bracket-wrap';
+
   rounds.forEach((round,ri)=>{
     const col=document.createElement('div');col.className='b-col';
     col.innerHTML=`<div class="b-col-title">${round.label}</div>`;
     round.nums.forEach(num=>{
       const m=SCHEDULE.find(x=>x.num===num);if(!m) return;
-      const hName=resolveTeam(m.home),aName=resolveTeam(m.away);
+      const hSlot=resolveBS(m.home), aSlot=resolveBS(m.away);
+      const hName=hSlot.name, aName=aSlot.name;
+      const hConf=hSlot.conf, aConf=aSlot.conf;
       const kr=knockoutResults[num];
       const isLive=kr?.status&&LIVE_STATUSES.includes(kr.status);
       const isFinished=kr?.status&&['FT','AET','PEN'].includes(kr.status);
-      const notStarted=!kr||(!isLive&&!isFinished&&kr.homeScore===undefined);
       const done=kr&&isFinished&&(kr.homeScore!==kr.awayScore);
       const hWins=kr&&kr.homeScore>kr.awayScore;
       const hMy=myTeams.has(hName),aMy=myTeams.has(aName);
       const hOwner=ownerOf(hName),aOwner=ownerOf(aName);
       const hShort=hName.length>16?hName.substring(0,15)+'…':hName;
       const aShort=aName.length>16?aName.substring(0,15)+'…':aName;
-      const hScore=kr!==undefined&&kr.homeScore!==undefined?kr.homeScore:'';
-      const aScore=kr!==undefined&&kr.awayScore!==undefined?kr.awayScore:'';
+      const hScore=kr?.homeScore!==undefined?kr.homeScore:'';
+      const aScore=kr?.awayScore!==undefined?kr.awayScore:'';
       const hOwnerStr=hOwner?`<span class="owner-pill" style="font-size:.58rem">${hOwner.split(' ')[0]}</span>`:'';
       const aOwnerStr=aOwner?`<span class="owner-pill" style="font-size:.58rem">${aOwner.split(' ')[0]}</span>`:'';
+      const isAllProj=!hConf&&!aConf&&!kr;
+
       const div=document.createElement('div');
-      div.className=`b-match${(hMy||aMy)?' my':''}${done?' done':''}${isLive?' is-live':''}${notStarted?' not-started':''}`;
+      div.className=`b-match${(hMy||aMy)?' my':''}${done?' done':''}${isLive?' is-live':''}${isAllProj?' not-started':''}`;
       div.onclick=()=>openMatchModal(num);
+
+      // Date line for group-stage-era bracket cards
+      const matchDate=m.date?`<div style="font-family:'Barlow Condensed',sans-serif;font-size:.62rem;color:var(--muted);padding:3px 7px 0">${new Date(m.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})} · ${m.time} PT · ${m.venue}</div>`:'';
       const liveTag=isLive?`<div style="padding:4px 9px;background:rgba(255,107,107,.08);border-bottom:1px solid rgba(255,107,107,.2)"><span class="b-live-tag"><span class="b-live-dot"></span>${kr.elapsed?kr.elapsed+"'":'LIVE'}</span></div>`:'';
+
+      const renderSlot=(name,flag,short,owner,ownerStr,score,conf,wins,isWinner,isLoser)=>{
+        const confStyle=conf?'':'opacity:.6;font-style:italic';
+        return `<div class="b-slot${isWinner?' winner':isLoser?' loser':''}" style="${confStyle}">
+          <span class="b-name">${flag} ${short}${ownerStr}</span>
+          <span class="b-score">${score}</span>
+        </div>`;
+      };
+
       div.innerHTML=`
         ${liveTag}
-        <div class="b-slot${done&&hWins?' winner':done?' loser':''}">
-          <span class="b-name">${tf(hName)} ${hShort}${hOwnerStr}</span>
-          <span class="b-score">${hScore}</span>
-        </div>
-        <div class="b-slot${done&&!hWins?' winner':done?' loser':''}">
-          <span class="b-name">${tf(aName)} ${aShort}${aOwnerStr}</span>
-          <span class="b-score">${aScore}</span>
-        </div>`;
+        ${matchDate}
+        ${renderSlot(hName,tf(hName),hShort,hOwner,hOwnerStr,hScore,hConf,hWins,done&&hWins,done&&!hWins)}
+        ${renderSlot(aName,tf(aName),aShort,aOwner,aOwnerStr,aScore,aConf,!hWins,done&&!hWins,done&&hWins)}`;
       col.appendChild(div);
     });
     wrap.appendChild(col);
@@ -4013,7 +4592,7 @@ async function _pollLiveScores(){
       buildDashboard();
       buildMiniScoreboard();
       // Always rebuild all views — ensures FT triggers standings update
-      buildTracker();buildTeamsGrid();buildSleeperTracker();buildKnockoutBracket();buildTopScorers();
+      buildTracker();buildTeamsGrid();buildSleeperTracker();buildKnockoutBracket();buildTopScorers();buildProjection();
       if(data.updated>0){
         showToast(`⚽ ${data.matches.map(m=>`M${m.matchNum} ${m.homeScore}-${m.awayScore}`).join(', ')}`);
       }
@@ -4777,7 +5356,7 @@ function switchTab(id){
   const panelId = id==='dashboard' ? 'panel-dashboard' : `panel-${id}`;
   document.getElementById(panelId)?.classList.add('active');
   // Map tab id to desktop nav button index
-  const idx={dashboard:0,tracker:1,scores:2,calendar:3,knockout:4,scorers:5,sleeper:6,teams:7,howto:8,setup:9,wheel:10,demo:11}[id];
+  const idx={dashboard:0,tracker:1,scores:2,calendar:3,knockout:4,projection:5,scorers:6,sleeper:7,teams:8,howto:9,setup:10,wheel:11,demo:12}[id];
   document.querySelectorAll('.tab-btn')[idx]?.classList.add('active');
   // Mobile nav active state
   document.querySelectorAll('.mob-nav-btn').forEach(b=>b.classList.remove('mob-active'));
@@ -4788,6 +5367,7 @@ function switchTab(id){
   if(id==='scores'){buildLiveScores();}
   if(id==='calendar'){populateFilterPlayers();renderCalendar();}
   if(id==='knockout'){buildKnockoutBracket();}
+  if(id==='projection'){buildProjection();}
   if(id==='scorers') buildTopScorers();
   if(id==='sleeper') buildSleeperTracker();
   if(id==='teams') buildTeamsGrid();
