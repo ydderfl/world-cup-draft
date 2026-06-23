@@ -1,0 +1,24 @@
+{
+  "name": "WC2026 Draft Game",
+  "short_name": "WC Draft",
+  "description": "FIFA World Cup 2026 fantasy draft pool — live scores, standings, bracket projection",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0A0A12",
+  "theme_color": "#0A0A12",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
