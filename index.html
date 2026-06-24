@@ -3353,21 +3353,30 @@ function isTeamEliminated(name){
   const grp=Object.keys(GROUPS).find(g=>GROUPS[g].includes(name));
   if(!grp) return false;
   if(groupComplete(grp)){
-    // Group finished — eliminated if finished 4th (bottom of standings)
     const st=getGroupStandings(grp);
     return st[3]?.name===name;
   }
   const st=getGroupStandings(grp);
-  const teamRow=st.find(s=>s.name===name);
-  if(!teamRow) return false;
+  const teamIdx=st.findIndex(s=>s.name===name);
+  if(teamIdx<0) return false;
+  const teamRow=st[teamIdx];
   const groupMatches=SCHEDULE.filter(mm=>mm.stage==='group'&&mm.group===grp);
-  const played=groupMatches.filter(mm=>{
+
+  const playedBy=(n)=>groupMatches.filter(mm=>{
     const kr=knockoutResults[mm.num];
-    return kr?.status&&['FT','AET','PEN'].includes(kr.status)&&(resolveTeam(mm.home)===name||resolveTeam(mm.away)===name);
+    return kr?.status&&['FT','AET','PEN'].includes(kr.status)&&
+      (resolveTeam(mm.home)===n||resolveTeam(mm.away)===n);
   }).length;
-  const maxPossible=teamRow.pts+(3-played)*3;
-  const thirdPts=st[2]?.pts??0;
-  return maxPossible<thirdPts;
+
+  const teamPlayed=playedBy(name);
+  const teamMax=teamRow.pts+(3-teamPlayed)*3;
+
+  // Count rivals whose CURRENT points (guaranteed floor) >= teamMax
+  // Those rivals are guaranteed to finish at or above this team's ceiling.
+  // If 3 or more rivals have floors >= teamMax, the team can't beat them
+  // → can't finish 3rd or better → eliminated.
+  const rivalsAboveOrEqual=st.filter((_,i)=>i!==teamIdx).filter(r=>r.pts>=teamMax).length;
+  return rivalsAboveOrEqual>=3;
 }
 
 // Returns true if a team has mathematically clinched a TOP-2 finish in its
