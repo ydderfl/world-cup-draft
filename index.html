@@ -2482,37 +2482,44 @@ function buildProjectionBracket(){
   const top8ByGroup={};
   top8Thirds.forEach(t=>{top8ByGroup[t.group]=t;});
 
+  // Collect teams already resolved as 1st/2nd in their groups — exclude from 3rd-place slots
+  const alreadyInBracket=new Set();
+  SCHEDULE.filter(m=>m.stage==='r32').forEach(m=>{
+    [m.home,m.away].forEach(code=>{
+      const pos=code.match(/^([12])([A-L])$/);
+      if(pos&&groupComplete(pos[2])){
+        const st=getGroupStandings(pos[2]);
+        const t=st[parseInt(pos[1])-1];
+        if(t?.name) alreadyInBracket.add(t.name);
+      }
+    });
+  });
+  const eligibleThirds=top8Thirds.filter(t=>!alreadyInBracket.has(t.name));
+
   const annexCResolved={};
   if(annexEntry){
-    // Annex C has the exact mapping for this combination
-    // annexEntry = {"1A":"3E","1B":"3G",...} — which group's 3rd faces which winner
-    // Walk R32 schedule: for each 3rd-place slot code, find its paired group winner,
-    // look up Annex C to get source group, resolve to actual team
     const r32sched=SCHEDULE.filter(m=>m.stage==='r32');
     r32sched.forEach(m=>{
       [m.home,m.away].forEach(slotCode=>{
         if(!slotCode.match(/^3[A-L]+$/)) return;
         const opponent=[m.home,m.away].find(c=>c!==slotCode);
         if(!opponent?.match(/^[12][A-L]$/)) return;
-        const sourceGroupCode=annexEntry[opponent]; // e.g. "3F"
+        const sourceGroupCode=annexEntry[opponent];
         if(!sourceGroupCode) return;
         const sourceGroup=sourceGroupCode.replace('3','');
         const thirdTeam=top8ByGroup[sourceGroup];
-        if(thirdTeam) annexCResolved[slotCode]={name:thirdTeam.name,confirmed:false};
+        if(thirdTeam&&!alreadyInBracket.has(thirdTeam.name))
+          annexCResolved[slotCode]={name:thirdTeam.name,confirmed:false};
       });
     });
   } else {
-    // Annex C combination not found — distribute top-8 thirds across slots
-    // without duplicates by tracking which teams are already assigned.
-    // Process slots in match number order so assignment is deterministic.
     const assigned=new Set();
     const r32sched=SCHEDULE.filter(m=>m.stage==='r32').sort((a,b)=>a.num-b.num);
     r32sched.forEach(m=>{
       [m.home,m.away].forEach(slotCode=>{
         if(!slotCode.match(/^3[A-L]+$/)) return;
         const pool=slotCode.replace('3','').split('');
-        // Find the highest-ranked top-8 team from this pool not yet assigned
-        const candidate=top8Thirds.find(t=>pool.includes(t.group)&&!assigned.has(t.group));
+        const candidate=eligibleThirds.find(t=>pool.includes(t.group)&&!assigned.has(t.group));
         if(candidate){
           annexCResolved[slotCode]={name:candidate.name,confirmed:false};
           assigned.add(candidate.group);
@@ -3665,6 +3672,27 @@ function buildKnockoutBracket(){
   top8Thirds.forEach(t=>{top8ByGroup[t.group]=t;});
 
   const bracketThirdMap={};
+
+  // First pass: collect all teams already resolved in 1st/2nd place slots
+  // so we don't assign them again as a 3rd-place team (causes duplicates)
+  const alreadyInBracket=new Set();
+  SCHEDULE.filter(m=>m.stage==='r32').forEach(m=>{
+    [m.home,m.away].forEach(code=>{
+      const pos=code.match(/^([12])([A-L])$/);
+      if(pos){
+        const grp=pos[2],idx=parseInt(pos[1])-1;
+        if(groupComplete(grp)){
+          const st=getGroupStandings(grp);
+          if(st[idx]?.name) alreadyInBracket.add(st[idx].name);
+        }
+      }
+    });
+  });
+
+  const eligibleThirds=top8Thirds.filter(t=>!alreadyInBracket.has(t.name));
+  const eligibleByGroup={};
+  eligibleThirds.forEach(t=>{eligibleByGroup[t.group]=t;});
+
   if(annexEntry){
     const r32sched=SCHEDULE.filter(m=>m.stage==='r32');
     r32sched.forEach(m=>{
@@ -3675,8 +3703,8 @@ function buildKnockoutBracket(){
         const sourceGroupCode=annexEntry[opponent];
         if(!sourceGroupCode) return;
         const sourceGroup=sourceGroupCode.replace('3','');
-        const t=top8ByGroup[sourceGroup];
-        if(t) bracketThirdMap[slotCode]=t.name;
+        const t=eligibleByGroup[sourceGroup]||top8ByGroup[sourceGroup];
+        if(t&&!alreadyInBracket.has(t.name)) bracketThirdMap[slotCode]=t.name;
       });
     });
   } else {
@@ -3686,7 +3714,8 @@ function buildKnockoutBracket(){
       [m.home,m.away].forEach(slotCode=>{
         if(!slotCode.match(/^3[A-L]+$/)) return;
         const pool=slotCode.replace('3','').split('');
-        const candidate=top8Thirds.find(t=>pool.includes(t.group)&&!assigned.has(t.group));
+        const candidate=eligibleThirds.find(t=>pool.includes(t.group)&&!assigned.has(t.group))
+          || top8Thirds.find(t=>pool.includes(t.group)&&!assigned.has(t.group)&&!alreadyInBracket.has(t.name));
         if(candidate){bracketThirdMap[slotCode]=candidate.name;assigned.add(candidate.group);}
       });
     });
