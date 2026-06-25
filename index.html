@@ -6,6 +6,7 @@
 <title>⚽ WC2026 Draft</title>
 <!-- PWA -->
 <link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230A0A12'/><rect x='0' y='20' width='32' height='4' fill='%23C8102E'/><rect x='0' y='24' width='32' height='4' fill='%23FF6A1A'/><rect x='0' y='28' width='32' height='4' fill='%231A4FE0'/><text x='16' y='20' font-family='Arial Black,Impact,sans-serif' font-weight='900' font-size='18' fill='%23F5C842' text-anchor='middle'>26</text></svg>">
 <meta name="theme-color" content="#0A0A12">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -252,7 +253,23 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
 .stat-cell { text-align: center; }
 .stat-input { width: 46px; background: var(--dark3); border: 1px solid var(--border); border-radius: 3px; color: var(--text); text-align: center; padding: 4px; font-family: 'Barlow Condensed', sans-serif; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
 .stat-input:focus { border-color: var(--gold); }
-.pts-cell { text-align: center; font-family: 'Bebas Neue', sans-serif; font-size: 1.7rem; color: var(--gold); }
+.pts-cell { text-align: center; font-family: 'Bebas Neue', sans-serif; font-size: 1.7rem; color: var(--gold); font-variant-numeric: tabular-nums; }
+.b-score,.gs-pts,.sc,.gd-pos,.gd-neg,.gd-zero { font-variant-numeric: tabular-nums; }
+
+/* ── Eliminated team chip ── */
+.t-tag.eliminated { opacity: .38; text-decoration: line-through; text-decoration-color: var(--red); filter: grayscale(0.5); }
+
+/* ── Rank delta ── */
+.rank-delta { font-size: .6rem; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; letter-spacing: .3px; display: inline-block; min-width: 14px; text-align: center; }
+.rank-delta.up { color: #2ecc71; }
+.rank-delta.down { color: var(--red); }
+.rank-delta.same { color: var(--muted); opacity: .4; }
+
+/* ── Skeleton shimmer ── */
+@keyframes shimmer { 0% { background-position: -400px 0 } 100% { background-position: 400px 0 } }
+.skeleton { border-radius: 6px; background: linear-gradient(90deg, var(--dark3) 25%, rgba(255,255,255,.04) 50%, var(--dark3) 75%); background-size: 400px 100%; animation: shimmer 1.4s infinite linear; }
+.skeleton-row { height: 38px; margin-bottom: 6px; }
+.skeleton-card { height: 72px; margin-bottom: 8px; }
 .rank-badge { display: inline-block; width: 26px; height: 26px; border-radius: 50%; background: var(--dark3); color: var(--muted); text-align: center; line-height: 26px; font-size: 0.8rem; font-weight: 600; }
 .rank-badge.r1 { background: #F5C842; color: #000; }
 .rank-badge.r2 { background: #FF6B6B; color: #fff; }
@@ -2407,13 +2424,47 @@ function buildThirdPlaceTable(){
       const owner=ownerOf(t.name);
       const gdStr=t.gd>0?`+${t.gd}`:String(t.gd);
       const gdColor=t.gd>0?'#2ecc71':t.gd<0?'var(--red)':'var(--muted)';
-      const isCutoff=i===7; // gold cutline between 8th and 9th
+      const isCutoff=i===8; // gold cutline above 9th row = between 8th (in) and 9th (out)
       const isIn=i<8;
       const rowBg=isMine?'rgba(245,200,66,.06)':'transparent';
       const ownerPill=owner?`<span style="font-size:.62rem;background:rgba(245,200,66,.12);color:var(--gold);border:1px solid rgba(245,200,66,.3);border-radius:3px;padding:1px 5px;margin-left:4px">${owner.split(' ')[0]}</span>`:'';
-      const statusBadge=t.groupDone
-        ?(isIn?'<span style="font-size:.65rem;background:rgba(46,204,113,.15);color:#2ecc71;border:1px solid rgba(46,204,113,.35);border-radius:3px;padding:1px 6px;font-weight:700">THROUGH</span>':'<span style="font-size:.65rem;background:rgba(200,16,46,.15);color:var(--red);border:1px solid rgba(200,16,46,.35);border-radius:3px;padding:1px 6px;font-weight:700">ELIM</span>')
-        :(isIn?'<span style="font-size:.65rem;background:rgba(69,183,209,.15);color:var(--wc-blue);border:1px solid rgba(69,183,209,.35);border-radius:3px;padding:1px 6px">In zone</span>':'<span style="font-size:.65rem;color:var(--muted);background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:3px;padding:1px 6px">Out</span>');
+
+      // Compute accurate status:
+      // CONFIRMED: group done AND can't be pushed out of top 8 even if all
+      //   remaining incomplete groups' 3rd teams get maximum possible pts
+      // WAITING: group done but could still be overtaken — must wait
+      // IN ZONE: group not done yet, currently in top 8
+      // OUT: currently outside top 8 (group done or not)
+      // ELIM: group done and outside top 8 with no remaining matches
+      const incompleteGroups=Object.keys(GROUPS).filter(g=>!groupComplete(g));
+      const thisMaxPts=t.pts;
+      const thisGD=t.gd||0;
+      // How many incomplete groups could produce a 3rd-place team with pts > this team?
+      // Conservative: assume incomplete group's 3rd can get max 9pts (3 wins from 3 games)
+      // If fewer than (8-i) such groups remain, this team is confirmed in top 8
+      const couldSurpass=incompleteGroups.length; // worst case: all remaining could beat
+      const spotsAhead=i; // teams ranked above this one (already confirmed ahead)
+      const spotsNeeded=8-i; // how many of the remaining 12-i slots this team needs to hold
+      // Confirmed if: current rank is 8 or better AND remaining incomplete groups
+      // can't produce enough teams to push this team out
+      // Specifically: if (spotsAhead + couldSurpass) < 8, this team is safe
+      // i.e. even if ALL remaining 3rds beat this team, there still aren't 8 teams ahead
+      const isConfirmedThrough=t.groupDone&&!isIn===false&&(spotsAhead+couldSurpass)<8;
+      const isEliminated=t.groupDone&&!isIn&&incompleteGroups.length===0;
+      const isWaiting=t.groupDone&&isIn&&!isConfirmedThrough;
+
+      let statusBadge;
+      if(isConfirmedThrough){
+        statusBadge='<span style="font-size:.65rem;background:rgba(46,204,113,.15);color:#2ecc71;border:1px solid rgba(46,204,113,.35);border-radius:3px;padding:1px 6px;font-weight:700">✅ THROUGH</span>';
+      } else if(isWaiting){
+        statusBadge='<span style="font-size:.65rem;background:rgba(245,200,66,.12);color:var(--gold);border:1px solid rgba(245,200,66,.3);border-radius:3px;padding:1px 6px;font-weight:700">⏳ WAITING</span>';
+      } else if(isEliminated||(t.groupDone&&!isIn)){
+        statusBadge='<span style="font-size:.65rem;background:rgba(200,16,46,.15);color:var(--red);border:1px solid rgba(200,16,46,.35);border-radius:3px;padding:1px 6px;font-weight:700">ELIM</span>';
+      } else if(isIn){
+        statusBadge='<span style="font-size:.65rem;background:rgba(69,183,209,.15);color:var(--wc-blue);border:1px solid rgba(69,183,209,.35);border-radius:3px;padding:1px 6px">In zone</span>';
+      } else {
+        statusBadge='<span style="font-size:.65rem;color:var(--muted);background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:3px;padding:1px 6px">Out</span>';
+      }
       const borderTop=isCutoff?'border-top:2px solid var(--gold)':'';
       return `<tr style="background:${rowBg};border-bottom:1px solid var(--border);${borderTop}">
         <td style="padding:8px 10px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${isIn?'var(--gold)':'var(--muted)'}">${i+1}</td>
@@ -3074,26 +3125,56 @@ function calcStats(){
 
   return s;
 }
+let _prevRanks={};  // player → rank from previous rebuild, for delta arrows
+
 function buildTracker(){
   const tbody=document.getElementById('trackerBody');
   if(!players.length){tbody.innerHTML=`<tr><td colspan="10" class="empty-msg">Complete the draft first.</td></tr>`;return;}
+
+  // Skeleton on very first load (no data yet)
+  if(!Object.keys(knockoutResults).length&&!matchLog.length&&!tbody.innerHTML){
+    tbody.innerHTML=players.map(()=>`<tr><td colspan="10"><div class="skeleton skeleton-row"></div></td></tr>`).join('');
+    return;
+  }
+
   const s=calcStats();
   const sorted=getSortedPlayers(s);
+
+  // Compute deltas vs previous render
+  const currentRanks={};
+  sorted.forEach((p,i)=>{currentRanks[p]=i+1;});
+  const deltas={};
+  sorted.forEach(p=>{
+    if(_prevRanks[p]!==undefined){
+      const d=_prevRanks[p]-currentRanks[p]; // positive = moved up
+      deltas[p]=d;
+    }
+  });
+  _prevRanks=currentRanks;
+
   tbody.innerHTML=sorted.map((p,rank)=>{
     const teams=draftResults[p]||[];
     const st=s[p]||{W:0,D:0,L:0,GF:0,GA:0};
     const pts=st.W*3+st.D, gd=st.GF-st.GA;
     const rb=rank===0?'r1':rank===1?'r2':rank===2?'r3':'';
     const gdCls=gd>0?'gd-pos':gd<0?'gd-neg':'gd-zero';
+
+    // Delta arrow
+    const d=deltas[p];
+    const deltaHtml=d===undefined?''
+      :d>0?`<span class="rank-delta up">▲${d}</span>`
+      :d<0?`<span class="rank-delta down">▼${Math.abs(d)}</span>`
+      :`<span class="rank-delta same">—</span>`;
+
     const tags=teams.map(t=>{
-      // Determine which tier number this team is in (by rank position)
       const tiers=getTierDefs();
       const ti=tiers.findIndex(tier=>tier.teams.some(x=>x.name===t.name));
       const cls=ti>=0?TIER_CHIP_CLASSES[ti]:'ta';
-      return `<div class="t-tag ${cls}">${t.flag}<span class="t-tag-name"> ${t.name}</span></div>`;
+      const elimCls=isTeamEliminated(t.name)?' eliminated':'';
+      return `<div class="t-tag ${cls}${elimCls}">${t.flag}<span class="t-tag-name"> ${t.name}</span></div>`;
     }).join('');
     return `<tr>
-      <td class="sc"><span class="rank-badge ${rb}">${rank+1}</span></td>
+      <td class="sc"><span class="rank-badge ${rb}">${rank+1}</span>${deltaHtml}</td>
       <td class="player-name-cell">${p}</td>
       <td><div class="teams-cell">${tags||'<span style="color:var(--muted);font-size:.8rem;font-family:\'Barlow Condensed\',sans-serif">In progress</span>'}</div></td>
       <td class="sc" style="color:#2ecc71;font-weight:700">${st.W}</td>
@@ -3444,23 +3525,11 @@ function resolveTeam(code){
     return code; // group not finished yet — keep placeholder
   }
 
-  // 4. Third-place qualifier: "3ABCDF" etc — pool of groups, pick best 3rd
-  const thirdMatch=code.match(/^3([A-L]+)$/);
-  if(thirdMatch){
-    const groupPool=thirdMatch[1].split(''); // e.g. ['A','B','C','D','F']
-    // Collect the 3rd-placed team from each completed group in the pool
-    const thirds=[];
-    groupPool.forEach(grp=>{
-      if(groupComplete(grp)){
-        const standings=getGroupStandings(grp);
-        if(standings[2]) thirds.push({...standings[2],fromGroup:grp});
-      }
-    });
-    if(!thirds.length) return code; // no groups done yet
-    // Sort thirds by pts → gd → gf → group letter (deterministic tiebreak)
-    thirds.sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.gf-a.gf||a.fromGroup.localeCompare(b.fromGroup));
-    return thirds[0]?.name||code;
-  }
+  // 4. Third-place qualifier codes ("3ABCDF" etc) are NOT resolved here.
+  // Resolution is handled exclusively by the Annex C lookup in buildKnockoutBracket
+  // and buildProjectionBracket. Returning the code as-is ensures resolveBS/resolveSlot
+  // know to use the Annex C map rather than treating any result as "confirmed".
+  if(code.match(/^3[A-L]+$/)) return code;
 
   // 5. Winner of previous knockout match: "W73" etc
   if(code.startsWith('W')){
@@ -3566,6 +3635,17 @@ function clearQualifierOverrides(){
   qualifierOverrides={};
   saveScores();buildQualifierOverrideGrid();buildKnockoutBracket();renderCalendar();
   showToast('🗑 All overrides cleared.');
+}
+
+// Remove any 3rd-place pool codes from qualifierOverrides — those are
+// managed exclusively by Annex C and should never be set manually.
+// Bad overrides cause "confirmed" to appear for unconfirmed 3rd-place slots.
+function purgeBadOverrides(){
+  let changed=false;
+  Object.keys(qualifierOverrides).forEach(code=>{
+    if(code.match(/^3[A-L]+$/)){delete qualifierOverrides[code];changed=true;}
+  });
+  if(changed){saveScores();buildKnockoutBracket();buildProjection();}
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -4947,6 +5027,7 @@ async function _pollLiveScores(){
       matchLog=fresh.matchLog||[];
       knockoutResults=fresh.knockoutResults||{};
       qualifierOverrides=fresh.qualifierOverrides||{};
+      purgeBadOverrides();
       try{localStorage.setItem('wc2026_scores',JSON.stringify(fresh));}catch(e){}
       // Always refresh calendar and live scores view (shows updated minute)
       renderCalendar();
@@ -4980,6 +5061,7 @@ async function loadSaved(){
     matchLog=scores.matchLog||[];
     knockoutResults=scores.knockoutResults||{};
     qualifierOverrides=scores.qualifierOverrides||{};
+    purgeBadOverrides();
   }
 
   if(!draft){
@@ -5039,6 +5121,16 @@ function _setLoadingState(on){
   }
   el.style.width=on?'70%':'100%';
   if(!on) setTimeout(()=>{el.style.width='0%';},400);
+
+  // Show skeleton placeholders during initial load
+  const tbody=document.getElementById('trackerBody');
+  if(on&&tbody&&!tbody.innerHTML.trim()){
+    tbody.innerHTML=Array(8).fill(`<tr><td colspan="10"><div class="skeleton skeleton-row"></div></td></tr>`).join('');
+  }
+  const liveCards=document.getElementById('liveNowCards');
+  if(on&&liveCards&&!liveCards.innerHTML.trim()){
+    liveCards.innerHTML=Array(3).fill(`<div class="skeleton skeleton-card"></div>`).join('');
+  }
 }
 
 // ── Reset / Clear ─────────────────────────────────────────────────────
