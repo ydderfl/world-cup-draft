@@ -3017,6 +3017,13 @@ function _buildScoreCard(m,isLiveSection){
   const liveBlip=isLive?`<span style="display:inline-block;width:8px;height:8px;background:var(--wc-coral);border-radius:50%;animation:pulse-live 1.2s infinite;margin-right:6px"></span>`:'';
 
   const scoreStr=hasScore?`${kr.homeScore} – ${kr.awayScore}`:'vs';
+  // Extra time / penalty display
+  const isPEN=kr?.status==='PEN';
+  const isAET=kr?.status==='AET';
+  const penStr=isPEN&&kr.homePens!=null?
+    `<div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--muted);text-align:center;margin-top:2px">(${kr.homePens} – ${kr.awayPens} pens)</div>`:'';
+  const aetBadge=isAET?`<span style="font-size:.6rem;background:rgba(69,183,209,.15);color:var(--wc-blue);border:1px solid rgba(69,183,209,.3);border-radius:3px;padding:1px 5px;margin-left:4px">AET</span>`:'';
+  const penBadge=isPEN?`<span style="font-size:.6rem;background:rgba(245,200,66,.15);color:var(--gold);border:1px solid rgba(245,200,66,.3);border-radius:3px;padding:1px 5px;margin-left:4px">PEN</span>`:'';
   const scorers=kr?.scorers??[];
   const redCards=kr?.cards??[];
 
@@ -3055,13 +3062,13 @@ function _buildScoreCard(m,isLiveSection){
   return `<div style="background:${bgColor};border:1px solid ${borderColor};border-radius:10px;padding:14px 16px;box-shadow:${shadowStyle}">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;color:var(--muted);letter-spacing:1px">#${m.num} · ${m.time} PT · ${m.venue}</div>
-      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;color:${isLive?'var(--wc-coral)':isFinished?'var(--green)':'var(--muted)'}">${liveBlip}${minuteStr||statusLabel}</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.7rem;color:${isLive?'var(--wc-coral)':isFinished?'var(--green)':'var(--muted)'}">${liveBlip}${minuteStr||statusLabel}${aetBadge}${penBadge}</div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:8px">
       <div style="flex:1;text-align:right">
         <span style="font-family:'Barlow Condensed',sans-serif;font-size:1rem;font-weight:700;color:var(--text)">${hFlag} ${hName}</span>${ownerPill(hOwner)}
       </div>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:2.4rem;color:${hasScore?'var(--white)':'var(--muted)'};min-width:80px;text-align:center;letter-spacing:3px;line-height:1">${scoreStr}</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:2.4rem;color:${hasScore?'var(--white)':'var(--muted)'};min-width:80px;text-align:center;letter-spacing:3px;line-height:1">${scoreStr}${penStr}</div>
       <div style="flex:1;text-align:left">
         ${ownerPill(aOwner)}<span style="font-family:'Barlow Condensed',sans-serif;font-size:1rem;font-weight:700;color:var(--text)">${aFlag} ${aName}</span>
       </div>
@@ -3115,15 +3122,25 @@ function calcStats(){
     const hs=kr.homeScore, as=kr.awayScore;
     const hOwner=ownerOf(hName), aOwner=ownerOf(aName);
 
+    // For PEN matches: scores are level, winner determined by penalty shootout
+    // homePens/awayPens holds the shootout score
+    const isPEN=kr.status==='PEN';
+    let hResult, aResult;
+    if(isPEN&&kr.homePens!=null&&kr.awayPens!=null){
+      hResult=kr.homePens>kr.awayPens?'W':'L';
+      aResult=kr.awayPens>kr.homePens?'W':'L';
+    } else {
+      hResult=hs>as?'W':hs===as?'D':'L';
+      aResult=as>hs?'W':as===hs?'D':'L';
+    }
+
     if(hOwner&&s[hOwner]){
-      const result=hs>as?'W':hs===as?'D':'L';
-      s[hOwner][result]++;
+      s[hOwner][hResult]++;
       s[hOwner].GF+=hs;
       s[hOwner].GA+=as;
     }
     if(aOwner&&s[aOwner]){
-      const result=as>hs?'W':as===hs?'D':'L';
-      s[aOwner][result]++;
+      s[aOwner][aResult]++;
       s[aOwner].GF+=as;
       s[aOwner].GA+=hs;
     }
@@ -3543,7 +3560,11 @@ function resolveTeam(code){
     const kr=knockoutResults[prev];if(!kr) return code;
     const pm=SCHEDULE.find(x=>x.num===prev);if(!pm) return code;
     const h=resolveTeam(pm.home),a=resolveTeam(pm.away);
-    return kr.homeScore>=kr.awayScore?h:a;
+    if(!['FT','AET','PEN'].includes(kr.status)) return code; // not finished
+    // PEN: winner determined by penalty shootout score
+    if(kr.status==='PEN'&&kr.homePens!=null&&kr.awayPens!=null)
+      return kr.homePens>kr.awayPens?h:a;
+    return kr.homeScore>kr.awayScore?h:a;
   }
 
   // 6. Loser of previous knockout match: "L101" etc
@@ -3552,6 +3573,10 @@ function resolveTeam(code){
     const kr=knockoutResults[prev];if(!kr) return code;
     const pm=SCHEDULE.find(x=>x.num===prev);if(!pm) return code;
     const h=resolveTeam(pm.home),a=resolveTeam(pm.away);
+    if(!['FT','AET','PEN'].includes(kr.status)) return code; // not finished
+    // PEN: loser is the team with fewer penalties
+    if(kr.status==='PEN'&&kr.homePens!=null&&kr.awayPens!=null)
+      return kr.homePens<kr.awayPens?h:a;
     return kr.homeScore<kr.awayScore?h:a;
   }
 
