@@ -591,6 +591,10 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
 <!-- ══ MATCH SCORES ══════════════════════════════════════════════════════ -->
 <div class="panel" id="panel-scores">
   <div class="section-title">Live Scores</div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+    <div id="lastRefreshed" style="font-family:'Barlow Condensed',sans-serif;font-size:.78rem;color:var(--muted)">Auto-refreshes every 45s</div>
+    <button class="btn btn-dark" onclick="_pollLiveScores().then(()=>showToast('✅ Scores refreshed'))" style="font-size:.75rem;padding:5px 12px;margin-left:auto">↻ Refresh Now</button>
+  </div>
   <div class="section-sub">Auto-updates every 90 seconds during live matches · powered by API-Football</div>
 
   <!-- Live now section -->
@@ -5067,7 +5071,10 @@ async function _pollLiveScores(){
       headers:{'Content-Type':'application/json','apikey':SUPA_KEY},
       body:JSON.stringify({action:'fetch_scores'}),
     });
-    if(!res.ok) return;
+    if(!res.ok){
+      console.warn('Edge Function returned',res.status);
+      return;
+    }
     const data=await res.json();
 
     // Always pull fresh data from Supabase — minute updates even without goals
@@ -5085,6 +5092,12 @@ async function _pollLiveScores(){
       buildMiniScoreboard();
       // Always rebuild all views — ensures FT triggers standings update
       buildTracker();buildTeamsGrid();buildSleeperTracker();buildKnockoutBracket();buildTopScorers();buildProjection();
+      // Update last-refreshed timestamp
+      const tsEl=document.getElementById('lastRefreshed');
+      if(tsEl){
+        const nowPT=new Date().toLocaleTimeString('en-US',{timeZone:'America/Los_Angeles',hour:'numeric',minute:'2-digit'});
+        tsEl.textContent=`Last updated ${nowPT} PT`;
+      }
       if(data.updated>0){
         showToast(`⚽ ${data.matches.map(m=>`M${m.matchNum} ${m.homeScore}-${m.awayScore}`).join(', ')}`);
       }
