@@ -712,6 +712,7 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
       <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-gold" onclick="requirePin(saveQualifierOverrides)">Save Overrides</button>
         <button class="btn btn-dark" onclick="clearQualifierOverrides()">Clear All Overrides</button>
+        <button class="btn btn-dark" onclick="requirePin(forceFinishStuckMatches)" style="border-color:rgba(255,107,107,.4);color:var(--wc-coral)">⚡ Force FT Stuck Matches</button>
         <span id="overrideSaveMsg" style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;color:var(--muted);align-self:center"></span>
       </div>
     </div>
@@ -1021,6 +1022,11 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
     <h3 style="margin-bottom:8px">Admin PIN Required</h3>
     <p style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;color:var(--muted);margin-bottom:16px">Enter your PIN to log or edit scores.</p>
     <input type="password" id="pinInput" maxlength="10"
+      inputmode="numeric"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
+      spellcheck="false"
       style="width:100%;background:var(--dark3);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:10px;font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:8px;text-align:center;outline:none;transition:border-color .2s"
       placeholder="••••"
       onkeydown="if(event.key==='Enter') _submitPin()"/>
@@ -3631,6 +3637,32 @@ function saveQualifierOverrides(){
   showToast('✅ Qualifier overrides saved — bracket updated!');
 }
 
+function forceFinishStuckMatches(){
+  // Find any match that is stuck in a live status at 85+ minutes
+  // where the last update was more than 30 minutes ago
+  const now=Date.now();
+  let fixed=0;
+  Object.entries(knockoutResults).forEach(([num,kr])=>{
+    const isLive=['1H','HT','2H','ET','BT','P','INT','LIVE'].includes(kr.status);
+    const isStuck=isLive&&kr.elapsed!=null&&kr.elapsed>=85;
+    const lastUpdate=kr.updatedAt?new Date(kr.updatedAt).getTime():0;
+    const minutesAgo=(now-lastUpdate)/60000;
+    if(isStuck&&minutesAgo>30){
+      console.log(`Force FT: M${num} was ${kr.status}@${kr.elapsed}' last updated ${minutesAgo.toFixed(0)}min ago`);
+      knockoutResults[num]={...kr,status:'FT',elapsed:null,finished:true};
+      fixed++;
+    }
+  });
+  if(fixed>0){
+    saveScores();
+    buildTracker();buildTeamsGrid();buildSleeperTracker();buildKnockoutBracket();
+    buildTopScorers();buildProjection();renderCalendar();buildLiveScores();buildMiniScoreboard();
+    showToast(`⚡ Force-finished ${fixed} stuck match${fixed!==1?'es':''}`);
+  } else {
+    showToast('No stuck matches found (85+ min, live status, 30+ min since update)');
+  }
+}
+
 function clearQualifierOverrides(){
   qualifierOverrides={};
   saveScores();buildQualifierOverrideGrid();buildKnockoutBracket();renderCalendar();
@@ -5265,7 +5297,8 @@ let _pinUnlocked = false;
 
 // Whether this URL is the admin URL (?scores param present)
 function isAdminUrl(){
-  return new URLSearchParams(window.location.search).has('scores');
+  const p=new URLSearchParams(window.location.search);
+  return p.has('scores')||p.has('admin');
 }
 
 // On page load: if ?scores is in the URL, auto-unlock and show demo tab
@@ -5294,7 +5327,7 @@ function requirePin(fn){
 }
 
 function _submitPin(){
-  const entered=document.getElementById('pinInput').value;
+  const entered=document.getElementById('pinInput').value.trim();
   if(entered===ADMIN_PIN){
     _pinUnlocked=true;
     _lastPin=entered; // cache for Edge Function calls
