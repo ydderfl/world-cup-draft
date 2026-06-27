@@ -717,6 +717,7 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
         <button class="btn btn-gold" onclick="requirePin(saveQualifierOverrides)">Save Overrides</button>
         <button class="btn btn-dark" onclick="clearQualifierOverrides()">Clear All Overrides</button>
         <button class="btn btn-dark" onclick="requirePin(forceFinishStuckMatches)" style="border-color:rgba(255,107,107,.4);color:var(--wc-coral)">⚡ Force FT Stuck Matches</button>
+        <button class="btn btn-dark" onclick="requirePin(refetchAllScorers)" style="border-color:rgba(69,183,209,.4);color:var(--wc-blue)">📊 Re-fetch All Scorers</button>
         <span id="overrideSaveMsg" style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;color:var(--muted);align-self:center"></span>
       </div>
     </div>
@@ -3666,6 +3667,34 @@ function saveQualifierOverrides(){
   showToast('✅ Qualifier overrides saved — bracket updated!');
 }
 
+async function refetchAllScorers(){
+  showToast('📊 Re-fetching all scorer data — this takes ~2 minutes...');
+  try{
+    const res=await fetch(EDGE_FN,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPA_KEY},
+      body:JSON.stringify({action:'refetch_scorers'}),
+    });
+    const data=await res.json();
+    if(data.success){
+      // Reload fresh data from Supabase
+      const fresh=await _supaGet('scores',SCORES_ID);
+      if(fresh){
+        matchLog=fresh.matchLog||[];
+        knockoutResults=fresh.knockoutResults||{};
+        qualifierOverrides=fresh.qualifierOverrides||{};
+        buildTopScorers();buildTracker();buildTeamsGrid();
+        showToast(`✅ Scorers re-fetched: ${data.message}`);
+      }
+    } else {
+      showToast('❌ Re-fetch failed: '+(data.error||'unknown error'));
+    }
+  }catch(e){
+    showToast('❌ Re-fetch error — check console');
+    console.error(e);
+  }
+}
+
 function forceFinishStuckMatches(){
   // Find any match that is stuck in a live status at 85+ minutes
   // where the last update was more than 30 minutes ago
@@ -5046,7 +5075,7 @@ let _liveScoreInterval=null;
 function startLiveScorePolling(){
   if(_liveScoreInterval) return;
   _pollLiveScores();
-  _liveScoreInterval=setInterval(_pollLiveScores,45000); // 45s — keeps pace with live match minutes
+  _liveScoreInterval=setInterval(_pollLiveScores,60000); // 60s — balance between live feel and API rate limits
 }
 function stopLiveScorePolling(){
   if(_liveScoreInterval){clearInterval(_liveScoreInterval);_liveScoreInterval=null;}
