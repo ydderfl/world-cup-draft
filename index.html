@@ -2707,6 +2707,9 @@ function buildTopScorers(){
     const scorers=kr.scorers||[];
     for(const s of scorers){
       if(s.type==='Own Goal') continue;
+      // Skip entries with no player name — API-Football sometimes returns null player
+      // for penalty retakes, VAR-awarded goals, or data gaps
+      if(!s.player||s.player==='Unknown'||s.player.trim()==='') continue;
       const teamName=normScorerTeam(s.team,m);
       const owner=ownerOf(teamName);
       if(viewMode==='owner'&&selectedOwner&&owner!==selectedOwner) continue;
