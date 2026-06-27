@@ -5042,45 +5042,24 @@ let _liveScoreInterval=null;
 function startLiveScorePolling(){
   if(_liveScoreInterval) return;
   _pollLiveScores();
-  _liveScoreInterval=setInterval(_pollLiveScores,90000);
+  _liveScoreInterval=setInterval(_pollLiveScores,45000); // 45s — keeps pace with live match minutes
 }
 function stopLiveScorePolling(){
   if(_liveScoreInterval){clearInterval(_liveScoreInterval);_liveScoreInterval=null;}
 }
 async function _pollLiveScores(){
   const today=getPTDateStr();
-  const yesterday=new Date(new Date().toLocaleString('en-US',{timeZone:'America/Los_Angeles'}));
-  yesterday.setDate(yesterday.getDate()-1);
-  const yStr=yesterday.toISOString().split('T')[0];
 
-  const todayMatches=SCHEDULE.filter(m=>m.date===today);
-  const yesterdayMatches=SCHEDULE.filter(m=>m.date===yStr);
+  // Always poll between June 11 and July 19 (tournament window)
+  // The Edge Function itself is smart about what to fetch — don't double-gate here
+  const TOURNAMENT_START='2026-06-11';
+  const TOURNAMENT_END='2026-07-20';
+  if(today<TOURNAMENT_START||today>TOURNAMENT_END) return;
 
-  // Check if any match today could be live (within window)
-  const now=new Date();
-  const nowPT=new Date(now.toLocaleString('en-US',{timeZone:'America/Los_Angeles'}));
+  // Additionally check: skip polling between 3am-9am PT when no matches ever start
+  const nowPT=new Date(new Date().toLocaleString('en-US',{timeZone:'America/Los_Angeles'}));
   const hourPT=nowPT.getHours();
-  const anyCouldBeLive=todayMatches.some(m=>{
-    const [h,min]=m.time.split(':').map(Number);
-    const minsFromKickoff=(hourPT*60+nowPT.getMinutes())-(h*60+min);
-    return minsFromKickoff>=-5&&minsFromKickoff<=240; // 240 = 90min + ET + buffer
-  });
-
-  // Keep polling if any match (today OR yesterday) has a non-FT/non-finished status
-  // This catches matches that ran late and whose status got stuck before date rolled over
-  const allRecentMatches=[...todayMatches,...yesterdayMatches];
-  const anyStillActive=allRecentMatches.some(m=>{
-    const kr=knockoutResults[m.num];
-    return kr&&!['FT','AET','PEN'].includes(kr.status);
-  });
-
-  // Also check if yesterday had any matches that never got a FT status written at all
-  const anyYesterdayUnfinished=yesterdayMatches.some(m=>{
-    const kr=knockoutResults[m.num];
-    return !kr||(!kr.finished&&kr.homeScore!==undefined);
-  });
-
-  if(!anyCouldBeLive&&!anyStillActive&&!anyYesterdayUnfinished) return;
+  if(hourPT>=3&&hourPT<9) return; // dead hours — no WC matches start this early PT
   try{
     // Always tell the Edge Function to fetch latest scores
     const res=await fetch(EDGE_FN,{
