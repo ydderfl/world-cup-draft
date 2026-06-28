@@ -1343,7 +1343,8 @@ const CODE2NAME={
   "3EHIJK":"DR Congo",            // M80: England vs DR Congo
   "3AEHIJ":"Senegal",             // M81: Belgium vs Senegal
   "3BEFIJ":"Bosnia & Herzegovina",// M82: USA vs Bosnia & Herzegovina
-  "3DEIJL":"Algeria",             // M85: Switzerland vs Algeria / M88: Colombia vs Ghana (see below)
+  "3DEIJL":"Algeria",             // M85: Switzerland vs Algeria
+  "3DEIJL2":"Ghana",              // M88: Colombia vs Ghana
   "3ABCDG":"Ghana",               // placeholder - see 1K below
 };
 function cn(c){return CODE2NAME[c]||c;}
@@ -1489,7 +1490,7 @@ const SCHEDULE=[
   // FRI 3 Jul
   {num: 86,date:"2026-07-03",time:"11:00",home:"2D",   away:"2G",      group:"",stage:"r32",venue:"Dallas"},
   {num: 87,date:"2026-07-03",time:"15:00",home:"1J",   away:"2H",      group:"",stage:"r32",venue:"Miami"},
-  {num: 88,date:"2026-07-03",time:"18:30",home:"1K",   away:"3DEIJL",  group:"",stage:"r32",venue:"Kansas City"},
+  {num: 88,date:"2026-07-03",time:"18:30",home:"1K",   away:"3DEIJL2", group:"",stage:"r32",venue:"Kansas City"},
   // ── ROUND OF 16 ─────────────────────────────────────────────────
   // SAT 4 Jul
   {num: 89,date:"2026-07-04",time:"10:00",home:"W73",  away:"W75",     group:"",stage:"r16",venue:"Houston"},
@@ -3559,7 +3560,7 @@ function isTeamEliminated(name){
       const today=getPTDateStr();
       if(today>='2026-06-28'){
         // Check if team appears as a confirmed 3rd-place qualifier
-        const thirdPlaceCodes=['3ABCDF','3CDFGH','3CEFHI','3EHIJK','3AEHIJ','3BEFIJ','3DEIJL'];
+        const thirdPlaceCodes=['3ABCDF','3CDFGH','3CEFHI','3EHIJK','3AEHIJ','3BEFIJ','3DEIJL','3DEIJL2'];
         const qualifiedAsThird=thirdPlaceCodes.some(code=>{
           const resolved=CODE2NAME[code]||qualifierOverrides[code];
           return resolved===name;
@@ -3739,7 +3740,8 @@ const R32_SLOTS=[
   {code:'3CEFHI',label:'Best 3rd (CEFHI)'},
   {code:'3EHIJK',label:'Best 3rd (EHIJK)'},
   {code:'3BEFIJ',label:'Best 3rd (BEFIJ)'},
-  {code:'3DEIJL',label:'Best 3rd (DEIJL) — M85 & M88'},
+  {code:'3DEIJL',label:'Best 3rd (DEIJL) — M85 Switzerland vs Algeria'},
+  {code:'3DEIJL2',label:'Best 3rd (DEIJL) — M88 Colombia vs Ghana'},
   {code:'3AEHIJ',label:'Best 3rd (AEHIJ)'},
 ];
 
@@ -4177,7 +4179,32 @@ function buildSleeperTracker(){
   const maxCin=Math.max(...sleeperData.map(t=>Math.abs(t.cinScore)),1);
   body.innerHTML=`<div class="sleeper-grid">${sleeperData.map((t,i)=>{
     const cardCls=i===0?'top1':i===1?'top2':i===2?'top3':'';
-    const isElim=(() => { try{ return isTeamEliminated(t.name); }catch(e){ return false; } })();
+    // Simple elimination check: team is eliminated if not in any confirmed R32 slot
+    // and group stage is over. Avoids complex isTeamEliminated call crashing the render.
+    let isElim=false;
+    try{
+      const today=getPTDateStr();
+      if(today>='2026-06-28'){
+        const allR32Teams=new Set(Object.values(CODE2NAME).filter((_,i)=>{
+          const k=Object.keys(CODE2NAME)[i];
+          return k.match(/^[12][A-L]$|^3[A-L]+$/);
+        }));
+        // Also check knockout losers
+        const knockoutLosers=new Set();
+        ['r32','r16','qf','sf'].forEach(stage=>{
+          SCHEDULE.filter(m=>m.stage===stage).forEach(m=>{
+            const kr=knockoutResults[m.num];
+            if(!kr||!['FT','AET','PEN'].includes(kr.status)) return;
+            const home=CODE2NAME[m.home]||resolveTeam(m.home);
+            const away=CODE2NAME[m.away]||resolveTeam(m.away);
+            const isPEN=kr.status==='PEN'&&kr.homePens!=null;
+            if(isPEN?(kr.homePens<kr.awayPens):(kr.homeScore<kr.awayScore)) knockoutLosers.add(home);
+            if(isPEN?(kr.awayPens<kr.homePens):(kr.awayScore<kr.homeScore)) knockoutLosers.add(away);
+          });
+        });
+        isElim=!allR32Teams.has(t.name)||knockoutLosers.has(t.name);
+      }
+    }catch(e){ isElim=false; }
     const elimStyle=isElim?'opacity:.38;filter:grayscale(0.5)':'';
     const elimBadge=isElim?'<span style="font-size:.6rem;background:rgba(200,16,46,.15);color:var(--red);border:1px solid rgba(200,16,46,.35);border-radius:3px;padding:1px 5px;margin-left:4px">OUT</span>':'';
     const cinColor=t.cinScore>0?'#2ecc71':t.cinScore<0?'var(--red)':'var(--muted)';
