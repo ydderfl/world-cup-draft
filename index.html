@@ -1323,6 +1323,28 @@ const CODE2NAME={
   ARG:"Argentina",ALG:"Algeria",AUT:"Austria",JOR:"Jordan",
   POR:"Portugal",COD:"DR Congo",UZB:"Uzbekistan",COL:"Colombia",
   ENG:"England",CRO:"Croatia",GHA:"Ghana",PAN:"Panama",
+  // ── Confirmed R32 group positions (June 28 2026) ──
+  "1A":"Mexico","2A":"South Africa",
+  "1B":"Switzerland","2B":"Canada",
+  "1C":"Brazil","2C":"Morocco",
+  "1D":"United States","2D":"Australia",
+  "1E":"Germany","2E":"Ivory Coast",
+  "1F":"Netherlands","2F":"Japan",
+  "1G":"Belgium","2G":"Egypt",
+  "1H":"Spain","2H":"Cape Verde",
+  "1I":"France","2I":"Norway",
+  "1J":"Argentina","2J":"Austria",
+  "1K":"Colombia","2K":"Portugal",
+  "1L":"England","2L":"Croatia",
+  // ── Confirmed 3rd place slot assignments via Annex C (combination BDEFIJKL) ──
+  "3ABCDF":"Paraguay",            // M75: Germany vs Paraguay
+  "3CDFGH":"Sweden",              // M78: France vs Sweden
+  "3CEFHI":"Ecuador",             // M79: Mexico vs Ecuador
+  "3EHIJK":"DR Congo",            // M80: England vs DR Congo
+  "3AEHIJ":"Senegal",             // M81: Belgium vs Senegal
+  "3BEFIJ":"Bosnia & Herzegovina",// M82: USA vs Bosnia & Herzegovina
+  "3DEIJL":"Algeria",             // M85: Switzerland vs Algeria / M88: Colombia vs Ghana (see below)
+  "3ABCDG":"Ghana",               // placeholder - see 1K below
 };
 function cn(c){return CODE2NAME[c]||c;}
 // Returns today's date in PT as YYYY-MM-DD — matches SCHEDULE's date field.
@@ -4069,6 +4091,9 @@ function buildSleeperTracker(){
     return;
   }
   const rawStats=calcTeamStats();
+  const rawCount=Object.keys(rawStats).length;
+  console.log(`[Sleeper] calcTeamStats returned ${rawCount} teams, sleeperPool has ${sleeperPool.length} teams`);
+  if(rawCount===0) console.warn('[Sleeper] calcTeamStats empty — knockoutResults has',Object.keys(knockoutResults).length,'entries');
   // Add played count
   const teamStats={};
   Object.entries(rawStats).forEach(([name,s])=>{
