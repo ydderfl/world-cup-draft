@@ -4127,6 +4127,7 @@ function buildSleeperTracker(){
     const elimStyle=isElim?'opacity:.38;filter:grayscale(0.5)':'';
     const elimBadge=isElim?'<span style="font-size:.6rem;background:rgba(200,16,46,.15);color:var(--red);border:1px solid rgba(200,16,46,.35);border-radius:3px;padding:1px 5px;margin-left:4px">OUT</span>':'';
     const cinColor=t.cinScore>0?'#2ecc71':t.cinScore<0?'var(--red)':'var(--muted)';
+    const cinDisp=t.cinScore>0?'+'+t.cinScore:String(t.cinScore);
     const barPct=Math.min(Math.abs(t.cinScore)/maxCin*100,100);
     const barCls=t.cinScore>=0?'overperf-pos':'overperf-neg';
     const tierCls=t.tierIdx>=0?TIER_CHIP_CLASSES[t.tierIdx]:'tb';
