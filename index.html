@@ -3469,7 +3469,16 @@ function getGroupStandings(grp){
 // Returns true if all 6 group stage matches for a group are logged
 function groupComplete(grp){
   const matches=SCHEDULE.filter(m=>m.stage==='group'&&m.group===grp);
-  return matches.length===6 && matches.every(m=>knockoutResults[m.num]!==undefined);
+  if(matches.length!==6) return false;
+  const today=getPTDateStr();
+  return matches.every(m=>{
+    // Match is complete if: (a) it has a FT/AET/PEN result in knockoutResults, OR
+    // (b) its scheduled date is before today (definitely finished, may just be stuck)
+    const kr=knockoutResults[m.num];
+    if(kr&&['FT','AET','PEN'].includes(kr.status)) return true;
+    if(kr&&kr.homeScore!==undefined&&m.date<today) return true; // has score, past date
+    return m.date<today; // past date = assume complete even if no result written yet
+  });
 }
 
 // Returns true if a team is mathematically unable to finish in the top 3 of
