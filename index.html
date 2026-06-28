@@ -3542,31 +3542,85 @@ function groupComplete(grp){
 function isTeamEliminated(name){
   const grp=Object.keys(GROUPS).find(g=>GROUPS[g].includes(name));
   if(!grp) return false;
+
+  // ── Group stage check ──
   if(groupComplete(grp)){
     const st=getGroupStandings(grp);
-    return st[3]?.name===name;
+    const pos=st.findIndex(s=>s.name===name); // 0=1st,1=2nd,2=3rd,3=4th
+    // 4th place → always eliminated
+    if(pos===3) return true;
+    // 1st or 2nd → qualified directly, need to check knockout
+    // 3rd → only qualified if in top-8 thirds (check CODE2NAME/qualifierOverrides)
+    if(pos===2){
+      // Check if this team's 3rd-place slot resolved to them
+      // If all 32 R32 teams are confirmed and this team isn't one of them → eliminated
+      const confirmedR32=new Set(Object.values(CODE2NAME).concat(Object.values(qualifierOverrides)));
+      // Only flag as eliminated via 3rd-place check if R32 is fully confirmed
+      const today=getPTDateStr();
+      if(today>='2026-06-28'){
+        // Check if team appears as a confirmed 3rd-place qualifier
+        const thirdPlaceCodes=['3ABCDF','3CDFGH','3CEFHI','3EHIJK','3AEHIJ','3BEFIJ','3DEIJL'];
+        const qualifiedAsThird=thirdPlaceCodes.some(code=>{
+          const resolved=CODE2NAME[code]||qualifierOverrides[code];
+          return resolved===name;
+        });
+        // Also check bracketThirdMap via Annex C (computed elsewhere)
+        // If not qualified as 1st/2nd and not as 3rd → eliminated
+        const qualifiedAsFirst=Object.entries(CODE2NAME).some(([k,v])=>v===name&&k.match(/^1[A-L]$/));
+        const qualifiedAsSecond=Object.entries(CODE2NAME).some(([k,v])=>v===name&&k.match(/^2[A-L]$/));
+        if(!qualifiedAsFirst&&!qualifiedAsSecond&&!qualifiedAsThird) return true;
+      }
+    }
+  } else {
+    // Group still in progress — use mathematical elimination
+    const st=getGroupStandings(grp);
+    const teamIdx=st.findIndex(s=>s.name===name);
+    if(teamIdx<0) return false;
+    const teamRow=st[teamIdx];
+    const groupMatches=SCHEDULE.filter(mm=>mm.stage==='group'&&mm.group===grp);
+    const playedBy=(n)=>groupMatches.filter(mm=>{
+      const kr=knockoutResults[mm.num];
+      return kr?.status&&['FT','AET','PEN'].includes(kr.status)&&
+        (resolveTeam(mm.home)===n||resolveTeam(mm.away)===n);
+    }).length;
+    const teamPlayed=playedBy(name);
+    const teamMax=teamRow.pts+(3-teamPlayed)*3;
+    const rivalsAboveOrEqual=st.filter((_,i)=>i!==teamIdx).filter(r=>r.pts>=teamMax).length;
+    if(rivalsAboveOrEqual>=3) return true;
+    return false;
   }
-  const st=getGroupStandings(grp);
-  const teamIdx=st.findIndex(s=>s.name===name);
-  if(teamIdx<0) return false;
-  const teamRow=st[teamIdx];
-  const groupMatches=SCHEDULE.filter(mm=>mm.stage==='group'&&mm.group===grp);
 
-  const playedBy=(n)=>groupMatches.filter(mm=>{
-    const kr=knockoutResults[mm.num];
-    return kr?.status&&['FT','AET','PEN'].includes(kr.status)&&
-      (resolveTeam(mm.home)===n||resolveTeam(mm.away)===n);
-  }).length;
+  // ── Knockout stage check ──
+  // A team is eliminated if they lost any knockout match (R32, R16, QF, SF)
+  // Check all knockout stages
+  const knockoutStages=['r32','r16','qf','sf'];
+  for(const stage of knockoutStages){
+    const stageMatcher=SCHEDULE.filter(m=>m.stage===stage);
+    for(const m of stageMatcher){
+      const kr=knockoutResults[m.num];
+      if(!kr||!['FT','AET','PEN'].includes(kr.status)) continue;
+      const hName=cn(m.home)===m.home?resolveTeam(m.home):cn(m.home);
+      const aName=cn(m.away)===m.away?resolveTeam(m.away):cn(m.away);
+      // Use CODE2NAME directly for confirmed teams
+      const home=CODE2NAME[m.home]||resolveTeam(m.home);
+      const away=CODE2NAME[m.away]||resolveTeam(m.away);
+      if(home!==name&&away!==name) continue;
+      // Team played in this match — check if they lost
+      const isPEN=kr.status==='PEN'&&kr.homePens!=null&&kr.awayPens!=null;
+      let homeLost, awayLost;
+      if(isPEN){
+        homeLost=kr.homePens<kr.awayPens;
+        awayLost=kr.awayPens<kr.homePens;
+      } else {
+        homeLost=kr.homeScore<kr.awayScore;
+        awayLost=kr.awayScore<kr.homeScore;
+      }
+      if(home===name&&homeLost) return true;
+      if(away===name&&awayLost) return true;
+    }
+  }
 
-  const teamPlayed=playedBy(name);
-  const teamMax=teamRow.pts+(3-teamPlayed)*3;
-
-  // Count rivals whose CURRENT points (guaranteed floor) >= teamMax
-  // Those rivals are guaranteed to finish at or above this team's ceiling.
-  // If 3 or more rivals have floors >= teamMax, the team can't beat them
-  // → can't finish 3rd or better → eliminated.
-  const rivalsAboveOrEqual=st.filter((_,i)=>i!==teamIdx).filter(r=>r.pts>=teamMax).length;
-  return rivalsAboveOrEqual>=3;
+  return false;
 }
 
 // Returns true if a team has mathematically clinched a TOP-2 finish in its
