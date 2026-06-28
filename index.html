@@ -372,7 +372,7 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
   <button class="tab-btn" onclick="switchTab('scores')">⚽ Scores</button>
   <button class="tab-btn" onclick="switchTab('calendar')">📅 Calendar</button>
   <button class="tab-btn" onclick="switchTab('knockout')">🏆 Bracket</button>
-  <button class="tab-btn" onclick="switchTab('projection')">🔭 Projection</button>
+  <button class="tab-btn" onclick="switchTab('projection')" id="projTabBtn" style="display:none">🔭 Projection</button>
   <button class="tab-btn" onclick="switchTab('scorers')">🥇 Top Scorers</button>
   <button class="tab-btn" onclick="switchTab('sleeper')">🌟 Sleeper</button>
   <button class="tab-btn" onclick="switchTab('teams')">🌍 Groups</button>
@@ -2763,14 +2763,19 @@ function buildTopScorers(){
     body.innerHTML=sortedOwners.map(owner=>{
       const ownerScorers=byOwner[owner];
       const ownerTotal=ownerScorers.reduce((s,x)=>s+x.goals,0);
-      const rows=ownerScorers.map((s,i)=>`
-        <tr style="border-bottom:1px solid var(--border)">
+      const rows=ownerScorers.map((s,i)=>{
+        const teamElim=isTeamEliminated(s.team);
+        const rowStyle=teamElim?'opacity:.45':'';
+        const teamStyle=teamElim?'text-decoration:line-through;text-decoration-color:var(--red)':'';
+        const elimTag=teamElim?'<span style="font-size:.58rem;background:rgba(200,16,46,.15);color:var(--red);border:1px solid rgba(200,16,46,.35);border-radius:3px;padding:0 4px;margin-left:3px">OUT</span>':'';
+        return `
+        <tr style="border-bottom:1px solid var(--border);${rowStyle}">
           <td style="padding:8px 12px;font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--muted)">${i+1}</td>
           <td style="padding:8px 12px;font-weight:700;font-size:.92rem;color:var(--text)">${s.player}</td>
-          <td style="padding:8px 12px;color:var(--muted);font-size:.85rem">${s.flag} ${s.team}</td>
+          <td style="padding:8px 12px;color:var(--muted);font-size:.85rem;${teamStyle}">${s.flag} ${s.team}${elimTag}</td>
           <td style="padding:8px 12px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--gold)">${s.goals}</td>
           <td style="padding:8px 12px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:var(--muted)">${s.pens||'—'}</td>
-        </tr>`).join('');
+        </tr>`}).join('');
       return `
         <div style="margin-bottom:20px">
           <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:var(--gold);padding:8px 12px;background:var(--dark3);border-radius:6px 6px 0 0;display:flex;justify-content:space-between;align-items:center">
@@ -2813,10 +2818,14 @@ function buildTopScorers(){
           const ownerPill=s.owner
             ?`<span style="background:rgba(245,200,66,.12);color:var(--gold);border:1px solid rgba(245,200,66,.3);border-radius:3px;padding:1px 6px;font-size:.7rem">${s.owner.split(' ')[0]}</span>`
             :`<span style="color:var(--muted);font-size:.75rem">—</span>`;
-          return `<tr style="border-bottom:1px solid var(--border)">
+          const teamElim=isTeamEliminated(s.team);
+          const rowStyle=teamElim?'opacity:.45':'';
+          const teamStyle=teamElim?'text-decoration:line-through;text-decoration-color:var(--red);color:var(--muted)':'color:var(--muted)';
+          const elimTag=teamElim?'<span style="font-size:.58rem;background:rgba(200,16,46,.15);color:var(--red);border:1px solid rgba(200,16,46,.35);border-radius:3px;padding:0 4px;margin-left:3px">OUT</span>':'';
+          return `<tr style="border-bottom:1px solid var(--border);${rowStyle}">
             <td style="padding:10px 12px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${rankColor}">${medal||i+1}</td>
             <td style="padding:10px 12px;font-weight:700;font-size:.95rem;color:var(--text)">${s.player}</td>
-            <td style="padding:10px 12px;color:var(--muted);font-size:.88rem">${s.flag} ${s.team}</td>
+            <td style="padding:10px 12px;font-size:.88rem;${teamStyle}">${s.flag} ${s.team}${elimTag}</td>
             <td style="padding:10px 12px">${ownerPill}</td>
             <td style="padding:10px 12px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.8rem;color:var(--gold)">${s.goals}</td>
             <td style="padding:10px 12px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--muted)">${s.pens||'—'}</td>
@@ -4021,19 +4030,21 @@ function buildSleeperTracker(){
   const maxCin=Math.max(...sleeperData.map(t=>Math.abs(t.cinScore)),1);
   body.innerHTML=`<div class="sleeper-grid">${sleeperData.map((t,i)=>{
     const cardCls=i===0?'top1':i===1?'top2':i===2?'top3':'';
-    const cinDisp=t.cinScore>0?'+'+t.cinScore:String(t.cinScore);
+    const isElim=isTeamEliminated(t.name);
+    const elimStyle=isElim?'opacity:.38;filter:grayscale(0.5)':'';
+    const elimBadge=isElim?'<span style="font-size:.6rem;background:rgba(200,16,46,.15);color:var(--red);border:1px solid rgba(200,16,46,.35);border-radius:3px;padding:1px 5px;margin-left:4px">OUT</span>':'';
     const cinColor=t.cinScore>0?'#2ecc71':t.cinScore<0?'var(--red)':'var(--muted)';
     const barPct=Math.min(Math.abs(t.cinScore)/maxCin*100,100);
     const barCls=t.cinScore>=0?'overperf-pos':'overperf-neg';
     const tierCls=t.tierIdx>=0?TIER_CHIP_CLASSES[t.tierIdx]:'tb';
     const tierLabel=t.tierIdx>=0?`Tier ${TIER_LETTERS[t.tierIdx]}`:'';
     const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
-    return `<div class="sleeper-card ${cardCls}">
+    return `<div class="sleeper-card ${cardCls}" style="${elimStyle}">
       <div class="sleeper-top">
         <div class="sleeper-rank">${medal||'#'+(i+1)}</div>
         <div class="sleeper-flag">${t.flag}</div>
         <div class="sleeper-info">
-          <div class="sleeper-name">${t.name}</div>
+          <div class="sleeper-name">${t.name}${elimBadge}</div>
           <div class="sleeper-tier"><span class="team-chip ${tierCls}" style="font-size:.6rem;padding:1px 6px">${tierLabel} · Rank ${t.rank}</span></div>
           <div class="sleeper-owner">${t.owner?'👤 '+t.owner:'Not drafted'}</div>
         </div>
@@ -5930,6 +5941,17 @@ function switchTab(id){
   window.scrollTo(0,0);
 }
 function updateHomeTab(){
+  const today=getPTDateStr();
+  const knockoutsStarted=today>='2026-06-28';
+  // Hide projection tab once knockouts start — it was for pre-bracket speculation
+  const projBtn=document.getElementById('projTabBtn');
+  const projMob=document.getElementById('projMobBtn');
+  if(projBtn) projBtn.style.display=knockoutsStarted?'none':'';
+  if(projMob) projMob.style.display=knockoutsStarted?'none':'';
+  // If currently on projection tab and knockouts started, redirect to bracket
+  if(knockoutsStarted&&document.getElementById('panel-projection')?.style.display!=='none'){
+    switchTab('knockout');
+  }
   // Update setup panel title based on draft state
   const hasDraft=phase===4||Object.values(draftResults).some(t=>t.length>0);
   const title=document.getElementById('setupPanelTitle');
@@ -6056,7 +6078,7 @@ window.onload=async()=>{
 <div id="moreDrawer" style="display:none;position:fixed;bottom:58px;left:0;right:0;background:var(--card);border-top:1px solid var(--border);z-index:200;padding:8px">
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
     <button class="mob-nav-btn" data-tab="scores" onclick="switchTab('scores')" style="flex-direction:column">⚽<span>Scores</span></button>
-    <button class="mob-nav-btn" data-tab="projection" onclick="switchTab('projection')" style="flex-direction:column">🔭<span>Projection</span></button>
+    <button class="mob-nav-btn" id="projMobBtn" data-tab="projection" onclick="switchTab('projection')" style="flex-direction:column;display:none">🔭<span>Projection</span></button>
     <button class="mob-nav-btn" data-tab="scorers" onclick="switchTab('scorers')" style="flex-direction:column">🥇<span>Scorers</span></button>
     <button class="mob-nav-btn" data-tab="sleeper" onclick="switchTab('sleeper')" style="flex-direction:column">🌟<span>Sleeper</span></button>
     <button class="mob-nav-btn" data-tab="teams" onclick="switchTab('teams')" style="flex-direction:column">🌍<span>Groups</span></button>
