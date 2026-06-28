@@ -2725,6 +2725,21 @@ function buildTopScorers(){
       // for penalty retakes, VAR-awarded goals, or data gaps
       if(!s.player||s.player==='Unknown'||s.player.trim()==='') continue;
       const teamName=normScorerTeam(s.team,m);
+      // Validate team belongs to this match — catches bad data from scorer wipe period
+      const hName=cn(m.home), aName=cn(m.away);
+      const normH=normScorerTeam(hName,m), normA=normScorerTeam(aName,m);
+      const validTeams=new Set([hName,aName,normH,normA,
+        hName.toLowerCase(),aName.toLowerCase(),
+        teamName.toLowerCase()]);
+      const teamIsValid=validTeams.has(normH)&&(
+        teamName===hName||teamName===aName||
+        teamName===normH||teamName===normA||
+        teamName.toLowerCase()===hName.toLowerCase()||
+        teamName.toLowerCase()===aName.toLowerCase());
+      if(!teamIsValid&&teamName!==hName&&teamName!==aName&&teamName!==normH&&teamName!==normA){
+        // Wrong team — skip, will be fixed by Re-fetch All Scorers
+        continue;
+      }
       const owner=ownerOf(teamName);
       if(viewMode==='owner'&&selectedOwner&&owner!==selectedOwner) continue;
 
@@ -4042,10 +4057,13 @@ function buildSleeperTracker(){
     body.innerHTML=`<div style="color:var(--muted);font-family:'Barlow Condensed',sans-serif;padding:36px;text-align:center">Complete the draft to see Sleeper rankings.</div>`;
     return;
   }
-  // Sleeper pool = all teams across all tiers (show everyone's overperformance)
-  const sleeperPool=tiers.flatMap(t=>t.teams);
+  // Sleeper = Tier B and C only — Tier A teams are expected to perform,
+  // the tracker highlights overachievers from lower expectation tiers
+  const sleeperPool=tiers.length>1
+    ? tiers.slice(1).flatMap(t=>t.teams)
+    : tiers[0]?.teams||[];
   if(!sleeperPool.length){
-    body.innerHTML=`<div style="color:var(--muted);font-family:'Barlow Condensed',sans-serif;padding:36px;text-align:center">No teams found.</div>`;
+    body.innerHTML=`<div style="color:var(--muted);font-family:'Barlow Condensed',sans-serif;padding:36px;text-align:center">Complete the draft to see Sleeper rankings.</div>`;
     return;
   }
   const rawStats=calcTeamStats();
@@ -4078,7 +4096,7 @@ function buildSleeperTracker(){
   const maxCin=Math.max(...sleeperData.map(t=>Math.abs(t.cinScore)),1);
   body.innerHTML=`<div class="sleeper-grid">${sleeperData.map((t,i)=>{
     const cardCls=i===0?'top1':i===1?'top2':i===2?'top3':'';
-    const isElim=isTeamEliminated(t.name);
+    const isElim=(() => { try{ return isTeamEliminated(t.name); }catch(e){ return false; } })();
     const elimStyle=isElim?'opacity:.38;filter:grayscale(0.5)':'';
     const elimBadge=isElim?'<span style="font-size:.6rem;background:rgba(200,16,46,.15);color:var(--red);border:1px solid rgba(200,16,46,.35);border-radius:3px;padding:1px 5px;margin-left:4px">OUT</span>':'';
     const cinColor=t.cinScore>0?'#2ecc71':t.cinScore<0?'var(--red)':'var(--muted)';
@@ -4121,9 +4139,13 @@ function calcTeamStats(){
   SCHEDULE.forEach(m=>{
     const kr=knockoutResults[m.num];
     if(!kr||kr.homeScore===undefined||kr.awayScore===undefined) return;
-    const finished=!kr.status||['FT','AET','PEN'].includes(kr.status);
+    // Count match if finished OR if it has a score (handles stuck/missing status)
+    const finished=['FT','AET','PEN'].includes(kr.status)||(!kr.status)||
+                   (kr.homeScore!==undefined&&kr.awayScore!==undefined&&m.date<getPTDateStr());
     if(!finished) return;
     const hName=cn(m.home), aName=cn(m.away);
+    // Skip knockout matches where codes haven't resolved yet
+    if(hName===m.home||aName===m.away) return;
     const hs=kr.homeScore, as=kr.awayScore;
     if(!teamStats[hName]) teamStats[hName]={W:0,D:0,L:0,GF:0,GA:0};
     if(!teamStats[aName]) teamStats[aName]={W:0,D:0,L:0,GF:0,GA:0};
@@ -5181,7 +5203,10 @@ async function _pollLiveScores(){
       buildDashboard();
       buildMiniScoreboard();
       // Always rebuild all views — ensures FT triggers standings update
-      buildTracker();buildTeamsGrid();buildSleeperTracker();buildKnockoutBracket();buildTopScorers();buildProjection();
+      buildTracker();buildTeamsGrid();
+      try{buildSleeperTracker();}catch(e){console.error('buildSleeperTracker:',e);}
+      buildKnockoutBracket();buildTopScorers();
+      try{buildProjection();}catch(e){console.error('buildProjection:',e);}
       // Update last-refreshed timestamp
       const tsEl=document.getElementById('lastRefreshed');
       if(tsEl){
