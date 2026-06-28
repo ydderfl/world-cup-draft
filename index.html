@@ -1,3 +1,4 @@
+<!-- WC2026 Draft v2026.06.28.1 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -3497,16 +3498,17 @@ function getGroupStandings(grp){
 
 // Returns true if all 6 group stage matches for a group are logged
 function groupComplete(grp){
+  // Group stage officially ended June 27, 2026.
+  // After that date all groups are complete regardless of knockoutResults state.
+  const today=getPTDateStr();
+  if(today>='2026-06-28') return true;
   const matches=SCHEDULE.filter(m=>m.stage==='group'&&m.group===grp);
   if(matches.length!==6) return false;
-  const today=getPTDateStr();
   return matches.every(m=>{
-    // Match is complete if: (a) it has a FT/AET/PEN result in knockoutResults, OR
-    // (b) its scheduled date is before today (definitely finished, may just be stuck)
     const kr=knockoutResults[m.num];
     if(kr&&['FT','AET','PEN'].includes(kr.status)) return true;
-    if(kr&&kr.homeScore!==undefined&&m.date<today) return true; // has score, past date
-    return m.date<today; // past date = assume complete even if no result written yet
+    if(kr&&kr.homeScore!==undefined&&m.date<today) return true;
+    return m.date<today;
   });
 }
 
