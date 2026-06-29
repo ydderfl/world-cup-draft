@@ -3945,188 +3945,208 @@ function submitModalScore(){
 // ═══════════════════════════════════════════════════════════════════
 function buildKnockoutBracket(){
   buildQualifierOverrideGrid();
-
-  const KNOCKOUT_START='2026-06-28';
-  const today=getPTDateStr();
   const countdownEl=document.getElementById('bracketCountdown');
-  const groupsAllDone=Object.keys(GROUPS).every(g=>groupComplete(g));
-  const showingProjections=!groupsAllDone;
+  if(countdownEl) countdownEl.innerHTML='';
 
-  if(countdownEl){
-    if(today<KNOCKOUT_START){
-      const [y,mo,d]=KNOCKOUT_START.split('-').map(Number);
-      const [ty,tmo,td]=today.split('-').map(Number);
-      const target=Date.UTC(y,mo-1,d),now=Date.UTC(ty,tmo-1,td);
-      const daysLeft=Math.round((target-now)/86400000);
-      const completedGroups=Object.keys(GROUPS).filter(g=>groupComplete(g)).length;
-      countdownEl.innerHTML=`<div style="background:linear-gradient(135deg,rgba(245,200,66,.1),rgba(245,200,66,.02));border:1px solid rgba(245,200,66,.3);border-radius:10px;padding:14px 18px;margin-bottom:16px;box-shadow:var(--lift-1)">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-          <div>
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:.75rem;letter-spacing:3px;color:var(--muted)">KNOCKOUT STAGE BEGINS</div>
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:2px;color:var(--gold);line-height:1">${daysLeft>0?`${daysLeft} DAY${daysLeft!==1?'S':''}`:'TODAY'}</div>
-          </div>
-          <div style="font-family:'Barlow Condensed',sans-serif;font-size:.8rem;color:var(--muted);text-align:right">
-            <div>June 28 · Round of 32</div>
-            <div>${completedGroups}/12 groups finalized</div>
-            ${showingProjections?`<div style="color:var(--wc-blue);margin-top:4px">Unconfirmed slots show current projections</div>`:''}
-          </div>
-        </div>
-      </div>`;
-    } else {
-      countdownEl.innerHTML='';
-    }
-  }
+  const body=document.getElementById('bracketBody');
+  if(!body) return;
 
-  // ── Build the same 3rd-place slot map used in projection tab ──
-  const allThirds=getThirdPlaceStandings();
-  const top8Thirds=allThirds.slice(0,8);
-  const combinationKey=top8Thirds.map(t=>t.group).sort().join('');
-  const annexEntry=ANNEX_C[combinationKey];
-  const top8ByGroup={};
-  top8Thirds.forEach(t=>{top8ByGroup[t.group]=t;});
-
-  const bracketThirdMap={};
-
-  // First pass: collect all teams already resolved in 1st/2nd place slots
-  // so we don't assign them again as a 3rd-place team (causes duplicates)
-  const alreadyInBracket=new Set();
-  SCHEDULE.filter(m=>m.stage==='r32').forEach(m=>{
-    [m.home,m.away].forEach(code=>{
-      const pos=code.match(/^([12])([A-L])$/);
-      if(pos){
-        const grp=pos[2],idx=parseInt(pos[1])-1;
-        if(groupComplete(grp)){
-          const st=getGroupStandings(grp);
-          if(st[idx]?.name) alreadyInBracket.add(st[idx].name);
-        }
-      }
-    });
-  });
-
-  const eligibleThirds=top8Thirds.filter(t=>!alreadyInBracket.has(t.name));
-  const eligibleByGroup={};
-  eligibleThirds.forEach(t=>{eligibleByGroup[t.group]=t;});
-
-  if(annexEntry){
-    const r32sched=SCHEDULE.filter(m=>m.stage==='r32');
-    r32sched.forEach(m=>{
-      [m.home,m.away].forEach(slotCode=>{
-        if(!slotCode.match(/^3[A-L]+$/)) return;
-        const opponent=[m.home,m.away].find(c=>c!==slotCode);
-        if(!opponent?.match(/^[12][A-L]$/)) return;
-        const sourceGroupCode=annexEntry[opponent];
-        if(!sourceGroupCode) return;
-        const sourceGroup=sourceGroupCode.replace('3','');
-        const t=eligibleByGroup[sourceGroup]||top8ByGroup[sourceGroup];
-        if(t&&!alreadyInBracket.has(t.name)) bracketThirdMap[slotCode]=t.name;
-      });
-    });
-  } else {
-    const assigned=new Set();
-    const r32sched=SCHEDULE.filter(m=>m.stage==='r32').sort((a,b)=>a.num-b.num);
-    r32sched.forEach(m=>{
-      [m.home,m.away].forEach(slotCode=>{
-        if(!slotCode.match(/^3[A-L]+$/)) return;
-        const pool=slotCode.replace('3','').split('');
-        const candidate=eligibleThirds.find(t=>pool.includes(t.group)&&!assigned.has(t.group))
-          || top8Thirds.find(t=>pool.includes(t.group)&&!assigned.has(t.group)&&!alreadyInBracket.has(t.name));
-        if(candidate){bracketThirdMap[slotCode]=candidate.name;assigned.add(candidate.group);}
-      });
-    });
-  }
-
-  // Resolve a bracket slot: confirmed → solid, projected → dimmed italic
-  function resolveBS(code){
-    if(CODE2NAME[code]) return {name:CODE2NAME[code],conf:true};
-    if(qualifierOverrides[code]) return {name:qualifierOverrides[code],conf:true};
-    // Group position
-    const posM=code.match(/^([12])([A-L])$/);
-    if(posM){
-      const grp=posM[2],pos=parseInt(posM[1])-1;
-      if(groupComplete(grp)){
-        const st=getGroupStandings(grp);
-        return {name:st[pos]?.name||code,conf:true};
-      }
-      const st=getGroupStandings(grp);
-      const name=st[pos]?.name;
-      return name?{name,conf:false}:{name:code,conf:false};
-    }
-    // 3rd place
-    if(code.match(/^3[A-L]+$/)){
-      const mapped=bracketThirdMap[code];
-      return mapped?{name:mapped,conf:false}:{name:'TBD',conf:false};
-    }
-    // W/L knockout refs
-    if(code.startsWith('W')||code.startsWith('L')){
-      const auto=resolveTeam(code);
-      return auto!==code?{name:auto,conf:true}:{name:code,conf:false};
-    }
-    return {name:code,conf:false};
-  }
-
-  const rounds=[
-    {label:'Round of 32',nums:[73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88]},
-    {label:'Round of 16',nums:[89,90,91,92,93,94,95,96]},
-    {label:'Quarter-Finals',nums:[97,98,99,100]},
-    {label:'Semi-Finals',nums:[101,102]},
-    {label:'Final / 3rd Place',nums:[103,104]},
-  ];
   const myTeams=new Set(Object.values(draftResults).flat().map(t=>t.name));
-  const LIVE_STATUSES=['1H','HT','2H','ET','BT','P','INT','LIVE'];
-  const wrap=document.createElement('div');wrap.className='bracket-wrap';
+  const LIVE=['1H','HT','2H','ET','BT','P','INT','LIVE'];
 
-  rounds.forEach((round,ri)=>{
-    const col=document.createElement('div');col.className='b-col';
-    col.innerHTML=`<div class="b-col-title">${round.label}</div>`;
-    round.nums.forEach(num=>{
-      const m=SCHEDULE.find(x=>x.num===num);if(!m) return;
-      const hSlot=resolveBS(m.home), aSlot=resolveBS(m.away);
-      const hName=hSlot.name, aName=aSlot.name;
-      const hConf=hSlot.conf, aConf=aSlot.conf;
-      const kr=knockoutResults[num];
-      const isLive=kr?.status&&LIVE_STATUSES.includes(kr.status);
-      const isFinished=kr?.status&&['FT','AET','PEN'].includes(kr.status);
-      const done=kr&&isFinished&&(kr.homeScore!==kr.awayScore);
-      const hWins=kr&&kr.homeScore>kr.awayScore;
-      const hMy=myTeams.has(hName),aMy=myTeams.has(aName);
-      const hOwner=ownerOf(hName),aOwner=ownerOf(aName);
-      const hShort=hName.length>16?hName.substring(0,15)+'…':hName;
-      const aShort=aName.length>16?aName.substring(0,15)+'…':aName;
-      const hScore=kr?.homeScore!==undefined?kr.homeScore:'';
-      const aScore=kr?.awayScore!==undefined?kr.awayScore:'';
-      const hOwnerStr=hOwner?`<span class="owner-pill" style="font-size:.58rem">${hOwner.split(' ')[0]}</span>`:'';
-      const aOwnerStr=aOwner?`<span class="owner-pill" style="font-size:.58rem">${aOwner.split(' ')[0]}</span>`:'';
-      const isAllProj=!hConf&&!aConf&&!kr;
+  // Resolve a team name from a schedule code
+  function res(code){
+    if(!code) return null;
+    if(CODE2NAME[code]) return CODE2NAME[code];
+    if(qualifierOverrides[code]) return qualifierOverrides[code];
+    return resolveTeam(code)!==code?resolveTeam(code):null;
+  }
 
-      const div=document.createElement('div');
-      div.className=`b-match${(hMy||aMy)?' my':''}${done?' done':''}${isLive?' is-live':''}${isAllProj?' not-started':''}`;
-      div.onclick=()=>openMatchModal(num);
+  // Get winner of a match
+  function winner(matchNum){
+    const kr=knockoutResults[matchNum];
+    if(!kr||!['FT','AET','PEN'].includes(kr.status)) return null;
+    const m=SCHEDULE.find(x=>x.num===matchNum);
+    if(!m) return null;
+    const h=res(m.home), a=res(m.away);
+    if(kr.status==='PEN'&&kr.homePens!=null)
+      return kr.homePens>kr.awayPens?h:a;
+    return kr.homeScore>kr.awayScore?h:a;
+  }
 
-      // Date line for group-stage-era bracket cards
-      const matchDate=m.date?`<div style="font-family:'Barlow Condensed',sans-serif;font-size:.62rem;color:var(--muted);padding:3px 7px 0">${new Date(m.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})} · ${m.time} PT · ${m.venue}</div>`:'';
-      const liveTag=isLive?`<div style="padding:4px 9px;background:rgba(255,107,107,.08);border-bottom:1px solid rgba(255,107,107,.2)"><span class="b-live-tag"><span class="b-live-dot"></span>${kr.elapsed?kr.elapsed+"'":'LIVE'}</span></div>`:'';
+  // R32 matchups — in bracket order (top half top-to-bottom, bottom half top-to-bottom)
+  // Top half: 89(W74vW77), 90(W73vW75), 91(W76vW78), 92(W79vW80)
+  // Bottom half: 93(W83vW84), 94(W81vW82), 95(W86vW88), 96(W85vW87)
+  // Order them so they naturally pair into QF/SF/Final
+  const r32Order=[74,75,77,73, 76,78,79,80, 83,84,81,82, 86,88,85,87];
 
-      const renderSlot=(name,flag,short,owner,ownerStr,score,conf,wins,isWinner,isLoser)=>{
-        const confStyle=conf?'':'opacity:.6;font-style:italic';
-        return `<div class="b-slot${isWinner?' winner':isLoser?' loser':''}" style="${confStyle}">
-          <span class="b-name">${flag} ${short}${ownerStr}</span>
-          <span class="b-score">${score}</span>
-        </div>`;
-      };
+  function getMatch(num){
+    const m=SCHEDULE.find(x=>x.num===num);
+    const kr=knockoutResults[num]||{};
+    const h=res(m?.home)||null;
+    const a=res(m?.away)||null;
+    const isLive=LIVE.includes(kr.status);
+    const isDone=['FT','AET','PEN'].includes(kr.status);
+    const isPEN=kr.status==='PEN'&&kr.homePens!=null;
+    const hWins=isDone&&(isPEN?kr.homePens>kr.awayPens:kr.homeScore>kr.awayScore);
+    const aWins=isDone&&!hWins;
+    return {num,h,a,hg:kr.homeScore??null,ag:kr.awayScore??null,
+      hPens:kr.homePens??null,aPens:kr.awayPens??null,
+      isLive,isDone,hWins,aWins,status:kr.status,elapsed:kr.elapsed,
+      date:m?.date,time:m?.time,venue:m?.venue};
+  }
 
-      div.innerHTML=`
-        ${liveTag}
-        ${matchDate}
-        ${renderSlot(hName,tf(hName),hShort,hOwner,hOwnerStr,hScore,hConf,hWins,done&&hWins,done&&!hWins)}
-        ${renderSlot(aName,tf(aName),aShort,aOwner,aOwnerStr,aScore,aConf,!hWins,done&&!hWins,done&&hWins)}`;
-      col.appendChild(div);
-    });
-    wrap.appendChild(col);
-    if(ri<rounds.length-1){const sep=document.createElement('div');sep.className='b-sep';wrap.appendChild(sep);}
-  });
-  const body=document.getElementById('bracketBody');body.innerHTML='';body.appendChild(wrap);
+  // Build one match card
+  function matchCard(m, extraStyle=''){
+    const hMy=myTeams.has(m.h), aMy=myTeams.has(m.a);
+    const hOwner=m.h?ownerOf(m.h):null;
+    const aOwner=m.a?ownerOf(m.a):null;
+    const hElim=m.isDone&&m.aWins, aElim=m.isDone&&m.hWins;
+    const dateStr=m.date?new Date(m.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}):'';
+    const penStr=m.status==='PEN'&&m.hPens!=null?` (${m.hPens}-${m.aPens}p)`:'';
+
+    const slot=(name,score,wins,elim,isMy,owner)=>{
+      const flag=tf(name)||'🏳';
+      const short=name?(name.length>14?name.substring(0,13)+'…':name):'TBD';
+      const ownerPill=owner?`<span style="font-size:.52rem;background:rgba(245,200,66,.18);color:var(--gold);border:1px solid rgba(245,200,66,.3);border-radius:3px;padding:0 4px;margin-left:3px">${owner.split(' ')[0]}</span>`:'';
+      const myMark=isMy?'🟡 ':'';
+      return `<div style="display:flex;align-items:center;gap:5px;padding:5px 8px;${wins?'background:rgba(46,204,113,.08);':''}${elim?'opacity:.35;':''}${!name?'opacity:.45;':''}">
+        <span style="font-size:1rem">${flag}</span>
+        <span style="font-family:'Barlow Condensed',sans-serif;font-size:.82rem;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:${wins?'#2ecc71':'var(--text)'};font-weight:${wins?'700':'400'}">${myMark}${short}${ownerPill}</span>
+        ${score!==null?`<span style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${wins?'#2ecc71':'var(--text)'};padding-left:3px">${score}</span>`:''}
+      </div>`;
+    };
+
+    const liveTag=m.isLive?`<div style="padding:2px 8px;background:rgba(255,107,107,.1);border-bottom:1px solid rgba(255,107,107,.2);display:flex;align-items:center;gap:5px"><span class="b-live-dot"></span><span style="font-family:'Barlow Condensed',sans-serif;font-size:.65rem;color:var(--wc-coral)">${m.elapsed?m.elapsed+"'":'LIVE'}</span></div>`:'';
+
+    return `<div onclick="openMatchModal(${m.num})" style="background:var(--card);border:1px solid ${m.isLive?'var(--wc-coral)':m.isDone?'rgba(255,255,255,.1)':hMy||aMy?'rgba(245,200,66,.4)':'var(--border)'};border-radius:8px;overflow:hidden;cursor:pointer;box-shadow:var(--lift-1);${extraStyle}">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.6rem;color:var(--muted);padding:3px 8px 0;display:flex;justify-content:space-between">
+        <span>M${m.num}</span>
+        <span>${dateStr?dateStr+' · ':''} ${m.time||''} PT${penStr}</span>
+      </div>
+      ${liveTag}
+      ${slot(m.h,m.hg,m.hWins,hElim,hMy,hOwner)}
+      <div style="height:.5px;background:var(--border)"></div>
+      ${slot(m.a,m.ag,m.aWins,aElim,aMy,aOwner)}
+    </div>`;
+  }
+
+  // Build full bracket as a horizontal scroll tree
+  // Layout: 8 R32 matches per side, pairing into R16, QF, SF, Final
+  // We do top half (matches index 0-7 in r32Order) and bottom half (8-15) side by side
+  const r32Top=r32Order.slice(0,8).map(getMatch);
+  const r32Bot=r32Order.slice(8,16).map(getMatch);
+
+  // R16 winners feed from pairs
+  const r16Top=[89,90,91,92].map(getMatch);  // pairs of r32Top
+  const r16Bot=[93,94,95,96].map(getMatch);  // pairs of r32Bot
+
+  // QF
+  const qfTop=[97,98].map(getMatch);
+  const qfBot=[99,100].map(getMatch);
+
+  // SF
+  const sf=[101,102].map(getMatch);
+
+  // Final/3rd
+  const final=[103,104].map(getMatch);
+
+  // Column widths
+  const CW=172;
+
+  function col(title, matches, extraCardStyle=''){
+    return `<div style="min-width:${CW}px;padding:0 5px;flex-shrink:0">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:.78rem;letter-spacing:2px;color:var(--gold);text-align:center;padding:4px 0 8px;border-bottom:1px solid var(--border);margin-bottom:6px">${title}</div>
+      <div style="display:flex;flex-direction:column;gap:6px;${extraCardStyle}">
+        ${matches.map(m=>matchCard(m)).join('')}
+      </div>
+    </div>`;
+  }
+
+  // Spacer column with connector lines
+  function connector(n){
+    return `<div style="min-width:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center;opacity:.25">
+      <div style="width:1px;height:80%;background:var(--border)"></div>
+    </div>`;
+  }
+
+  // Build vertically-aligned columns where each round has cards centered against their opponents
+  // The magic: each successive round's cards are spaced to align with the midpoint of their two feeders
+  function buildHalf(r32matches, r16matches, title){
+    return `<div style="display:flex;align-items:flex-start">
+      <!-- R32 -->
+      <div style="min-width:${CW}px;padding:0 5px;flex-shrink:0">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:.78rem;letter-spacing:2px;color:var(--gold);text-align:center;padding:4px 0 8px;border-bottom:1px solid var(--border);margin-bottom:6px">Round of 32</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${r32matches.map(m=>matchCard(m)).join('')}
+        </div>
+      </div>
+      <!-- connector -->
+      <div style="min-width:12px;flex-shrink:0"></div>
+      <!-- R16 -->
+      <div style="min-width:${CW}px;padding:0 5px;flex-shrink:0">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:.78rem;letter-spacing:2px;color:var(--gold);text-align:center;padding:4px 0 8px;border-bottom:1px solid var(--border);margin-bottom:6px">Round of 16</div>
+        <div style="display:flex;flex-direction:column;gap:6px;padding-top:38px">
+          ${r16matches.map(m=>matchCard(m)).join('')}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Render final and 3rd place
+  const finalSection=`<div style="min-width:${CW}px;padding:0 5px;flex-shrink:0">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:.78rem;letter-spacing:2px;color:var(--gold);text-align:center;padding:4px 0 8px;border-bottom:1px solid var(--border);margin-bottom:6px">Final / 3rd Place</div>
+    <div style="display:flex;flex-direction:column;gap:10px;padding-top:76px">
+      ${final.map(m=>matchCard(m)).join('')}
+    </div>
+  </div>`;
+
+  const sfSection=`<div style="min-width:${CW}px;padding:0 5px;flex-shrink:0">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:.78rem;letter-spacing:2px;color:var(--gold);text-align:center;padding:4px 0 8px;border-bottom:1px solid var(--border);margin-bottom:6px">Semi-Finals</div>
+    <div style="display:flex;flex-direction:column;gap:6px;padding-top:38px">
+      ${sf.map(m=>matchCard(m)).join('')}
+    </div>
+  </div>`;
+
+  const qfSection=`<div style="min-width:${CW}px;padding:0 5px;flex-shrink:0">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:.78rem;letter-spacing:2px;color:var(--gold);text-align:center;padding:4px 0 8px;border-bottom:1px solid var(--border);margin-bottom:6px">Quarter-Finals</div>
+    <div style="display:flex;flex-direction:column;gap:6px;padding-top:19px">
+      ${[...qfTop,...qfBot].map(m=>matchCard(m)).join('')}
+    </div>
+  </div>`;
+
+  body.innerHTML=`<div style="display:flex;gap:0;min-width:1100px;padding:8px 0">
+    <!-- Top half: R32 + R16 -->
+    ${buildHalf(r32Top, r16Top, 'Top')}
+    <div style="min-width:12px;flex-shrink:0"></div>
+    <!-- QF -->
+    ${qfSection}
+    <div style="min-width:12px;flex-shrink:0"></div>
+    <!-- SF -->
+    ${sfSection}
+    <div style="min-width:12px;flex-shrink:0"></div>
+    <!-- Final -->
+    ${finalSection}
+    <div style="min-width:12px;flex-shrink:0"></div>
+    <!-- SF bottom / R16 bottom / R32 bottom -->
+    <!-- Bottom half: R16 + R32 (reversed so they flow into QF center) -->
+    <div style="display:flex;align-items:flex-start">
+      <div style="min-width:${CW}px;padding:0 5px;flex-shrink:0">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:.78rem;letter-spacing:2px;color:var(--gold);text-align:center;padding:4px 0 8px;border-bottom:1px solid var(--border);margin-bottom:6px">Round of 16</div>
+        <div style="display:flex;flex-direction:column;gap:6px;padding-top:38px">
+          ${r16Bot.map(m=>matchCard(m)).join('')}
+        </div>
+      </div>
+      <div style="min-width:12px;flex-shrink:0"></div>
+      <div style="min-width:${CW}px;padding:0 5px;flex-shrink:0">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:.78rem;letter-spacing:2px;color:var(--gold);text-align:center;padding:4px 0 8px;border-bottom:1px solid var(--border);margin-bottom:6px">Round of 32</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${r32Bot.map(m=>matchCard(m)).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`;
 }
-
 // ═══════════════════════════════════════════════════════════════════
 // SLEEPER TRACKER
 // ═══════════════════════════════════════════════════════════════════
@@ -4157,18 +4177,20 @@ function buildSleeperTracker(){
   });
   const minRank=sleeperPool[0]?.rank||18, maxRank=sleeperPool[sleeperPool.length-1]?.rank||88;
   const sleeperData=sleeperPool.map(team=>{
-    const st=teamStats[team.name]||{W:0,D:0,L:0,GF:0,GA:0,played:0};
-    const actualPts=st.W*3+st.D, played=st.played;
+    const st=teamStats[team.name]||{W:0,D:0,L:0,GF:0,GA:0,KOWins:0};
+    const played=st.W+st.D+st.L;
+    const actualPts=st.W*3+st.D;
     const normRank=(maxRank===minRank)?0:(team.rank-minRank)/(maxRank-minRank);
     const expectedPtsPerGame=1.8-(normRank*1.3);
     const expectedTotal=played>0?expectedPtsPerGame*played:0;
     const overperf=played>0?actualPts-expectedTotal:0;
-    // Find which tier index this team belongs to
     const ti=tiers.findIndex(t=>t.teams.some(x=>x.name===team.name));
-    const tierBonus=ti>0?1.0+(ti*0.15):1.0; // later tiers get more bonus
-    const cinScore=played>0?(overperf*tierBonus+(st.GF*0.2)-(st.GA*0.1)):0;
+    const tierBonus=ti>0?1.0+(ti*0.15):1.0;
+    // Each knockout win = big Cinderella bonus — lower tier teams get more credit
+    const koBonus=(st.KOWins||0)*3*tierBonus;
+    const cinScore=played>0?(overperf*tierBonus+(st.GF*0.2)-(st.GA*0.1)+koBonus):0;
     const owner=ownerOf(team.name);
-    return {...team,st,actualPts,expectedTotal:Math.round(expectedTotal*10)/10,overperf:Math.round(overperf*10)/10,cinScore:Math.round(cinScore*10)/10,played,owner,tierIdx:ti};
+    return {...team,st,actualPts,played,expectedTotal:Math.round(expectedTotal*10)/10,overperf:Math.round(overperf*10)/10,cinScore:Math.round(cinScore*10)/10,owner,tierIdx:ti};
   });
   sleeperData.sort((a,b)=>b.cinScore-a.cinScore);
   const hasAnyData=sleeperData.some(t=>t.played>0);
@@ -4248,19 +4270,24 @@ function calcTeamStats(){
   SCHEDULE.forEach(m=>{
     const kr=knockoutResults[m.num];
     if(!kr||kr.homeScore===undefined||kr.awayScore===undefined) return;
-    // Count match if finished OR if it has a score (handles stuck/missing status)
     const finished=['FT','AET','PEN'].includes(kr.status)||(!kr.status)||
                    (kr.homeScore!==undefined&&kr.awayScore!==undefined&&m.date<getPTDateStr());
     if(!finished) return;
     const hName=cn(m.home), aName=cn(m.away);
-    // Skip knockout matches where codes haven't resolved yet
-    if(hName===m.home||aName===m.away) return;
+    // Skip if code didn't resolve
+    if(hName===m.home&&m.home.length<=3) return;
+    if(aName===m.away&&m.away.length<=3) return;
     const hs=kr.homeScore, as=kr.awayScore;
-    if(!teamStats[hName]) teamStats[hName]={W:0,D:0,L:0,GF:0,GA:0};
-    if(!teamStats[aName]) teamStats[aName]={W:0,D:0,L:0,GF:0,GA:0};
-    if(hs>as){teamStats[hName].W++;teamStats[aName].L++;}
-    else if(hs<as){teamStats[aName].W++;teamStats[hName].L++;}
-    else{teamStats[hName].D++;teamStats[aName].D++;}
+    const isKO=['r32','r16','qf','sf','bronze','final'].includes(m.stage);
+    if(!teamStats[hName]) teamStats[hName]={W:0,D:0,L:0,GF:0,GA:0,KOWins:0};
+    if(!teamStats[aName]) teamStats[aName]={W:0,D:0,L:0,GF:0,GA:0,KOWins:0};
+    // PEN: winner by shootout
+    const isPEN=kr.status==='PEN'&&kr.homePens!=null;
+    const hWins=isPEN?kr.homePens>kr.awayPens:hs>as;
+    const aWins=isPEN?kr.awayPens>kr.homePens:as>hs;
+    if(hWins){ teamStats[hName].W++; teamStats[aName].L++; if(isKO) teamStats[hName].KOWins++; }
+    else if(aWins){ teamStats[aName].W++; teamStats[hName].L++; if(isKO) teamStats[aName].KOWins++; }
+    else{ teamStats[hName].D++; teamStats[aName].D++; }
     teamStats[hName].GF+=hs; teamStats[hName].GA+=as;
     teamStats[aName].GF+=as; teamStats[aName].GA+=hs;
   });
