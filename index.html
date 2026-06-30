@@ -720,6 +720,18 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
         <button class="btn btn-dark" onclick="requirePin(forceFinishStuckMatches)" style="border-color:rgba(255,107,107,.4);color:var(--wc-coral)">⚡ Force FT Stuck Matches</button>
         <button class="btn btn-dark" onclick="requirePin(refetchAllScorers)" style="border-color:rgba(69,183,209,.4);color:var(--wc-blue)">📊 Re-fetch All Scorers</button>
       </div>
+      <!-- Sync single match directly from API — most reliable fix -->
+      <div style="margin-top:14px;background:var(--dark3);border:1px solid rgba(69,183,209,.3);border-radius:8px;padding:12px 16px">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:var(--wc-blue);margin-bottom:10px">🔄 SYNC MATCH FROM API (RECOMMENDED)</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <input id="syncHomeTeam" type="text" placeholder="Home team e.g. Netherlands" style="flex:1;min-width:160px;background:var(--dark2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:6px 10px;font-family:'Barlow Condensed',sans-serif;font-size:.9rem"/>
+          <span style="color:var(--muted);font-family:'Bebas Neue',sans-serif">vs</span>
+          <input id="syncAwayTeam" type="text" placeholder="Away team e.g. Morocco" style="flex:1;min-width:160px;background:var(--dark2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:6px 10px;font-family:'Barlow Condensed',sans-serif;font-size:.9rem"/>
+          <button class="btn btn-gold" onclick="requirePin(syncSingleMatchFromUI)">↻ Sync Now</button>
+        </div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--muted);margin-top:6px">Pulls the live, authoritative result directly from API-Football for this exact match — including penalty shootouts. This is the most reliable fix for any stuck or incorrect match, no guessing required.</div>
+        <div id="syncResultMsg" style="font-family:'Barlow Condensed',sans-serif;font-size:.8rem;margin-top:8px"></div>
+      </div>
       <!-- Manual match result entry -->
       <div style="margin-top:14px;background:var(--dark3);border:1px solid var(--border);border-radius:8px;padding:12px 16px">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:var(--muted);margin-bottom:10px">MANUAL RESULT ENTRY</div>
@@ -3826,6 +3838,49 @@ async function refetchAllScorers(){
     }
   }catch(e){
     showToast('❌ Re-fetch error — check console');
+    console.error(e);
+  }
+}
+
+async function syncSingleMatchFromUI(){
+  const home=document.getElementById('syncHomeTeam').value.trim();
+  const away=document.getElementById('syncAwayTeam').value.trim();
+  const msgEl=document.getElementById('syncResultMsg');
+  if(!home||!away){
+    showToast('❌ Enter both team names');
+    return;
+  }
+  msgEl.style.color='var(--muted)';
+  msgEl.textContent='Syncing from API-Football...';
+  try{
+    const res=await fetch(EDGE_FN,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPA_KEY},
+      body:JSON.stringify({action:'sync_single_match',homeTeam:home,awayTeam:away}),
+    });
+    const data=await res.json();
+    if(data.success){
+      msgEl.style.color='#2ecc71';
+      msgEl.textContent=`✅ ${data.message}`;
+      // Reload fresh data and rebuild everything
+      const fresh=await _supaGet('scores',SCORES_ID);
+      if(fresh){
+        matchLog=fresh.matchLog||[];
+        knockoutResults=fresh.knockoutResults||{};
+        qualifierOverrides=fresh.qualifierOverrides||{};
+        purgeBadOverrides();
+        buildTracker();buildTeamsGrid();buildSleeperTracker();buildKnockoutBracket();
+        buildTopScorers();buildProjection();renderCalendar();buildLiveScores();buildMiniScoreboard();
+      }
+      showToast(`✅ Synced M${data.matchNum}`);
+    } else {
+      msgEl.style.color='var(--red)';
+      msgEl.textContent=`❌ ${data.error||'Sync failed'}`;
+      showToast('❌ Sync failed — see message below');
+    }
+  }catch(e){
+    msgEl.style.color='var(--red)';
+    msgEl.textContent='❌ Network error — check console';
     console.error(e);
   }
 }
