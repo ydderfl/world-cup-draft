@@ -2748,20 +2748,20 @@ function buildTopScorers(){
       // Skip entries with no player name — API-Football sometimes returns null player
       // for penalty retakes, VAR-awarded goals, or data gaps
       if(!s.player||s.player==='Unknown'||s.player.trim()==='') continue;
+      // Skip penalty shootout goals — these are NOT real goals and never count.
+      // Shootout pens have minute=null/0 with no extra time, occurring on a
+      // match that ended in PEN status, distinct from in-game penalties which
+      // always have a real elapsed minute.
+      if(kr.status==='PEN'&&(s.minute==null||s.minute===0)&&!s.extra) continue;
       const teamName=normScorerTeam(s.team,m);
-      // Validate team belongs to this match — catches bad data from scorer wipe period
+      // Validate team belongs to this match — catches bad data from scorer wipe period.
+      // Simple, bulletproof check: teamName must equal one of the two actual
+      // participants in this match (comparing normalized names directly).
       const hName=cn(m.home), aName=cn(m.away);
-      const normH=normScorerTeam(hName,m), normA=normScorerTeam(aName,m);
-      const validTeams=new Set([hName,aName,normH,normA,
-        hName.toLowerCase(),aName.toLowerCase(),
-        teamName.toLowerCase()]);
-      const teamIsValid=validTeams.has(normH)&&(
-        teamName===hName||teamName===aName||
-        teamName===normH||teamName===normA||
-        teamName.toLowerCase()===hName.toLowerCase()||
-        teamName.toLowerCase()===aName.toLowerCase());
-      if(!teamIsValid&&teamName!==hName&&teamName!==aName&&teamName!==normH&&teamName!==normA){
-        // Wrong team — skip, will be fixed by Re-fetch All Scorers
+      const isHomeTeam=teamName===hName;
+      const isAwayTeam=teamName===aName;
+      if(!isHomeTeam&&!isAwayTeam){
+        console.warn(`Skipping ${s.player} attributed to "${teamName}" in M${m.num} (${hName} vs ${aName}) — not a match participant`);
         continue;
       }
       const owner=ownerOf(teamName);
