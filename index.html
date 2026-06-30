@@ -728,9 +728,15 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
           <input id="manHomeScore" type="number" placeholder="Home" style="width:70px;background:var(--dark2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:6px 10px;font-family:'Barlow Condensed',sans-serif;font-size:.9rem"/>
           <span style="color:var(--muted);font-family:'Bebas Neue',sans-serif">—</span>
           <input id="manAwayScore" type="number" placeholder="Away" style="width:70px;background:var(--dark2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:6px 10px;font-family:'Barlow Condensed',sans-serif;font-size:.9rem"/>
-          <button class="btn btn-gold" onclick="requirePin(()=>{const n=parseInt(document.getElementById('manMatchNum').value),h=parseInt(document.getElementById('manHomeScore').value),a=parseInt(document.getElementById('manAwayScore').value);if(!n||isNaN(h)||isNaN(a)){showToast('❌ Fill in all fields');return;}forceWriteResult(n,h,a);})">Write FT</button>
+          <button class="btn btn-gold" onclick="requirePin(()=>{const n=parseInt(document.getElementById('manMatchNum').value),h=parseInt(document.getElementById('manHomeScore').value),a=parseInt(document.getElementById('manAwayScore').value),hp=document.getElementById('manHomePens').value,ap=document.getElementById('manAwayPens').value;if(!n||isNaN(h)||isNaN(a)){showToast('❌ Fill in all fields');return;}const homePens=hp!==''?parseInt(hp):null,awayPens=ap!==''?parseInt(ap):null;forceWriteResult(n,h,a,homePens,awayPens);})">Write Result</button>
         </div>
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--muted);margin-top:6px">Use this to manually fix any match stuck without a result. M71=JOR vs ARG · M72=ALG vs AUT</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">
+          <span style="font-family:'Barlow Condensed',sans-serif;font-size:.78rem;color:var(--muted)">If decided on penalties (optional):</span>
+          <input id="manHomePens" type="number" placeholder="Home pens" style="width:90px;background:var(--dark2);border:1px solid rgba(245,200,66,.3);border-radius:4px;color:var(--gold);padding:6px 10px;font-family:'Barlow Condensed',sans-serif;font-size:.85rem"/>
+          <span style="color:var(--muted);font-family:'Bebas Neue',sans-serif">—</span>
+          <input id="manAwayPens" type="number" placeholder="Away pens" style="width:90px;background:var(--dark2);border:1px solid rgba(245,200,66,.3);border-radius:4px;color:var(--gold);padding:6px 10px;font-family:'Barlow Condensed',sans-serif;font-size:.85rem"/>
+        </div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.72rem;color:var(--muted);margin-top:6px">Home/Away score = full-time score (after ET if applicable). Leave penalty fields blank for a normal FT/AET result. Fill them in only if the match went to a shootout.</div>
       </div>
       <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
         <span id="overrideSaveMsg" style="font-family:'Barlow Condensed',sans-serif;font-size:.85rem;color:var(--muted);align-self:center"></span>
@@ -3824,10 +3830,13 @@ async function refetchAllScorers(){
   }
 }
 
-function forceWriteResult(matchNum, homeScore, awayScore){
+function forceWriteResult(matchNum, homeScore, awayScore, homePens, awayPens){
+  const isPEN=homePens!=null&&awayPens!=null;
   knockoutResults[matchNum]={
     homeScore, awayScore,
-    status:'FT', elapsed:null, finished:true,
+    homePens: isPEN?homePens:null,
+    awayPens: isPEN?awayPens:null,
+    status: isPEN?'PEN':'FT', elapsed:null, finished:true,
     scorers: knockoutResults[matchNum]?.scorers||[],
     cards: knockoutResults[matchNum]?.cards||[],
     autoUpdated:false,
@@ -3836,16 +3845,19 @@ function forceWriteResult(matchNum, homeScore, awayScore){
   saveScores();
   buildTracker();buildTeamsGrid();buildKnockoutBracket();buildProjection();
   buildTopScorers();renderCalendar();buildLiveScores();buildMiniScoreboard();
-  showToast(`✅ M${matchNum} written as ${homeScore}-${awayScore} FT`);
+  showToast(`✅ M${matchNum} written as ${homeScore}-${awayScore}${isPEN?` (${homePens}-${awayPens} pens)`:''} ${isPEN?'PEN':'FT'}`);
 }
 
 function forceFinishStuckMatches(){
   // Find any match that is stuck in a live status at 85+ minutes
-  // where the last update was more than 30 minutes ago
+  // where the last update was more than 30 minutes ago.
+  // CRITICAL: never touch a match in "P" (penalty shootout) status —
+  // doing so would wipe the shootout result before it resolves.
   const now=Date.now();
   let fixed=0;
   Object.entries(knockoutResults).forEach(([num,kr])=>{
-    const isLive=['1H','HT','2H','ET','BT','P','INT','LIVE'].includes(kr.status);
+    if(kr.status==='P') return; // never force-finish during a shootout
+    const isLive=['1H','HT','2H','ET','BT','INT','LIVE'].includes(kr.status);
     const isStuck=isLive&&kr.elapsed!=null&&kr.elapsed>=85;
     const lastUpdate=kr.updatedAt?new Date(kr.updatedAt).getTime():0;
     const minutesAgo=(now-lastUpdate)/60000;
