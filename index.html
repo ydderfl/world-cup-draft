@@ -1494,8 +1494,8 @@ const SCHEDULE=[
   {num: 75,date:"2026-06-29",time:"18:00",home:"1F",   away:"2C",      group:"",stage:"r32",venue:"Monterrey"},
   {num: 76,date:"2026-06-29",time:"10:00",home:"1C",   away:"2F",      group:"",stage:"r32",venue:"Houston"},
   // TUE 30 Jun
-  {num: 77,date:"2026-06-30",time:"10:00",home:"1I",   away:"3CDFGH",  group:"",stage:"r32",venue:"New York NJ"},
-  {num: 78,date:"2026-06-30",time:"14:00",home:"2E",   away:"2I",      group:"",stage:"r32",venue:"Dallas"},
+  {num: 77,date:"2026-06-30",time:"14:00",home:"1I",   away:"3CDFGH",  group:"",stage:"r32",venue:"New York NJ"},
+  {num: 78,date:"2026-06-30",time:"10:00",home:"2E",   away:"2I",      group:"",stage:"r32",venue:"Dallas"},
   {num: 79,date:"2026-06-30",time:"18:00",home:"1A",   away:"3CEFHI",  group:"",stage:"r32",venue:"Mexico City"},
   // WED 1 Jul
   {num: 80,date:"2026-07-01",time:"09:00",home:"1L",   away:"3EHIJK",  group:"",stage:"r32",venue:"Atlanta"},
@@ -2782,10 +2782,28 @@ function buildTopScorers(){
         console.warn(`Skipping ${s.player} attributed to "${teamName}" in M${m.num} (${hName} vs ${aName}) — not a match participant`);
         continue;
       }
-      const owner=ownerOf(teamName);
+      // KNOWN PLAYER-TEAM OVERRIDE: catches cases where the stored team field
+      // is technically valid for the match but factually wrong for the player
+      // (e.g. data corruption from the earlier scorer-wipe bug attributing a
+      // US player's goal to Paraguay). This list grows as misattributions are
+      // confirmed — each entry is a hard pin from player name to correct team.
+      const PLAYER_TEAM_PINS={
+        'reyna':'United States','g. reyna':'United States','giovanni reyna':'United States',
+        'balogun':'United States','f. balogun':'United States','folarin balogun':'United States',
+        'pulisic':'United States','c. pulisic':'United States','christian pulisic':'United States',
+        'mckennie':'United States','w. mckennie':'United States','weston mckennie':'United States',
+        'adams':'United States','t. adams':'United States','tyler adams':'United States',
+      };
+      const pinKey=s.player.trim().toLowerCase();
+      const pinnedTeam=PLAYER_TEAM_PINS[pinKey];
+      const finalTeamName=pinnedTeam&&(pinnedTeam===hName||pinnedTeam===aName)?pinnedTeam:teamName;
+      if(pinnedTeam&&finalTeamName!==teamName){
+        console.warn(`Corrected ${s.player}: stored team "${teamName}" → pinned team "${pinnedTeam}" in M${m.num}`);
+      }
+      const owner=ownerOf(finalTeamName);
       if(viewMode==='owner'&&selectedOwner&&owner!==selectedOwner) continue;
 
-      const key=scorerKey(s.player,teamName);
+      const key=scorerKey(s.player,finalTeamName);
       // Keep the longer (more complete) name as display
       if(!scorerDisplayName[key]||s.player.length>scorerDisplayName[key].length){
         scorerDisplayName[key]=s.player;
@@ -2793,8 +2811,8 @@ function buildTopScorers(){
       if(!scorerMap[key]){
         scorerMap[key]={
           player:scorerDisplayName[key],
-          team:teamName,
-          flag:tf(teamName)||'🏳',
+          team:finalTeamName,
+          flag:tf(finalTeamName)||'🏳',
           owner:owner||null,
           goals:0,
           pens:0,
