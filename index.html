@@ -1,4 +1,4 @@
-<!-- WC2026 Draft v2026.06.28.1 -->
+<!-- WC2026 Draft v2026.07.01.2 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1499,8 +1499,8 @@ const SCHEDULE=[
   {num: 79,date:"2026-06-30",time:"18:00",home:"1A",   away:"3CEFHI",  group:"",stage:"r32",venue:"Mexico City"},
   // WED 1 Jul
   {num: 80,date:"2026-07-01",time:"09:00",home:"1L",   away:"3EHIJK",  group:"",stage:"r32",venue:"Atlanta"},
-  {num: 81,date:"2026-07-01",time:"13:00",home:"1D",   away:"3BEFIJ",  group:"",stage:"r32",venue:"San Francisco"},
-  {num: 82,date:"2026-07-01",time:"17:00",home:"1G",   away:"3AEHIJ",  group:"",stage:"r32",venue:"Seattle"},
+  {num: 81,date:"2026-07-01",time:"17:00",home:"1D",   away:"3BEFIJ",  group:"",stage:"r32",venue:"San Francisco"},
+  {num: 82,date:"2026-07-01",time:"13:00",home:"1G",   away:"3AEHIJ",  group:"",stage:"r32",venue:"Seattle"},
   // THU 2 Jul
   {num: 83,date:"2026-07-02",time:"16:00",home:"2K",   away:"2L",      group:"",stage:"r32",venue:"Toronto"},
   {num: 84,date:"2026-07-02",time:"12:00",home:"1H",   away:"2J",      group:"",stage:"r32",venue:"Los Angeles"},
@@ -1508,11 +1508,11 @@ const SCHEDULE=[
   // FRI 3 Jul
   {num: 86,date:"2026-07-03",time:"15:00",home:"1J",   away:"2H",      group:"",stage:"r32",venue:"Miami"},
   {num: 87,date:"2026-07-03",time:"18:30",home:"1K",   away:"3DEIJL2", group:"",stage:"r32",venue:"Kansas City"},
-  {num: 88,date:"2026-07-03",time:"16:00",home:"2D",   away:"2G",      group:"",stage:"r32",venue:"Dallas"},
+  {num: 88,date:"2026-07-03",time:"11:00",home:"2D",   away:"2G",      group:"",stage:"r32",venue:"Dallas"},
   // ── ROUND OF 16 ─────────────────────────────────────────────────
   // SAT 4 Jul — M89: W74 vs W77, M90: W73 vs W75
-  {num: 89,date:"2026-07-04",time:"10:00",home:"W74",  away:"W77",     group:"",stage:"r16",venue:"Philadelphia"},
-  {num: 90,date:"2026-07-04",time:"14:00",home:"W73",  away:"W75",     group:"",stage:"r16",venue:"Houston"},
+  {num: 89,date:"2026-07-04",time:"14:00",home:"W74",  away:"W77",     group:"",stage:"r16",venue:"Philadelphia"},
+  {num: 90,date:"2026-07-04",time:"10:00",home:"W73",  away:"W75",     group:"",stage:"r16",venue:"Houston"},
   // SUN 5 Jul — M91: W76 vs W78, M92: W79 vs W80
   {num: 91,date:"2026-07-05",time:"13:00",home:"W76",  away:"W78",     group:"",stage:"r16",venue:"New York NJ"},
   {num: 92,date:"2026-07-05",time:"17:00",home:"W79",  away:"W80",     group:"",stage:"r16",venue:"Mexico City"},
@@ -2824,7 +2824,11 @@ function buildTopScorers(){
     }
   }
 
-  const scorers=Object.values(scorerMap).sort((a,b)=>b.goals-a.goals||a.player.localeCompare(b.player));
+  const scorers=Object.values(scorerMap).sort((a,b)=>{
+    const aOwned=a.owner?1:0, bOwned=b.owner?1:0;
+    if(aOwned!==bOwned) return bOwned-aOwned; // drafted players first
+    return b.goals-a.goals||a.player.localeCompare(b.player);
+  });
   const totalGoals=scorers.reduce((s,x)=>s+x.goals,0);
 
   if(countEl){
