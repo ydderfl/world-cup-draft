@@ -1370,6 +1370,11 @@ const CODE2NAME={
   "3AEHIJ":"Senegal",             // M82: Belgium vs Senegal
   "3DEIJL":"Algeria",             // M85: Switzerland vs Algeria
   "3DEIJL2":"Ghana",              // M87: Colombia vs Ghana
+  // ── Confirmed R32 winners → R16 team slots ──
+  "W73":"Canada","W74":"Paraguay","W75":"Morocco","W76":"Brazil",
+  "W77":"France","W78":"Norway","W79":"Mexico","W80":"England",
+  "W81":"United States","W82":"Belgium","W83":"Portugal","W84":"Spain",
+  "W85":"Switzerland","W86":"Argentina","W87":"Colombia","W88":"Australia",
   "3ABCDG":"Ghana",               // placeholder - see 1K below
 };
 function cn(c){return CODE2NAME[c]||c;}
@@ -4285,10 +4290,37 @@ function buildPathToGlory(){
     'Paraguay':22,'Egypt':35,'Switzerland':12,
   };
 
-  const stats=calcTeamStats();
+  // Use a simple hardcoded list of remaining alive teams based on R32 results
+  // This avoids the isTeamEliminated complexity which can crash
+  const R32_WINNERS=new Set();
+  const R32_MATCHES=[73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88];
+  R32_MATCHES.forEach(num=>{
+    const kr=knockoutResults[num];
+    if(!kr||!['FT','AET','PEN'].includes(kr.status)) return;
+    const m=SCHEDULE.find(x=>x.num===num);
+    if(!m) return;
+    const home=CODE2NAME[m.home]||resolveTeam(m.home);
+    const away=CODE2NAME[m.away]||resolveTeam(m.away);
+    if(!home||!away) return;
+    const isPEN=kr.status==='PEN'&&kr.homePens!=null;
+    const homeWins=isPEN?kr.homePens>kr.awayPens:kr.homeScore>kr.awayScore;
+    R32_WINNERS.add(homeWins?home:away);
+  });
+
+  // Also include teams that haven't played their R32 yet (still alive by default)
   const allTeams=Object.values(GROUPS).flat();
   const alive=allTeams.filter(name=>{
-    try{return !isTeamEliminated(name);}catch(e){return true;}
+    // If R32 has happened for this team's match, only include if they won
+    const hasR32=R32_MATCHES.some(num=>{
+      const m=SCHEDULE.find(x=>x.num===num);
+      if(!m) return false;
+      const home=CODE2NAME[m.home]||resolveTeam(m.home);
+      const away=CODE2NAME[m.away]||resolveTeam(m.away);
+      return home===name||away===name;
+    });
+    if(hasR32) return R32_WINNERS.has(name);
+    // R32 not played yet — include if they're a confirmed R32 qualifier
+    return Object.values(CODE2NAME).includes(name);
   });
 
   if(!alive.length){
@@ -4301,11 +4333,16 @@ function buildPathToGlory(){
     const st=stats[name]||{W:0,D:0,L:0,GF:0,GA:0,KOWins:0};
     const gd=(st.GF||0)-(st.GA||0);
     const played=(st.W||0)+(st.D||0)+(st.L||0);
-    const rankScore=Math.max(0,100-rank)*0.7;
-    const formScore=played>0?(gd/played)*8:0;
-    const koBonus=(st.KOWins||0)*6;
-    const rawProb=Math.min(95,Math.max(5,rankScore+formScore+koBonus));
-    const label=rawProb>=55?'fav':rawProb>=35?'mid':'dog';
+    // Base probability inversely proportional to rank, normalized across R16 field
+    // Top rank (1) gets ~80, rank 50 gets ~30, scaled so there's spread
+    const rankScore=Math.max(5,85-(rank*1.2));
+    // Form: tournament GD per game adds/subtracts
+    const formScore=played>0?(gd/played)*5:0;
+    // Knockout wins give a credibility boost
+    const koBonus=(st.KOWins||0)*4;
+    const rawProb=Math.min(90,Math.max(5,rankScore+formScore+koBonus));
+    // Thresholds: fav=60+, mid=35-59, dog=<35
+    const label=rawProb>=60?'fav':rawProb>=35?'mid':'dog';
     const owner=ownerOf(name);
     const wins=(st.W||0)+(st.KOWins||0);
     const winsNeeded=Math.max(0,7-wins);
