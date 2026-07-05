@@ -4250,120 +4250,167 @@ function buildPathToGlory(){
   const body=document.getElementById('gloryBody');
   if(!body) return;
 
-  // Build list of remaining teams from knockoutResults
-  // A team is still alive if not isTeamEliminated
-  // Win probability formula: base from FIFA rank + form boost from GF-GA in tournament
+  // Live BetMGM odds to win World Cup (updated July 4 2026)
+  const ODDS={
+    'France':'+175','Argentina':'+430','Spain':'+550','England':'+900',
+    'Brazil':'+1100','Portugal':'+1400','Morocco':'+2200','Colombia':'+2200',
+    'Mexico':'+2500','United States':'+2000','Norway':'+4000','Belgium':'+4500',
+    'Switzerland':'+7000','Canada':'+6000','Egypt':'+25000','Paraguay':'+40000',
+  };
+
+  // Key players per team
+  const KEY_PLAYERS={
+    'France':'Mbappé (6g) · Olise (5a) · Dembélé (4g)',
+    'Argentina':'Messi (7g) · Romero · Di María',
+    'Spain':'Oyarzabal (4g) · Yamal · Rodri',
+    'England':'Kane (5g) · Bellingham · Saka',
+    'Brazil':'Vinicius Jr (4g) · Rodrygo · Bruno Guimarães',
+    'Portugal':'Ronaldo (2g) · B.Fernandes · Vitinha',
+    'Morocco':'Ziyech · Hakimi · En-Nesyri',
+    'Colombia':'J.Durán · Díaz · Castillo',
+    'Mexico':'Alvarado (3a) · Gutiérrez · Guardado',
+    'United States':'Reyna (3g) · Pulisic · McKennie',
+    'Norway':'Haaland (5g) · Ødegaard · Sørloth',
+    'Belgium':'De Bruyne · Doku · Trossard',
+    'Switzerland':'Embolo · Shaqiri · Xhaka',
+    'Canada':'J.David (3g) · Davies · Laryea',
+    'Egypt':'Salah · Trezeguet · El-Shenawy',
+    'Paraguay':'Sanabria · Almeida · Galarza',
+  };
+
   const FIFA_RANKS={
     'France':2,'Brazil':5,'Argentina':1,'Spain':3,'England':4,
     'Portugal':7,'Colombia':9,'United States':11,'Belgium':8,
     'Mexico':15,'Norway':18,'Morocco':14,'Canada':20,
     'Paraguay':22,'Egypt':35,'Switzerland':12,
-    'Senegal':18,'Bosnia & Herzegovina':61,'DR Congo':45,
-    'Algeria':35,'Ghana':60,'Australia':25,'Ecuador':38,
-    'Cape Verde':73,'Austria':27,'Croatia':10,'Ivory Coast':33,
-    'Japan':17,'Sweden':26,
   };
 
-  // Get calcTeamStats for form
   const stats=calcTeamStats();
-
-  // Identify still-alive teams (not eliminated)
   const allTeams=Object.values(GROUPS).flat();
   const alive=allTeams.filter(name=>{
-    try{ return !isTeamEliminated(name); }catch(e){ return true; }
+    try{return !isTeamEliminated(name);}catch(e){return true;}
   });
 
   if(!alive.length){
-    body.innerHTML=`<div style="color:var(--muted);font-family:'Barlow Condensed',sans-serif;padding:36px;text-align:center">Knockout round hasn't started yet.</div>`;
+    body.innerHTML=`<div style="color:var(--muted);font-family:'Barlow Condensed',sans-serif;padding:36px;text-align:center">No teams remaining — check back when the knockout rounds begin.</div>`;
     return;
   }
 
-  // Calculate win probability for each surviving team
   const teams=alive.map(name=>{
     const rank=FIFA_RANKS[name]||50;
     const st=stats[name]||{W:0,D:0,L:0,GF:0,GA:0,KOWins:0};
     const gd=(st.GF||0)-(st.GA||0);
     const played=(st.W||0)+(st.D||0)+(st.L||0);
-    // Base probability: inverse rank score (rank 1=100, rank 50=50, rank 100=0)
     const rankScore=Math.max(0,100-rank)*0.7;
-    // Form boost: GD per game, knockout wins extra weight
     const formScore=played>0?(gd/played)*8:0;
     const koBonus=(st.KOWins||0)*6;
     const rawProb=Math.min(95,Math.max(5,rankScore+formScore+koBonus));
-
-    // Classify
     const label=rawProb>=55?'fav':rawProb>=35?'mid':'dog';
     const owner=ownerOf(name);
-    const isMy=!!owner;
-
-    // Wins so far in tournament (group + knockout)
     const wins=(st.W||0)+(st.KOWins||0);
     const winsNeeded=Math.max(0,7-wins);
 
-    // Next opponent — find their next scheduled match
     let nextOpponent='TBD';
-    const knockoutStages=['r32','r16','qf','sf','bronze','final'];
-    for(const stage of knockoutStages){
-      const stageMatcher=SCHEDULE.filter(m=>m.stage===stage);
-      for(const m of stageMatcher){
+    for(const stage of['r32','r16','qf','sf','bronze','final']){
+      for(const m of SCHEDULE.filter(x=>x.stage===stage)){
         const kr=knockoutResults[m.num];
-        if(kr&&['FT','AET','PEN'].includes(kr.status)) continue; // already played
+        if(kr&&['FT','AET','PEN'].includes(kr.status)) continue;
         const home=CODE2NAME[m.home]||resolveTeam(m.home);
         const away=CODE2NAME[m.away]||resolveTeam(m.away);
-        if(home===name){ nextOpponent=away&&away!==m.away?away:'TBD'; break; }
-        if(away===name){ nextOpponent=home&&home!==m.home?home:'TBD'; break; }
+        if(home===name){nextOpponent=away&&away!==m.away?away:'TBD';break;}
+        if(away===name){nextOpponent=home&&home!==m.home?home:'TBD';break;}
       }
       if(nextOpponent!=='TBD') break;
     }
 
-    return {name,rank,st,gd,played,winProb:Math.round(rawProb),label,owner,isMy,wins,winsNeeded,nextOpponent,flag:tf(name)||'🏳'};
+    return {name,rank,st,gd,played,winProb:Math.round(rawProb),label,owner,
+      wins,winsNeeded,nextOpponent,flag:tf(name)||'🏳',
+      odds:ODDS[name]||'N/A',keyPlayers:KEY_PLAYERS[name]||'—'};
   });
 
   teams.sort((a,b)=>b.winProb-a.winProb);
 
   const labelColor={fav:'#1D9E75',mid:'#378ADD',dog:'#D85A30'};
   const labelBg={fav:'rgba(29,158,117,.1)',mid:'rgba(55,138,221,.1)',dog:'rgba(216,90,48,.1)'};
-  const labelText={fav:'Favorite',mid:'Contender',dog:'Underdog'};
+  const labelText={fav:'🏆 Favorite',mid:'⚽ Contender',dog:'🌟 Underdog'};
+
+  const makeCards=(list)=>list.map(t=>`
+    <div class="card" style="border-left:3px solid ${labelColor[t.label]};${t.owner?'background:rgba(245,200,66,.04)':''}" data-label="${t.label}">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:1.8rem">${t.flag}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:1rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            ${t.owner?'🟡 ':''} ${t.name}
+          </div>
+          <div style="font-size:.68rem;color:var(--muted)">${t.winsNeeded===0?'🏆 Champion!':t.winsNeeded+' win'+(t.winsNeeded!==1?'s':'')+' needed'}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:${labelColor[t.label]};line-height:1">${t.winProb}%</div>
+          <div style="font-size:.6rem;color:var(--muted)">win prob</div>
+        </div>
+      </div>
+
+      <div style="background:var(--dark3);border-radius:3px;height:4px;margin-bottom:10px">
+        <div style="width:${t.winProb}%;height:4px;border-radius:3px;background:${labelColor[t.label]}"></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+        <div style="background:var(--dark3);border-radius:6px;padding:6px 8px">
+          <div style="font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:2px">Odds to win</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:var(--gold)">${t.odds}</div>
+        </div>
+        <div style="background:var(--dark3);border-radius:6px;padding:6px 8px">
+          <div style="font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:2px">Tournament GD</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.05rem;color:${t.gd>=0?'#2ecc71':'var(--red)'}">${t.gd>=0?'+':''}${t.gd} (${t.st.GF||0}—${t.st.GA||0})</div>
+        </div>
+      </div>
+
+      <div style="background:var(--dark3);border-radius:6px;padding:7px 10px;margin-bottom:8px">
+        <div style="font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:3px">Key players</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:.78rem;color:var(--text)">${t.keyPlayers}</div>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:.65rem;padding:2px 8px;border-radius:20px;background:${labelBg[t.label]};color:${labelColor[t.label]};font-weight:700">${labelText[t.label]}</span>
+        ${t.owner?`<span style="font-size:.62rem;padding:2px 6px;border-radius:3px;background:rgba(245,200,66,.15);color:var(--gold)">${t.owner.split(' ')[0]}</span>`:''}
+      </div>
+
+      <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:.7rem;color:var(--muted)">
+        Next · <span style="color:var(--text);font-weight:600">${t.nextOpponent}</span>
+        <span style="float:right">FIFA #${t.rank}</span>
+      </div>
+    </div>`).join('');
+
+  let currentFilter='all';
+  const FILTER_LABELS={all:'All',fav:'Favorites',mid:'Contenders',dog:'Underdogs'};
 
   body.innerHTML=`
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-      <button class="btn btn-dark btn-sm" onclick="buildPathToGlory()">All</button>
-      <button class="btn btn-gold btn-sm" onclick="filterGlory('fav')">Favorites</button>
-      <button class="btn btn-dark btn-sm" onclick="filterGlory('mid')">Contenders</button>
-      <button class="btn btn-dark btn-sm" onclick="filterGlory('dog')">Underdogs</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="gloryFilterBtns">
+      ${Object.entries(FILTER_LABELS).map(([k,v])=>`
+        <button class="btn ${k==='all'?'btn-gold':'btn-dark'}" onclick="filterGlory('${k}',this)" style="font-size:.78rem">${v} ${k!=='all'?`(${teams.filter(t=>t.label===k).length})`:''}</button>
+      `).join('')}
     </div>
-    <div id="gloryGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
-      ${teams.map(t=>`
-      <div class="card" style="border-left:3px solid ${labelColor[t.label]};${t.isMy?'background:rgba(245,200,66,.04)':''}" data-label="${t.label}">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-          <span style="font-size:1.6rem">${t.flag}</span>
-          <div style="flex:1;min-width:0">
-            <div style="font-family:'Barlow Condensed',sans-serif;font-size:.95rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.isMy?'🟡 ':''}${t.name}</div>
-            <div style="font-size:.68rem;color:var(--muted)">${t.winsNeeded===0?'🏆 Champion!':t.winsNeeded+' win'+(t.winsNeeded!==1?'s':'')+' to lift trophy'}</div>
-          </div>
-        </div>
-        <div style="font-size:.65rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:3px">Win probability</div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:${labelColor[t.label]};line-height:1">${t.winProb}%</div>
-        <div style="background:var(--dark3);border-radius:3px;height:4px;margin:7px 0">
-          <div style="width:${t.winProb}%;height:4px;border-radius:3px;background:${labelColor[t.label]}"></div>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted);margin-bottom:8px">
-          <span>GF ${t.st.GF||0} · GA ${t.st.GA||0} · <span style="color:${t.gd>=0?'#2ecc71':'var(--red)'}">${t.gd>=0?'+':''}${t.gd} GD</span></span>
-          <span>FIFA #${t.rank}</span>
-        </div>
-        <span style="font-size:.65rem;padding:2px 8px;border-radius:20px;background:${labelBg[t.label]};color:${labelColor[t.label]};font-weight:700">${labelText[t.label]}</span>
-        ${t.owner?`<span style="font-size:.62rem;margin-left:6px;padding:2px 6px;border-radius:3px;background:rgba(245,200,66,.15);color:var(--gold)">${t.owner.split(' ')[0]}</span>`:''}
-        <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:.7rem;color:var(--muted)">
-          Next: <span style="color:var(--text);font-weight:600">${t.nextOpponent}</span>
-        </div>
-      </div>`).join('')}
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:14px">🟡 = your drafted team · Odds from BetMGM · Win probability from FIFA rank, form &amp; bracket path</div>
+    <div id="gloryGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px">
+      ${makeCards(teams)}
     </div>`;
+
+  window._gloryTeams=teams;
+  window._gloryMakeCards=makeCards;
 }
 
-window.filterGlory=function(label){
-  document.querySelectorAll('#gloryGrid>[data-label]').forEach(el=>{
-    el.style.display=el.dataset.label===label?'':'none';
+window.filterGlory=function(type,btn){
+  const teams=window._gloryTeams;
+  const makeCards=window._gloryMakeCards;
+  if(!teams||!makeCards) return;
+  document.querySelectorAll('#gloryFilterBtns button').forEach(b=>{
+    b.classList.remove('btn-gold');
+    b.classList.add('btn-dark');
   });
+  btn.classList.remove('btn-dark');
+  btn.classList.add('btn-gold');
+  const filtered=type==='all'?teams:teams.filter(t=>t.label===type);
+  document.getElementById('gloryGrid').innerHTML=makeCards(filtered);
 };
 
 function buildSleeperTracker(){
