@@ -1158,25 +1158,28 @@ option{background:var(--dark3)}
 .owner-pill{display:inline-block;font-size:.62rem;padding:1px 6px;border-radius:8px;background:rgba(245,200,66,.14);border:1px solid rgba(245,200,66,.35);color:var(--gold);margin-left:3px;font-family:'Barlow Condensed',sans-serif}
 
 /* BRACKET */
-.bracket-wrap{display:flex;gap:0;align-items:flex-start;min-width:1050px}
-.b-col{display:flex;flex-direction:column;min-width:168px;padding:0 5px}
-.b-col-title{font-family:'Bebas Neue',sans-serif;font-size:.8rem;letter-spacing:2px;color:var(--gold);text-align:center;padding:5px 0 8px;border-bottom:1px solid var(--border);margin-bottom:6px}
+.bracket-wrap{display:flex;gap:0;align-items:flex-start;min-width:1200px}
+.b-col{display:flex;flex-direction:column;min-width:190px;padding:0 6px}
+.b-col-title{font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:var(--gold);text-align:center;padding:6px 0 10px;border-bottom:1px solid var(--border);margin-bottom:8px}
 .b-spacer{flex:1}
 .b-match{background:var(--card);border:1px solid var(--border);border-radius:8px;margin:5px 0;cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .15s;overflow:hidden;box-shadow:var(--lift-1)}
 .b-match:hover{border-color:rgba(245,200,66,.5);box-shadow:var(--lift-2);transform:translateY(-1px)}
 .b-match.my{border-color:rgba(245,200,66,.55);background:linear-gradient(160deg,rgba(245,200,66,.07) 0%,var(--card) 60%)}
-.b-match.done{border-color:rgba(255,255,255,.1)}
+.b-match.done{border-color:rgba(255,255,255,.12)}
 .b-match.is-live{border-color:var(--wc-coral);box-shadow:var(--lift-live);background:linear-gradient(160deg,rgba(255,107,107,.09) 0%,var(--card) 65%)}
-.b-match.not-started{opacity:.55}
-.b-slot{display:flex;justify-content:space-between;align-items:center;padding:6px 9px;border-bottom:1px solid rgba(255,255,255,.05);font-family:'Barlow Condensed',sans-serif;font-size:.82rem;gap:4px}
+.b-match.not-started{opacity:.65}
+.b-slot{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.05);font-family:'Barlow Condensed',sans-serif;font-size:.88rem;gap:5px}
 .b-slot:last-child{border-bottom:none}
-.b-slot.winner{color:#2ecc71;font-weight:700}
-.b-slot.loser{opacity:.38}
-.b-name{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:108px}
-.b-score{font-family:'Bebas Neue',sans-serif;font-size:1.15rem;min-width:14px;text-align:right}
+.b-slot.winner{color:#2ecc71;font-weight:700;background:rgba(46,204,113,.05)}
+.b-slot.loser{opacity:.35}
+.b-name{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:130px;flex:1}
+.b-name.tbd{color:var(--muted);font-style:italic;font-size:.78rem}
+.b-score{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;min-width:16px;text-align:right;flex-shrink:0}
 .b-live-tag{font-size:.55rem;letter-spacing:1px;color:var(--wc-coral);background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.3);border-radius:3px;padding:1px 5px;display:inline-flex;align-items:center;gap:3px;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase}
 .b-live-dot{width:5px;height:5px;background:var(--wc-coral);border-radius:50%;animation:pulse-live 1.2s infinite}
-.b-sep{width:1px;background:var(--border);align-self:stretch;margin:0 2px}
+.b-sep{width:1px;background:var(--border);align-self:stretch;margin:0 3px}
+.b-connector{width:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center;opacity:.2}
+.b-connector::before{content:'';display:block;width:1px;height:60%;background:var(--border)}
 
 /* SLEEPER */
 .sleeper-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
@@ -1374,7 +1377,7 @@ const CODE2NAME={
   "W73":"Canada","W74":"Paraguay","W75":"Morocco","W76":"Brazil",
   "W77":"France","W78":"Norway","W79":"Mexico","W80":"England",
   "W81":"United States","W82":"Belgium","W83":"Portugal","W84":"Spain",
-  "W85":"Switzerland","W86":"Argentina","W87":"Colombia","W88":"Australia",
+  "W85":"Switzerland","W86":"Argentina","W87":"Colombia","W88":"Egypt",
   "3ABCDG":"Ghana",               // placeholder - see 1K below
 };
 function cn(c){return CODE2NAME[c]||c;}
@@ -4105,29 +4108,38 @@ function buildKnockoutBracket(){
     const hElim=m.isDone&&m.aWins, aElim=m.isDone&&m.hWins;
     const dateStr=m.date?new Date(m.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}):'';
     const penStr=m.status==='PEN'&&m.hPens!=null?` (${m.hPens}-${m.aPens}p)`:'';
+    const aetStr=m.status==='AET'?' AET':'';
+    const stageLabel=m.isDone?(m.status==='PEN'?'PEN'+penStr:m.status==='AET'?'AET':'FT'):(m.isLive?'':`${m.time||''} PT`);
+
+    // For TBD slots, show "W89" etc as context
+    const hLabel=m.h||(m.schedule_home?`W${m.schedule_home}`:'TBD');
+    const aLabel=m.a||(m.schedule_away?`W${m.schedule_away}`:'TBD');
 
     const slot=(name,score,wins,elim,isMy,owner)=>{
-      const flag=tf(name)||'🏳';
-      const short=name?(name.length>14?name.substring(0,13)+'…':name):'TBD';
-      const ownerPill=owner?`<span style="font-size:.52rem;background:rgba(245,200,66,.18);color:var(--gold);border:1px solid rgba(245,200,66,.3);border-radius:3px;padding:0 4px;margin-left:3px">${owner.split(' ')[0]}</span>`:'';
-      const myMark=isMy?'🟡 ':'';
-      return `<div style="display:flex;align-items:center;gap:5px;padding:5px 8px;${wins?'background:rgba(46,204,113,.08);':''}${elim?'opacity:.35;':''}${!name?'opacity:.45;':''}">
-        <span style="font-size:1rem">${flag}</span>
-        <span style="font-family:'Barlow Condensed',sans-serif;font-size:.82rem;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:${wins?'#2ecc71':'var(--text)'};font-weight:${wins?'700':'400'}">${myMark}${short}${ownerPill}</span>
-        ${score!==null?`<span style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${wins?'#2ecc71':'var(--text)'};padding-left:3px">${score}</span>`:''}
+      const flag=name?tf(name)||'🏳':'';
+      const displayName=name?(name.length>15?name.substring(0,14)+'…':name):null;
+      const ownerPill=owner?`<span style="font-size:.5rem;background:rgba(245,200,66,.18);color:var(--gold);border:1px solid rgba(245,200,66,.3);border-radius:3px;padding:0 4px;margin-left:3px;flex-shrink:0">${owner.split(' ')[0]}</span>`:'';
+      const myDot=isMy?`<span style="font-size:.6rem;margin-right:1px">🟡</span>`:'';
+      return `<div style="display:flex;align-items:center;gap:5px;padding:6px 10px;min-height:32px;${wins?'background:rgba(46,204,113,.06);':''}${elim?'opacity:.3;':''}">
+        <span style="font-size:1.1rem;flex-shrink:0">${flag}</span>
+        <span style="font-family:'Barlow Condensed',sans-serif;font-size:.9rem;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:${wins?'#2ecc71':name?'var(--text)':'var(--muted)'};font-weight:${wins?'700':'400'};font-style:${!name?'italic':''}">${myDot}${displayName||'TBD'}${ownerPill}</span>
+        ${score!==null?`<span style="font-family:'Bebas Neue',sans-serif;font-size:1.25rem;color:${wins?'#2ecc71':'var(--text)'};padding-left:4px;flex-shrink:0">${score}</span>`:''}
       </div>`;
     };
 
-    const liveTag=m.isLive?`<div style="padding:2px 8px;background:rgba(255,107,107,.1);border-bottom:1px solid rgba(255,107,107,.2);display:flex;align-items:center;gap:5px"><span class="b-live-dot"></span><span style="font-family:'Barlow Condensed',sans-serif;font-size:.65rem;color:var(--wc-coral)">${m.elapsed?m.elapsed+"'":'LIVE'}</span></div>`:'';
+    const liveTag=m.isLive?`<div style="padding:2px 10px;background:rgba(255,107,107,.1);border-bottom:1px solid rgba(255,107,107,.2);display:flex;align-items:center;gap:5px"><span class="b-live-dot"></span><span style="font-family:'Barlow Condensed',sans-serif;font-size:.68rem;color:var(--wc-coral);font-weight:700">${m.elapsed?m.elapsed+"'":'LIVE'}</span></div>`:'';
+    const statusBadge=m.isDone?`<span style="font-size:.58rem;color:${m.status==='PEN'?'var(--gold)':m.status==='AET'?'var(--wc-blue)':'var(--muted)'}">${stageLabel}</span>`:`<span style="font-size:.58rem;color:var(--muted)">${stageLabel}</span>`;
 
-    return `<div onclick="openMatchModal(${m.num})" style="background:var(--card);border:1px solid ${m.isLive?'var(--wc-coral)':m.isDone?'rgba(255,255,255,.1)':hMy||aMy?'rgba(245,200,66,.4)':'var(--border)'};border-radius:8px;overflow:hidden;cursor:pointer;box-shadow:var(--lift-1);${extraStyle}">
-      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.6rem;color:var(--muted);padding:3px 8px 0;display:flex;justify-content:space-between">
-        <span>M${m.num}</span>
-        <span>${dateStr?dateStr+' · ':''} ${m.time||''} PT${penStr}</span>
+    const borderColor=m.isLive?'var(--wc-coral)':m.isDone?'rgba(255,255,255,.12)':hMy||aMy?'rgba(245,200,66,.45)':'var(--border)';
+
+    return `<div onclick="openMatchModal(${m.num})" style="background:var(--card);border:1px solid ${borderColor};border-radius:8px;overflow:hidden;cursor:pointer;box-shadow:var(--lift-1);${extraStyle}">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:.6rem;color:var(--muted);padding:4px 10px 2px;display:flex;justify-content:space-between;align-items:center">
+        <span style="color:var(--gold);font-weight:700">M${m.num}</span>
+        <span>${dateStr?dateStr+' · ':''} ${statusBadge}</span>
       </div>
       ${liveTag}
       ${slot(m.h,m.hg,m.hWins,hElim,hMy,hOwner)}
-      <div style="height:.5px;background:var(--border)"></div>
+      <div style="height:1px;background:var(--border);margin:0 10px"></div>
       ${slot(m.a,m.ag,m.aWins,aElim,aMy,aOwner)}
     </div>`;
   }
@@ -4290,9 +4302,18 @@ function buildPathToGlory(){
     'Paraguay':22,'Egypt':35,'Switzerland':12,
   };
 
-  // Use a simple hardcoded list of remaining alive teams based on R32 results
-  // This avoids the isTeamEliminated complexity which can crash
-  const R32_WINNERS=new Set();
+  const stats=calcTeamStats();
+
+  // Build alive set from R32 winners — directly from W codes in CODE2NAME
+  // W73-W88 are hardcoded to the confirmed R32 winners
+  const alive=[
+    CODE2NAME['W73'],CODE2NAME['W74'],CODE2NAME['W75'],CODE2NAME['W76'],
+    CODE2NAME['W77'],CODE2NAME['W78'],CODE2NAME['W79'],CODE2NAME['W80'],
+    CODE2NAME['W81'],CODE2NAME['W82'],CODE2NAME['W83'],CODE2NAME['W84'],
+    CODE2NAME['W85'],CODE2NAME['W86'],CODE2NAME['W87'],CODE2NAME['W88'],
+  ].filter(Boolean);
+
+  // Also add any R32 results that may have come in since the last hardcode
   const R32_MATCHES=[73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88];
   R32_MATCHES.forEach(num=>{
     const kr=knockoutResults[num];
@@ -4304,23 +4325,8 @@ function buildPathToGlory(){
     if(!home||!away) return;
     const isPEN=kr.status==='PEN'&&kr.homePens!=null;
     const homeWins=isPEN?kr.homePens>kr.awayPens:kr.homeScore>kr.awayScore;
-    R32_WINNERS.add(homeWins?home:away);
-  });
-
-  // Also include teams that haven't played their R32 yet (still alive by default)
-  const allTeams=Object.values(GROUPS).flat();
-  const alive=allTeams.filter(name=>{
-    // If R32 has happened for this team's match, only include if they won
-    const hasR32=R32_MATCHES.some(num=>{
-      const m=SCHEDULE.find(x=>x.num===num);
-      if(!m) return false;
-      const home=CODE2NAME[m.home]||resolveTeam(m.home);
-      const away=CODE2NAME[m.away]||resolveTeam(m.away);
-      return home===name||away===name;
-    });
-    if(hasR32) return R32_WINNERS.has(name);
-    // R32 not played yet — include if they're a confirmed R32 qualifier
-    return Object.values(CODE2NAME).includes(name);
+    const winner=homeWins?home:away;
+    if(!alive.includes(winner)) alive.push(winner);
   });
 
   if(!alive.length){
