@@ -4377,6 +4377,7 @@ function buildPathToGlory(){
   });
 
   teams.sort((a,b)=>b.winProb-a.winProb);
+  const maxProb=teams[0]?.winProb||1;
 
   const labelColor={fav:'#1D9E75',mid:'#378ADD',dog:'#D85A30'};
   const labelBg={fav:'rgba(29,158,117,.1)',mid:'rgba(55,138,221,.1)',dog:'rgba(216,90,48,.1)'};
@@ -4399,7 +4400,7 @@ function buildPathToGlory(){
       </div>
 
       <div style="background:var(--dark3);border-radius:3px;height:4px;margin-bottom:10px">
-        <div style="width:${t.winProb}%;height:4px;border-radius:3px;background:${labelColor[t.label]}"></div>
+        <div style="width:${Math.round(t.winProb/maxProb*100)}%;height:4px;border-radius:3px;background:${labelColor[t.label]}"></div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
