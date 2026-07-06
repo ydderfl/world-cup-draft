@@ -2763,11 +2763,19 @@ function buildTopScorers(){
   // API-Football sometimes returns "E. Haaland" in events and "Erling Haaland" in others.
   // Strategy: build a canonical key from (surname, team). If two entries share the same
   // surname+team, merge them and keep the longer (more complete) name as display.
+  function normalizeSurname(name){
+    // Strip accents, lowercase, remove non-alpha — gives robust dedup key
+    return name.trim()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // strip accents: é→e, ñ→n etc
+      .toLowerCase()
+      .replace(/[^a-z]/g,'');
+  }
   function scorerKey(playerName, teamName){
     const parts=playerName.trim().split(/\s+/);
-    // Last word is typically the surname — most reliable dedup anchor
-    const surname=parts[parts.length-1].toLowerCase().replace(/[^a-z]/g,'');
-    return `${surname}||${teamName}`;
+    // Use surname (last word) as key — handles "K. Mbappé" === "Kylian Mbappé"
+    const surname=normalizeSurname(parts[parts.length-1]);
+    const team=teamName.toLowerCase().replace(/[^a-z]/g,'');
+    return `${surname}||${team}`;
   }
 
   const scorerMap={};
@@ -4312,7 +4320,14 @@ function buildPathToGlory(){
   ].filter(Boolean));
 
   // Remove teams that have already lost in R16, QF, or SF
-  const eliminated=new Set();
+  // Hardcode confirmed eliminations as fallback for when knockoutResults hasn't loaded yet
+  const CONFIRMED_ELIMINATED=new Set([
+    'South Africa','Japan','Germany','Netherlands','Ivory Coast','Sweden',
+    'Ecuador','DR Congo','Bosnia & Herzegovina','Senegal','Croatia','Austria',
+    'Algeria','Cape Verde','Ghana','Australia', // R32 losers
+    'Canada','Paraguay','Brazil','Mexico',      // R16 losers confirmed Jul 4-5
+  ]);
+  const eliminated=new Set([...CONFIRMED_ELIMINATED]);
   [89,90,91,92,93,94,95,96,97,98,99,100,101,102].forEach(num=>{
     const kr=knockoutResults[num];
     if(!kr||!['FT','AET','PEN'].includes(kr.status)) return;
@@ -4355,8 +4370,19 @@ function buildPathToGlory(){
     const winProb=normProb(name);
     const label=winProb>=favThreshold?'fav':winProb>=dogThreshold?'mid':'dog';
     const owner=ownerOf(name);
-    const wins=(st.W||0)+(st.KOWins||0);
-    const winsNeeded=Math.max(0,7-wins);
+    // Path remaining: each KO win advances one round
+    // 0 KO wins = yet to play R16, 1 = played R16, 2 = played QF, etc.
+    // The rounds they still need to WIN (not play in):
+    // After R32 win (1 KO win) → still need R16, QF, SF, Final = 4 rounds left... 
+    // Actually: to WIN the trophy from here = wins still needed in R16, QF, SF, Final
+    // koWinsAchieved: R32 win counts, R16 win counts, QF win counts, SF win counts
+    // A team in R16 (won R32) needs 4 more: R16 + QF + SF + Final
+    // A team that won R16 needs 3 more: QF + SF + Final
+    const ALL_KO_ROUNDS=['R32','R16','QF','SF','Final'];
+    // koWinsAchieved tells us how many KO rounds they've won
+    // Remaining rounds to win = everything from their current stage onward
+    const remainingRounds=ALL_KO_ROUNDS.slice(koWinsAchieved);
+    const winsNeeded=remainingRounds.length;
 
     let nextOpponent='TBD';
     for(const stage of['r16','qf','sf','bronze','final']){
@@ -4372,7 +4398,7 @@ function buildPathToGlory(){
     }
 
     return {name,rank,st,gd,played,winProb,label,owner,
-      wins,winsNeeded,nextOpponent,flag:tf(name)||'🏳',
+      koWinsAchieved,winsNeeded,remainingRounds,nextOpponent,flag:tf(name)||'🏳',
       odds:ODDS[name]||'N/A',keyPlayers:KEY_PLAYERS[name]||'—'};
   });
 
@@ -4391,7 +4417,7 @@ function buildPathToGlory(){
           <div style="font-family:'Barlow Condensed',sans-serif;font-size:1rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
             ${t.owner?'🟡 ':''} ${t.name}
           </div>
-          <div style="font-size:.68rem;color:var(--muted)">${t.winsNeeded===0?'🏆 Champion!':t.winsNeeded+' win'+(t.winsNeeded!==1?'s':'')+' needed'}</div>
+        <div style="font-size:.68rem;color:var(--muted)">${t.remainingRounds.length===0?'🏆 Champion!':t.remainingRounds.join(' → ')}</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
           <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:${labelColor[t.label]};line-height:1">${t.winProb}%</div>
