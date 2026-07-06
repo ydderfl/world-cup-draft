@@ -1378,6 +1378,8 @@ const CODE2NAME={
   "W77":"France","W78":"Norway","W79":"Mexico","W80":"England",
   "W81":"United States","W82":"Belgium","W83":"Portugal","W84":"Spain",
   "W85":"Switzerland","W86":"Argentina","W87":"Colombia","W88":"Egypt",
+  // ── Confirmed R16 winners → QF team slots ──
+  "W89":"France","W90":"Morocco","W91":"Norway","W92":"England",
   "3ABCDG":"Ghana",               // placeholder - see 1K below
 };
 function cn(c){return CODE2NAME[c]||c;}
@@ -3950,7 +3952,10 @@ function forceFinishStuckMatches(){
   Object.entries(knockoutResults).forEach(([num,kr])=>{
     if(kr.status==='P') return; // never force-finish during a shootout
     const isLive=['1H','HT','2H','ET','BT','INT','LIVE'].includes(kr.status);
-    const isStuck=isLive&&kr.elapsed!=null&&kr.elapsed>=85;
+    const isStuck=isLive&&(
+      (kr.elapsed!=null&&kr.elapsed>=75&&minutesAgo>30)||
+      (minutesAgo>45)
+    );
     const lastUpdate=kr.updatedAt?new Date(kr.updatedAt).getTime():0;
     const minutesAgo=(now-lastUpdate)/60000;
     if(isStuck&&minutesAgo>30){
@@ -4267,55 +4272,48 @@ function buildPathToGlory(){
   const body=document.getElementById('gloryBody');
   if(!body) return;
 
-  // Live BetMGM odds to win World Cup (updated July 4 2026)
+  // Live BetMGM odds — updated July 5 2026 post R16 (Brazil/Mexico/Canada/Paraguay out)
   const ODDS={
-    'France':'+175','Argentina':'+430','Spain':'+550','England':'+900',
-    'Brazil':'+1100','Portugal':'+1400','Morocco':'+2200','Colombia':'+2200',
-    'Mexico':'+2500','United States':'+2000','Norway':'+4000','Belgium':'+4500',
-    'Switzerland':'+7000','Canada':'+6000','Egypt':'+25000','Paraguay':'+40000',
+    'France':'+175','Argentina':'+400','Spain':'+550','England':'+900',
+    'Portugal':'+1400','Norway':'+1400','Morocco':'+2200','Colombia':'+2500',
+    'United States':'+2000','Belgium':'+4500','Switzerland':'+7000','Egypt':'+20000',
   };
 
-  // Key players per team
+  // Key players per team (updated through R16)
   const KEY_PLAYERS={
-    'France':'Mbappé (6g) · Olise (5a) · Dembélé (4g)',
-    'Argentina':'Messi (7g) · Romero · Di María',
+    'France':'Mbappé (7g) · Dembélé (5a) · Olise (4g)',
+    'Argentina':'Messi (7g) · L.Martínez (2g) · Di María',
     'Spain':'Oyarzabal (4g) · Yamal · Rodri',
-    'England':'Kane (5g) · Bellingham · Saka',
-    'Brazil':'Vinicius Jr (4g) · Rodrygo · Bruno Guimarães',
+    'England':'Kane (5g) · Bellingham (4g) · Saka',
     'Portugal':'Ronaldo (2g) · B.Fernandes · Vitinha',
-    'Morocco':'Ziyech · Hakimi · En-Nesyri',
-    'Colombia':'J.Durán · Díaz · Castillo',
-    'Mexico':'Alvarado (3a) · Gutiérrez · Guardado',
-    'United States':'Reyna (3g) · Pulisic · McKennie',
-    'Norway':'Haaland (5g) · Ødegaard · Sørloth',
-    'Belgium':'De Bruyne · Doku · Trossard',
-    'Switzerland':'Embolo · Shaqiri · Xhaka',
-    'Canada':'J.David (3g) · Davies · Laryea',
-    'Egypt':'Salah · Trezeguet · El-Shenawy',
-    'Paraguay':'Sanabria · Almeida · Galarza',
+    'Norway':'Haaland (7g) · Ødegaard · Sørloth',
+    'Morocco':'Ounahi (2g) · Hakimi · En-Nesyri',
+    'Colombia':'L.Díaz · J.Durán · Arias',
+    'United States':'Reyna (3g) · Balogun (1g) · Tillman',
+    'Belgium':'Lukaku (2g) · Tielemans · Doku',
+    'Switzerland':'Embolo (1g) · Ndoye (1g) · Xhaka',
+    'Egypt':'Salah · Ashour (1g) · Abdelmaguid',
   };
 
   const FIFA_RANKS={
-    'France':2,'Brazil':5,'Argentina':1,'Spain':3,'England':4,
-    'Portugal':7,'Colombia':9,'United States':11,'Belgium':8,
-    'Mexico':15,'Norway':18,'Morocco':14,'Canada':20,
-    'Paraguay':22,'Egypt':35,'Switzerland':12,
+    'France':2,'Argentina':1,'Spain':3,'England':4,
+    'Portugal':7,'Norway':18,'Morocco':14,'Colombia':9,
+    'United States':11,'Belgium':8,'Switzerland':12,'Egypt':35,
   };
 
   const stats=calcTeamStats();
 
-  // Build alive set from R32 winners — directly from W codes in CODE2NAME
-  // W73-W88 are hardcoded to the confirmed R32 winners
-  const alive=[
+  // Build alive set: start with R32 winners, then subtract R16 losers
+  const r32Winners=new Set([
     CODE2NAME['W73'],CODE2NAME['W74'],CODE2NAME['W75'],CODE2NAME['W76'],
     CODE2NAME['W77'],CODE2NAME['W78'],CODE2NAME['W79'],CODE2NAME['W80'],
     CODE2NAME['W81'],CODE2NAME['W82'],CODE2NAME['W83'],CODE2NAME['W84'],
     CODE2NAME['W85'],CODE2NAME['W86'],CODE2NAME['W87'],CODE2NAME['W88'],
-  ].filter(Boolean);
+  ].filter(Boolean));
 
-  // Also add any R32 results that may have come in since the last hardcode
-  const R32_MATCHES=[73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88];
-  R32_MATCHES.forEach(num=>{
+  // Remove teams that have already lost in R16, QF, or SF
+  const eliminated=new Set();
+  [89,90,91,92,93,94,95,96,97,98,99,100,101,102].forEach(num=>{
     const kr=knockoutResults[num];
     if(!kr||!['FT','AET','PEN'].includes(kr.status)) return;
     const m=SCHEDULE.find(x=>x.num===num);
@@ -4325,36 +4323,43 @@ function buildPathToGlory(){
     if(!home||!away) return;
     const isPEN=kr.status==='PEN'&&kr.homePens!=null;
     const homeWins=isPEN?kr.homePens>kr.awayPens:kr.homeScore>kr.awayScore;
-    const winner=homeWins?home:away;
-    if(!alive.includes(winner)) alive.push(winner);
+    eliminated.add(homeWins?away:home);
   });
 
+  const alive=[...r32Winners].filter(name=>!eliminated.has(name));
+
   if(!alive.length){
-    body.innerHTML=`<div style="color:var(--muted);font-family:'Barlow Condensed',sans-serif;padding:36px;text-align:center">No teams remaining — check back when the knockout rounds begin.</div>`;
+    body.innerHTML=`<div style="color:var(--muted);font-family:'Barlow Condensed',sans-serif;padding:36px;text-align:center">No teams remaining.</div>`;
     return;
   }
+
+  // Calibrate probabilities relative to THIS field only
+  // Use betting odds as primary signal — convert American odds to implied probability
+  // Derive implied probability directly from ODDS so it always stays in sync
+  const oddsToImpl=o=>{const n=parseInt(o.replace(/[+-]/,''));return o.startsWith('-')?n/(n+100)*100:100/(n+100)*100;};
+  const totalImpl=alive.reduce((s,n)=>s+oddsToImpl(ODDS[n]||'+5000'),0);
+  const normProb=name=>Math.max(1,Math.round(oddsToImpl(ODDS[name]||'+5000')/totalImpl*100));
+
+  // Dynamic thresholds — top ~30%=fav, mid ~40%=contender, bottom ~30%=underdog
+  const sortedProbs=alive.map(n=>normProb(n)).sort((a,b)=>b-a);
+  const favIdx=Math.max(0,Math.floor(alive.length*0.3)-1);
+  const dogIdx=Math.min(sortedProbs.length-1,Math.floor(alive.length*0.7));
+  const favThreshold=sortedProbs[favIdx]||15;
+  const dogThreshold=sortedProbs[dogIdx]||5;
 
   const teams=alive.map(name=>{
     const rank=FIFA_RANKS[name]||50;
     const st=stats[name]||{W:0,D:0,L:0,GF:0,GA:0,KOWins:0};
     const gd=(st.GF||0)-(st.GA||0);
     const played=(st.W||0)+(st.D||0)+(st.L||0);
-    // Base probability inversely proportional to rank, normalized across R16 field
-    // Top rank (1) gets ~80, rank 50 gets ~30, scaled so there's spread
-    const rankScore=Math.max(5,85-(rank*1.2));
-    // Form: tournament GD per game adds/subtracts
-    const formScore=played>0?(gd/played)*5:0;
-    // Knockout wins give a credibility boost
-    const koBonus=(st.KOWins||0)*4;
-    const rawProb=Math.min(90,Math.max(5,rankScore+formScore+koBonus));
-    // Thresholds: fav=60+, mid=35-59, dog=<35
-    const label=rawProb>=60?'fav':rawProb>=35?'mid':'dog';
+    const winProb=normProb(name);
+    const label=winProb>=favThreshold?'fav':winProb>=dogThreshold?'mid':'dog';
     const owner=ownerOf(name);
     const wins=(st.W||0)+(st.KOWins||0);
     const winsNeeded=Math.max(0,7-wins);
 
     let nextOpponent='TBD';
-    for(const stage of['r32','r16','qf','sf','bronze','final']){
+    for(const stage of['r16','qf','sf','bronze','final']){
       for(const m of SCHEDULE.filter(x=>x.stage===stage)){
         const kr=knockoutResults[m.num];
         if(kr&&['FT','AET','PEN'].includes(kr.status)) continue;
@@ -4366,7 +4371,7 @@ function buildPathToGlory(){
       if(nextOpponent!=='TBD') break;
     }
 
-    return {name,rank,st,gd,played,winProb:Math.round(rawProb),label,owner,
+    return {name,rank,st,gd,played,winProb,label,owner,
       wins,winsNeeded,nextOpponent,flag:tf(name)||'🏳',
       odds:ODDS[name]||'N/A',keyPlayers:KEY_PLAYERS[name]||'—'};
   });
