@@ -4378,9 +4378,8 @@ function buildPathToGlory(){
     // koWinsAchieved: R32 win counts, R16 win counts, QF win counts, SF win counts
     // A team in R16 (won R32) needs 4 more: R16 + QF + SF + Final
     // A team that won R16 needs 3 more: QF + SF + Final
+    const koWinsAchieved=st.KOWins||0;
     const ALL_KO_ROUNDS=['R32','R16','QF','SF','Final'];
-    // koWinsAchieved tells us how many KO rounds they've won
-    // Remaining rounds to win = everything from their current stage onward
     const remainingRounds=ALL_KO_ROUNDS.slice(koWinsAchieved);
     const winsNeeded=remainingRounds.length;
 
