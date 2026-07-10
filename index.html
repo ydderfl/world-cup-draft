@@ -1380,6 +1380,7 @@ const CODE2NAME={
   "W85":"Switzerland","W86":"Argentina","W87":"Colombia","W88":"Egypt",
   // ── Confirmed R16 winners → QF team slots ──
   "W89":"France","W90":"Morocco","W91":"Norway","W92":"England",
+  "W93":"Spain","W94":"Belgium","W95":"Argentina","W96":"Switzerland",
   "3ABCDG":"Ghana",               // placeholder - see 1K below
 };
 function cn(c){return CODE2NAME[c]||c;}
@@ -1543,9 +1544,9 @@ const SCHEDULE=[
   // THU 9 Jul
   {num: 97,date:"2026-07-09",time:"13:00",home:"W89",  away:"W90",     group:"",stage:"qf", venue:"Boston"},
   // FRI 10 Jul
-  {num: 98,date:"2026-07-10",time:"12:00",home:"W91",  away:"W92",     group:"",stage:"qf", venue:"Los Angeles"},
+  {num: 98,date:"2026-07-10",time:"12:00",home:"W93",  away:"W94",     group:"",stage:"qf", venue:"Los Angeles"},
   // SAT 11 Jul
-  {num: 99,date:"2026-07-11",time:"14:00",home:"W93",  away:"W94",     group:"",stage:"qf", venue:"Miami"},
+  {num: 99,date:"2026-07-11",time:"14:00",home:"W91",  away:"W92",     group:"",stage:"qf", venue:"Miami"},
   {num:100,date:"2026-07-11",time:"18:00",home:"W95",  away:"W96",     group:"",stage:"qf", venue:"Kansas City"},
   // ── SEMI-FINALS ─────────────────────────────────────────────────
   // TUE 14 Jul
@@ -4280,33 +4281,33 @@ function buildPathToGlory(){
   const body=document.getElementById('gloryBody');
   if(!body) return;
 
-  // Live BetMGM odds — updated July 5 2026 post R16 (Brazil/Mexico/Canada/Paraguay out)
+  // Live BetMGM odds — updated July 10 2026 QF (8 teams remaining)
   const ODDS={
-    'France':'+175','Argentina':'+400','Spain':'+550','England':'+900',
-    'Portugal':'+1400','Norway':'+1400','Morocco':'+2200','Colombia':'+2500',
-    'United States':'+2000','Belgium':'+4500','Switzerland':'+7000','Egypt':'+20000',
+    'France':   '+150',
+    'Argentina':'+380',
+    'Spain':    '+500',
+    'England':  '+700',
+    'Norway':   '+1200',
+    'Belgium':  '+1600',
+    'Switzerland':'+4000',
+    'Morocco':  '+5000',
   };
 
-  // Key players — verified from FIFA, ESPN, Yahoo Sports (July 5 2026)
+  // Key players — verified from FIFA/ESPN/Yahoo July 10 2026
   const KEY_PLAYERS={
-    'France':     'Mbappé (7g, 2a) · Dembélé (4g) · Olise',
-    'Argentina':  'Messi (7g) · J.Álvarez · L.Martínez (2g)',
-    'Spain':      'Oyarzabal (4g) · Yamal (4a) · Rodri',
-    'England':    'Kane (5g) · Bellingham (4g) · Saka (3a)',
-    'Portugal':   'Ronaldo (3g) · B.Fernandes · Vitinha',
-    'Norway':     'Haaland (7g) · Ødegaard (3a) · Sørloth',
-    'Morocco':    'Ounahi (2g) · Hakimi (2a) · Dari',
-    'Colombia':   'L.Díaz (3g) · J.Durán (2g) · Arias (1g)',
-    'United States': 'Balogun (3g) · Reyna (3g) · Tillman (1g)',
-    'Belgium':    'Trossard (2g) · Lukaku (2g) · De Bruyne (1g)',
-    'Switzerland':'Embolo (1g) · Ndoye (1g) · Akanji',
-    'Egypt':      'Salah (1g, 1a) · Ashour (1g) · Abdelmaguid (1g)',
+    'France':      'Mbappé (7g, 2a) · Dembélé (4g) · Olise (3a)',
+    'Argentina':   'Messi (7g) · J.Álvarez · L.Martínez (2g)',
+    'Spain':       'Oyarzabal (4g) · Yamal (5a) · Rodri',
+    'England':     'Kane (5g) · Bellingham (4g) · Saka (3a)',
+    'Norway':      'Haaland (7g) · Ødegaard (3a) · Sørloth (2g)',
+    'Belgium':     'Trossard (2g) · Lukaku (3g) · De Bruyne (1g)',
+    'Switzerland': 'Embolo (1g) · Ndoye (1g) · Akanji',
+    'Morocco':     'Ounahi (2g) · Hakimi (2a) · Dari',
   };
 
   const FIFA_RANKS={
     'France':2,'Argentina':1,'Spain':3,'England':4,
-    'Portugal':7,'Norway':18,'Morocco':14,'Colombia':9,
-    'United States':11,'Belgium':8,'Switzerland':12,'Egypt':35,
+    'Norway':18,'Belgium':8,'Switzerland':12,'Morocco':14,
   };
 
   const stats=calcTeamStats();
@@ -4322,10 +4323,13 @@ function buildPathToGlory(){
   // Remove teams that have already lost in R16, QF, or SF
   // Hardcode confirmed eliminations as fallback for when knockoutResults hasn't loaded yet
   const CONFIRMED_ELIMINATED=new Set([
+    // R32 losers
     'South Africa','Japan','Germany','Netherlands','Ivory Coast','Sweden',
     'Ecuador','DR Congo','Bosnia & Herzegovina','Senegal','Croatia','Austria',
-    'Algeria','Cape Verde','Ghana','Australia', // R32 losers
-    'Canada','Paraguay','Brazil','Mexico',      // R16 losers confirmed Jul 4-5
+    'Algeria','Cape Verde','Ghana','Australia',
+    // R16 losers
+    'Canada','Paraguay','Brazil','Mexico',
+    'Portugal','United States','Egypt','Colombia',
   ]);
   const eliminated=new Set([...CONFIRMED_ELIMINATED]);
   [89,90,91,92,93,94,95,96,97,98,99,100,101,102].forEach(num=>{
