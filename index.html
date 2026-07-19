@@ -5250,13 +5250,25 @@ let confettiParticles=[];
 
 function checkForChampion(){
   const kr=knockoutResults[104];
-  if(!kr||kr.homeScore===kr.awayScore) return; // no result or draw (shouldn't happen for final)
+  if(!kr||!['FT','AET','PEN'].includes(kr.status)) return;
   const m=SCHEDULE.find(x=>x.num===104);if(!m) return;
-  const hName=resolveTeam(m.home),aName=resolveTeam(m.away);
-  const champName=kr.homeScore>kr.awayScore?hName:aName;
-  const champScore=kr.homeScore>kr.awayScore?`${kr.homeScore}–${kr.awayScore}`:`${kr.awayScore}–${kr.homeScore}`;
-  const runnerUp=kr.homeScore>kr.awayScore?aName:hName;
-  showChampions(champName,champScore,runnerUp);
+  const hName=CODE2NAME[m.home]||resolveTeam(m.home);
+  const aName=CODE2NAME[m.away]||resolveTeam(m.away);
+  if(!hName||!aName||hName===m.home||aName===m.away) return;
+  // PEN: winner by shootout
+  let champName, runnerUp;
+  if(kr.status==='PEN'&&kr.homePens!=null){
+    champName=kr.homePens>kr.awayPens?hName:aName;
+    runnerUp=kr.homePens>kr.awayPens?aName:hName;
+  } else {
+    if(kr.homeScore===kr.awayScore) return;
+    champName=kr.homeScore>kr.awayScore?hName:aName;
+    runnerUp=kr.homeScore>kr.awayScore?aName:hName;
+  }
+  const hs=kr.homeScore,as=kr.awayScore;
+  const scoreStr=champName===hName?`${hs}–${as}`:`${as}–${hs}`;
+  const penStr=kr.status==='PEN'&&kr.homePens!=null?` (${Math.max(kr.homePens,kr.awayPens)}–${Math.min(kr.homePens,kr.awayPens)} pens)`:'';
+  showChampions(champName,scoreStr+penStr,runnerUp);
 }
 
 function showChampions(teamName, scoreStr, runnerUp){
@@ -5681,6 +5693,7 @@ async function _pollLiveScores(){
       try{buildSleeperTracker();}catch(e){console.error('buildSleeperTracker:',e);}
       buildKnockoutBracket();buildTopScorers();
       try{buildProjection();}catch(e){console.error('buildProjection:',e);}
+      checkForChampion();
       // Update last-refreshed timestamp
       const tsEl=document.getElementById('lastRefreshed');
       if(tsEl){
@@ -5759,6 +5772,7 @@ async function loadSaved(){
     buildLiveScores();
     buildKnockoutBracket();
     buildMiniScoreboard();
+    checkForChampion();
   }catch(e){console.error('Failed to apply saved data:',e);}
 }
 
