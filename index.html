@@ -1381,6 +1381,14 @@ const CODE2NAME={
   // ── Confirmed R16 winners → QF team slots ──
   "W89":"France","W90":"Morocco","W91":"Norway","W92":"England",
   "W93":"Spain","W94":"Belgium","W95":"Argentina","W96":"Switzerland",
+  // ── Confirmed QF winners ──
+  "W97":"France",      // France 2-0 Morocco (Jul 9)
+  "W98":"Spain",       // Spain beat Belgium (Jul 10)
+  "W99":"England",     // England beat Norway in QF (Jul 11)
+  "W100":"Argentina",  // Argentina beat Switzerland in QF (Jul 11)
+  // ── Confirmed SF winners ──
+  "W101":"Spain",      // Spain 2-0 France (Jul 14) → Final
+  "W102":"Argentina",  // Argentina 2-1 England (Jul 15) → Final
   "3ABCDG":"Ghana",               // placeholder - see 1K below
 };
 function cn(c){return CODE2NAME[c]||c;}
@@ -4281,33 +4289,19 @@ function buildPathToGlory(){
   const body=document.getElementById('gloryBody');
   if(!body) return;
 
-  // Live BetMGM odds — updated July 10 2026 QF (8 teams remaining)
+  // Live BetMGM odds — Final only, July 19 Spain vs Argentina
   const ODDS={
-    'France':   '+150',
-    'Argentina':'+380',
-    'Spain':    '+500',
-    'England':  '+700',
-    'Norway':   '+1200',
-    'Belgium':  '+1600',
-    'Switzerland':'+4000',
-    'Morocco':  '+5000',
+    'Spain':    '+110',
+    'Argentina':'+110',
   };
 
-  // Key players — verified from FIFA/ESPN/Yahoo July 10 2026
   const KEY_PLAYERS={
-    'France':      'Mbappé (7g, 2a) · Dembélé (4g) · Olise (3a)',
-    'Argentina':   'Messi (7g) · J.Álvarez · L.Martínez (2g)',
-    'Spain':       'Oyarzabal (4g) · Yamal (5a) · Rodri',
-    'England':     'Kane (5g) · Bellingham (4g) · Saka (3a)',
-    'Norway':      'Haaland (7g) · Ødegaard (3a) · Sørloth (2g)',
-    'Belgium':     'Trossard (2g) · Lukaku (3g) · De Bruyne (1g)',
-    'Switzerland': 'Embolo (1g) · Ndoye (1g) · Akanji',
-    'Morocco':     'Ounahi (2g) · Hakimi (2a) · Dari',
+    'Spain':     'Oyarzabal (6g) · Yamal (6a) · Rodri · Porro (1g)',
+    'Argentina': 'Messi (9g, 4a) · L.Martínez (4g) · Fernández (2g)',
   };
 
   const FIFA_RANKS={
-    'France':2,'Argentina':1,'Spain':3,'England':4,
-    'Norway':18,'Belgium':8,'Switzerland':12,'Morocco':14,
+    'Spain':3,'Argentina':1,
   };
 
   const stats=calcTeamStats();
@@ -4323,13 +4317,13 @@ function buildPathToGlory(){
   // Remove teams that have already lost in R16, QF, or SF
   // Hardcode confirmed eliminations as fallback for when knockoutResults hasn't loaded yet
   const CONFIRMED_ELIMINATED=new Set([
-    // R32 losers
     'South Africa','Japan','Germany','Netherlands','Ivory Coast','Sweden',
     'Ecuador','DR Congo','Bosnia & Herzegovina','Senegal','Croatia','Austria',
     'Algeria','Cape Verde','Ghana','Australia',
-    // R16 losers
     'Canada','Paraguay','Brazil','Mexico',
     'Portugal','United States','Egypt','Colombia',
+    'Morocco','Belgium','Norway','Switzerland', // QF losers
+    'France','England',                          // SF losers (in 3rd place match today)
   ]);
   const eliminated=new Set([...CONFIRMED_ELIMINATED]);
   [89,90,91,92,93,94,95,96,97,98,99,100,101,102].forEach(num=>{
