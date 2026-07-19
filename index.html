@@ -720,6 +720,7 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
         <button class="btn btn-dark" onclick="clearQualifierOverrides()">Clear All Overrides</button>
         <button class="btn btn-dark" onclick="requirePin(forceFinishStuckMatches)" style="border-color:rgba(255,107,107,.4);color:var(--wc-coral)">⚡ Force FT Stuck Matches</button>
         <button class="btn btn-dark" onclick="requirePin(refetchAllScorers)" style="border-color:rgba(69,183,209,.4);color:var(--wc-blue)">📊 Re-fetch All Scorers</button>
+        <button class="btn btn-gold" onclick="window._champDismissed=false;checkForChampion()" style="border-color:rgba(245,200,66,.6)">🏆 Show Champion</button>
       </div>
       <!-- Sync single match directly from API — most reliable fix -->
       <div style="margin-top:14px;background:var(--dark3);border:1px solid rgba(69,183,209,.3);border-radius:8px;padding:12px 16px">
@@ -1010,12 +1011,14 @@ tbody td { padding: 9px 12px; vertical-align: middle; }
 <div id="championsOverlay">
   <div class="champ-box">
     <button class="champ-dismiss" onclick="closeChampions()">✕</button>
+    <div id="champOle" style="display:none;font-family:'Bebas Neue',sans-serif;font-size:3rem;color:var(--gold);margin-bottom:4px;animation:ole-wave 1.2s ease-in-out infinite">¡Olé!</div>
     <div class="champ-trophy">🏆</div>
     <div class="champ-label">FIFA World Cup 2026 Champions</div>
     <div class="champ-flag" id="champFlag"></div>
     <div class="champ-team" id="champTeam"></div>
     <div class="champ-owner" id="champOwner"></div>
     <div class="champ-score" id="champScore"></div>
+    <div id="champFlavour" style="display:none;font-family:'Barlow Condensed',sans-serif;font-size:.88rem;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:10px 16px;margin:10px 0;line-height:1.6;color:rgba(255,255,255,.7);max-width:300px;margin-left:auto;margin-right:auto"></div>
     <div class="champ-subtitle">New York / New Jersey · 19 July 2026</div>
     <button class="btn btn-gold champ-close" onclick="closeChampions()">🎉 Celebrate!</button>
   </div>
@@ -1225,8 +1228,9 @@ option{background:var(--dark3)}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end}
 
 /* CHAMPIONS OVERLAY */
-#championsOverlay{display:none;position:fixed;inset:0;z-index:500;align-items:center;justify-content:center;background:rgba(0,0,0,.92)}
+#championsOverlay{display:none;position:fixed;inset:0;z-index:500;align-items:center;justify-content:center;background:rgba(0,0,0,.92);transition:background .4s}
 #championsOverlay.show{display:flex}
+@keyframes ole-wave{0%,100%{transform:rotate(-4deg) scale(1)}50%{transform:rotate(4deg) scale(1.05)}}
 .champ-box{position:relative;text-align:center;padding:48px 40px;max-width:540px;width:92%;background:linear-gradient(160deg,#0a1a0a 0%,#0D0D0D 50%,#1a1000 100%);border:2px solid var(--gold);border-radius:16px;box-shadow:0 0 80px rgba(245,200,66,.35),0 0 160px rgba(245,200,66,.1);overflow:hidden}
 .champ-box::before{content:'';position:absolute;inset:-2px;border-radius:18px;background:linear-gradient(135deg,var(--gold),transparent,var(--gold),transparent);opacity:.15;pointer-events:none}
 .champ-trophy{font-size:5rem;line-height:1;margin-bottom:8px;animation:trophy-bounce 1s ease-out}
@@ -5249,14 +5253,19 @@ let confettiRAF=null;
 let confettiParticles=[];
 
 function checkForChampion(){
+  // Don't show again if already dismissed this session
+  if(window._champDismissed) return;
   const kr=knockoutResults[104];
-  if(!kr||!['FT','AET','PEN'].includes(kr.status)) return;
-  const m=SCHEDULE.find(x=>x.num===104);if(!m) return;
-  const hName=CODE2NAME[m.home]||resolveTeam(m.home);
-  const aName=CODE2NAME[m.away]||resolveTeam(m.away);
-  if(!hName||!aName||hName===m.home||aName===m.away) return;
-  // PEN: winner by shootout
-  let champName, runnerUp;
+  if(!kr) return;
+  if(!['FT','AET','PEN'].includes(kr.status)) return;
+  const m=SCHEDULE.find(x=>x.num===104);
+  if(!m) return;
+  // Resolve team names — use CODE2NAME directly first
+  const hName=CODE2NAME[m.home]||resolveTeam(m.home)||m.home;
+  const aName=CODE2NAME[m.away]||resolveTeam(m.away)||m.away;
+  // Still unresolved codes — skip
+  if(hName===m.home||aName===m.away) return;
+  let champName,runnerUp;
   if(kr.status==='PEN'&&kr.homePens!=null){
     champName=kr.homePens>kr.awayPens?hName:aName;
     runnerUp=kr.homePens>kr.awayPens?aName:hName;
@@ -5274,15 +5283,113 @@ function checkForChampion(){
 function showChampions(teamName, scoreStr, runnerUp){
   const flag=tf(teamName);
   const owner=ownerOf(teamName);
+  const isArgentina=teamName==='Argentina';
+  const isSpain=teamName==='Spain';
+
+  // Spain gets a bullfight pre-scene before the overlay
+  if(isSpain){
+    showBullfightScene(()=>revealChampOverlay(teamName,flag,owner,scoreStr,runnerUp,isArgentina,isSpain));
+  } else {
+    revealChampOverlay(teamName,flag,owner,scoreStr,runnerUp,isArgentina,isSpain);
+  }
+}
+
+function showBullfightScene(onComplete){
+  // Create full-screen bullfight interstitial
+  const scene=document.createElement('div');
+  scene.id='bullfightScene';
+  scene.style.cssText='position:fixed;inset:0;z-index:498;background:#7A1A1A;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer';
+  scene.innerHTML=`
+    <svg viewBox="0 0 400 280" style="width:min(90vw,420px);height:auto">
+      <defs><style>
+        @keyframes bcharge{0%{transform:translateX(-180px)}75%{transform:translateX(6px)}88%{transform:translateX(-3px)}100%{transform:translateX(0)}}
+        @keyframes bsweep{0%{transform:rotate(-45deg);opacity:0}30%{opacity:1}100%{transform:rotate(15deg)}}
+        @keyframes bole{0%{opacity:0;font-size:0}50%{opacity:1}100%{opacity:1}}
+        @keyframes bdust{0%{opacity:.6;r:8}100%{opacity:0;r:22}}
+      </style></defs>
+      <rect width="400" height="200" fill="#C4933F" y="80" rx="0"/>
+      <rect width="400" height="80" fill="#8B1A1A" y="0" rx="0"/>
+      <g style="animation:bcharge 1.3s cubic-bezier(.34,1.1,.64,1) .3s both">
+        <rect x="80" y="168" width="75" height="38" rx="9" fill="#1A0A05"/>
+        <rect x="145" y="172" width="26" height="30" rx="5" fill="#1A0A05"/>
+        <rect x="82" y="198" width="13" height="18" rx="3" fill="#110704"/>
+        <rect x="99" y="198" width="13" height="18" rx="3" fill="#110704"/>
+        <rect x="152" y="198" width="13" height="18" rx="3" fill="#110704"/>
+        <rect x="169" y="198" width="13" height="18" rx="3" fill="#110704"/>
+        <rect x="192" y="175" width="22" height="16" rx="4" fill="#1A0A05"/>
+        <path d="M196 179 Q185 165 176 172" stroke="#2C1208" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+        <path d="M210 179 Q220 165 213 173" stroke="#2C1208" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+        <circle cx="202" cy="181" r="3" fill="#0D0503"/>
+        <path d="M212 185 L224 180 L222 187 Z" fill="#C8102E"/>
+      </g>
+      <circle cx="210" cy="207" r="0" fill="#B8832A" opacity="0" style="animation:bdust 1s .3s both"/>
+      <circle cx="195" cy="211" r="0" fill="#C4933F" opacity="0" style="animation:bdust 1s .5s both"/>
+      <g style="animation:none;transform-origin:290px 180px">
+        <rect x="282" y="155" width="16" height="45" rx="5" fill="#FFD700"/>
+        <rect x="275" y="193" width="11" height="28" rx="3" fill="#C8102E"/>
+        <rect x="293" y="193" width="11" height="28" rx="3" fill="#C8102E"/>
+        <circle cx="290" cy="150" r="13" fill="#F5C5A0"/>
+        <rect x="278" y="138" width="24" height="14" rx="3" fill="#C8102E"/>
+        <path d="M298 162 Q328 172 320 205" fill="#C8102E" style="animation:bsweep 1.4s ease-out 1s both;transform-origin:298px 162px" stroke="#8B0000" stroke-width="1.5"/>
+      </g>
+      <text x="200" y="64" text-anchor="middle" font-family="Georgia,serif" font-size="52" font-weight="700" fill="#FFD700" opacity="0" style="animation:bole .4s ease-out 1.9s forwards">¡Olé!</text>
+      <text x="200" y="272" text-anchor="middle" font-family="var(--font-sans)" font-size="13" fill="rgba(255,255,255,.4)">Tap to reveal</text>
+    </svg>`;
+  document.body.appendChild(scene);
+  scene.addEventListener('click',()=>{
+    scene.remove();
+    onComplete();
+  });
+  // Auto-advance after 3.5s
+  setTimeout(()=>{if(document.getElementById('bullfightScene')){scene.remove();onComplete();}},3500);
+}
+
+function revealChampOverlay(teamName,flag,owner,scoreStr,runnerUp,isArgentina,isSpain){
+  const overlay=document.getElementById('championsOverlay');
   document.getElementById('champFlag').textContent=flag;
   document.getElementById('champTeam').textContent=teamName.toUpperCase();
   document.getElementById('champOwner').textContent=owner?`🏅 Drafted by ${owner}`:'';
   document.getElementById('champScore').textContent=`Final: ${scoreStr} vs ${runnerUp}`;
-  document.getElementById('championsOverlay').classList.add('show');
+
+  overlay.style.background=isArgentina?'rgba(27,46,94,.97)':isSpain?'rgba(166,28,35,.97)':'rgba(0,0,0,.92)';
+  window._champConfettiColors=isArgentina
+    ?['#74B9FF','#A8BFFF','#ffffff','#DFE6F5','#5472B5']
+    :isSpain
+    ?['#FFD700','#FFA500','#C8102E','#ffffff','#FF6B35','#FFE066']
+    :['#F5C842','#ffffff','#2ecc71','#e74c3c','#3498DB'];
+
+  const flavourEl=document.getElementById('champFlavour');
+  const oleEl=document.getElementById('champOle');
+  if(oleEl) oleEl.style.display=isSpain?'block':'none';
+  if(flavourEl){
+    if(isArgentina){
+      flavourEl.innerHTML=`🤫 Totally legitimate result. Nothing to see here.<br>VAR reviewed 12 times. All fine. Infantino says so.<br><em style="color:rgba(168,191,255,.8)">"It was promised to them 4 years ago."</em><br><span style="font-size:.75rem;opacity:.5">— Not rigged. Definitely not rigged.</span>`;
+      flavourEl.style.display='block';
+    } else if(isSpain){
+      const spainScorers={};
+      Object.values(knockoutResults||{}).forEach(kr=>{
+        (kr.scorers||[]).forEach(s=>{
+          if(s.team==='Spain'&&s.player&&s.type!=='Own Goal'){
+            const k=s.player.trim().split(/\s+/).pop().toLowerCase();
+            if(!spainScorers[k]) spainScorers[k]={player:s.player,goals:0};
+            spainScorers[k].goals++;
+          }
+        });
+      });
+      const hero=Object.values(spainScorers).sort((a,b)=>b.goals-a.goals)[0]?.player||'Lamine Yamal';
+      flavourEl.innerHTML=`🐂 The bull has been slain.<br><strong>${hero}</strong> just conquered the world.<br><span style="font-size:.75rem;opacity:.55">¡Olé! What a tournament.</span>`;
+      flavourEl.style.display='block';
+    } else {
+      flavourEl.style.display='none';
+    }
+  }
+
+  overlay.classList.add('show');
   startConfetti();
 }
 
 function closeChampions(){
+  window._champDismissed=true;
   document.getElementById('championsOverlay').classList.remove('show');
   stopConfetti();
 }
@@ -5293,7 +5400,7 @@ function startConfetti(){
   canvas.width=window.innerWidth;
   canvas.height=window.innerHeight;
   const ctx=canvas.getContext('2d');
-  const COLORS=['#F5C842','#ffffff','#1A7A3C','#C0392B','#3498DB','#e74c3c','#f39c12','#2ecc71','#9b59b6'];
+  const COLORS=window._champConfettiColors||['#F5C842','#ffffff','#1A7A3C','#C0392B','#3498DB','#e74c3c','#f39c12','#2ecc71','#9b59b6'];
   confettiParticles=Array.from({length:160},()=>({
     x:Math.random()*canvas.width,
     y:Math.random()*canvas.height-canvas.height,
